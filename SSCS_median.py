@@ -404,7 +404,7 @@ def main():
                 SSCS = consensus_maker(bam_dict[i], readLength, float(args.cutoff))
                 
                 #if SSCS[0].count('N') > float(0.3):                
-                if SSCS[0].count('N') > float(args.Ncutoff):
+                if SSCS[0].count('N')/len(SSCS[0]) > float(args.Ncutoff):
                     continue
                 
                 SSCS_read = create_aligned_segment(bam_dict[i], SSCS[0], SSCS[1])

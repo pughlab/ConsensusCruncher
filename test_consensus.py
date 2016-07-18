@@ -2,11 +2,10 @@
 
 ###############################################################
 #
-#                       Sum SSCS Maker
+#                        Median SSCS Maker
 #
 # Author: Nina Wang
-# Last Modified: May 26, 2016
-# Date Created: Mar 24, 2016
+# Date Created: Jun 23, 2016
 ###############################################################
 # Function: 
 # Written for Python 3.5.1
@@ -48,7 +47,7 @@
 # --infile INFILE     input BAM file
 # --outfile OUTFILE   output BAM file
 #
-# python3 SSCS_maker.py --Ncutoff 0.3 --cutoff 0.7 --infile MEM-001_KRAS.bam --SSCS_outfile MEM-001_KRAS.sscs.bam
+# python3 SSCS_maker.py --Ncutoff 0.3 --cutoff 0.7 --infile MEM-001_KRAS.bam --outfile MEM-001_KRAS.sscs.bam
 #
 ###############################################################
 
@@ -58,9 +57,10 @@ import re
 import array
 from random import randint
 from argparse import ArgumentParser
-from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
+import statistics
+import math
 
 import inspect
 import os
@@ -199,7 +199,7 @@ def consensus_maker(readList, readLength, cutoff):
     
     Majority rules concept where if no majority is reached above the cutoff, an 'N' is assigned to the position. 
     
-    - Add N's for soft clipped regions so it aligns with full length sequences
+    - Add N's for soft clipped regions so it aligns with full length sequences -> do we need to add Ns? Shouldn't this be reflected in cigar string? May be useful for fastq?
     
     - At each position, add quality score to list corresponding to nucleotide. 
       Take max quality score of nucleotide with highest frequency
@@ -211,12 +211,13 @@ def consensus_maker(readList, readLength, cutoff):
     mismatch_pos_lst = []
     
     for read in readList:
+	# Get mismatch positions for every read (including softclips & hardclips)
         mismatch_pos_lst.append(mismatch_pos(read.cigar, read.get_tag('MD')))
             
     for i in range(readLength):
         position_score = [0, 0 ,0, 0, 0] # A, C, G, T, N 
         quality_score = [[], [], [], [], []] 
-        phred_fail = 0
+        phred_fail = 0 # Track reads that fail phred Q30 
         
         ### HOW MANY Ns ARE IN THE FINAL CONSENSUS AND HOW MANY TIE BREAKING EVENTS? ###
         
@@ -240,7 +241,7 @@ def consensus_maker(readList, readLength, cutoff):
             # (e.g. 2S96M -> indexes 0 and 1 are N,
             # but at index 2 actual position in query seq is 0)
 
-            # If pass filter, add 1 to nuc
+            # If pass above filters, add 1 to nuc
             nuc = readList[j].query_alignment_sequence[i]
             nuc_index = nuc_lst.index(nuc)
         
@@ -255,11 +256,11 @@ def consensus_maker(readList, readLength, cutoff):
             max_nuc_pos = [f for f, k in enumerate(position_score) if k == max(position_score)]
             # If there's more than one max, randomly select nuc
             max_nuc = max_nuc_pos[randint(0, len(max_nuc_pos)-1)]
-            
-            # take sum of all quality scores
-            max_qual = sum(quality_score[max_nuc])
+
+	    # Median quality score (round to larger value if qual score is a decimal)
+            max_qual = math.ceil(statistics.median(quality_score[max_nuc]))
         
-            # frequency of nuc at position > cutoff 
+            # frequency of nuc at position > cutoff (subtract number of reads that fail phred since those reads aren't included) => SHOULD WE DO THIS???
             if max(position_score)/(len(readList) - phred_fail) > cutoff:
                 consensus_read += nuc_lst[max_nuc]
                 quality_consensus.append(max_qual)
@@ -316,19 +317,25 @@ def main():
     parser.add_argument("--cutoff", action = "store", dest="cutoff", help="nucleotide base % cutoff", required = True)
     parser.add_argument("--Ncutoff", action = "store", dest="Ncutoff", help="N % cutoff", required = True)
     parser.add_argument("--infile", action = "store", dest="infile", help="input BAM file", required = True)
-    parser.add_argument("--SSCS_outfile", action = "store", dest="SSCS_outfile", help="output SSCS BAM file", required = True)
+    parser.add_argument("--outfile", action = "store", dest="outfile", help="output SSCS BAM file", required = True)
     args = parser.parse_args()
     
+    # need separate outfile argument as path is diff from input
     
     start_time = time.time()
     
     # ===== Initialize input and output bam files =====
     bamfile = pysam.AlignmentFile(args.infile, "rb")    
-    SSCS_bam = pysam.AlignmentFile(args.SSCS_outfile, "wb", template = bamfile)
-    stats = open('{}_stats.txt'.format(args.SSCS_outfile.split('.sscs')[0]), 'w')
-    singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.SSCS_outfile.split('.sscs')[0]), "wb", template = bamfile)
+    SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
+    stats = open('{}_stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
+    singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
-    time_tracker = open('{}_time_tracker.txt'.format(args.SSCS_outfile.split('.sscs')[0]), 'w')
+    # setup fastq files
+    fastqFile1 = open('{}.r1.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
+    fastqFile2 = open('{}.r2.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
+    
+    
+    time_tracker = open('{}_time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     
     bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added
     tag_dict = collections.defaultdict(int)
@@ -351,9 +358,9 @@ def main():
         # Create dictionary for each chrm
         for line in bamLines:
             counter += 1
-            reverse = 'fwd'
+            strand = 'fwd'
             if line.is_reverse:
-                reverse = 'rev'
+                strand = 'rev'
                 
             read = 'R1'
             if line.is_read2:
@@ -363,7 +370,7 @@ def main():
                                           line.reference_name, # chr num
                                           line.reference_start, # start R1 (0-based)
                                           line.next_reference_start, # start R2
-                                          reverse, # strand direction
+                                          strand, # strand direction
                                           read # read num
                                           )      
             
@@ -399,18 +406,26 @@ def main():
             else:
                 readLength = max(collections.Counter(i.query_alignment_length for i in bam_dict[i]))
 
-                #SSCS = consensus_maker(bam_dict[i], readLength, float(0.7))    
                 SSCS = consensus_maker(bam_dict[i], readLength, float(args.cutoff))
                 
-                #if SSCS[0].count('N') > float(0.3):                
+                ## NEED TO FIX FOR ALL CONSENSUS MAKING!!!!! Need to divide by total number of bases                 
                 if SSCS[0].count('N')/len(SSCS[0]) > float(args.Ncutoff):
                     continue
-                
+		
+                # write as bam
                 SSCS_read = create_aligned_segment(bam_dict[i], SSCS[0], SSCS[1])
                 SSCS_bam.write(SSCS_read)
+
+		# write as fastq file
+                if "R1" in i:
+		    # fastq format: query_name, consensus_seq, qual score
+                    fastqFile1.write('@:{}\n{}\n+\n{}\n'.format(SSCS_read.qname, SSCS[0], pysam.qualities_to_qualitystring(SSCS[1])))
+                else:
+                    fastqFile2.write('@:{}\n{}\n+\n{}\n'.format(SSCS_read.qname, SSCS[0], pysam.qualities_to_qualitystring(SSCS[1])))
                 
-                SSCS_reads += 1   
-        
+                
+                SSCS_reads += 1
+	   
         # reset dictionary            
         bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added        
         try:
@@ -423,7 +438,7 @@ def main():
     # ===== write tag family size dictionary to file ===== 
     # (key = tags, value = int [number of reads in that family]) 
     import pickle
-    tag_file = open(args.SSCS_outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
+    tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     pickle.dump(tag_dict, tag_file)
     tag_file.close()
     
@@ -432,8 +447,7 @@ Unmapped reads: {} \n
 Unpaired reads: {} \n
 SSCS reads: {} \n
 Singletons: {} \n
-Rescued reads: {} \n
-'''.format(counter, unmapped, unpaired, SSCS_reads, singletons, 0)
+'''.format(counter, unmapped, unpaired, SSCS_reads, singletons)
 
     stats.write(summary_stats)
     
@@ -446,7 +460,7 @@ Rescued reads: {} \n
     
     # ===== Create tag family size plot =====
     # Count number of families containing each number of read (e.g. Counter({1: 3737, 32: 660... -> 3737 families are singletons)
-    fam_per_read_group = Counter([i for i in tag_dict.values()])
+    fam_per_read_group = collections.Counter([i for i in tag_dict.values()])
     lst_fam_per_read = list(fam_per_read_group.items()) # conver to list
     
     total_reads = sum(tag_dict.values())
@@ -454,22 +468,63 @@ Rescued reads: {} \n
     read_fraction = [(i*j)/total_reads for i,j in lst_fam_per_read] 
     
     plt.bar(list(fam_per_read_group), read_fraction)
-    plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
+    #plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
     plt.xlabel('Tag family size (# of reads per family)')
     plt.ylabel('Fraction of total reads')
     
-    plt.savefig(args.SSCS_outfile.split('.sscs')[0]+'_tag_fam_size.png')      
+    plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')      
     
 
 ###############################
 ##           Main            ##
 ###############################
 if __name__ == "__main__": 
-    import time
-    start_time = time.time()
-    main()  
-    #print(z[0].keys())    
-    print((time.time() - start_time)/60)  
+    filename = '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus/test2/MEM-001_KRAS.bam'
+    bamfile = pysam.AlignmentFile(filename, "rb")    
+    test_dict = uid_dict(bamfile)
+    
+    ### 1) verify consensus maker function correctly makes sequences (e.g. 3/4 reads required to make sequence)
+    # Sadly, key determined by calling test_dict[1] (dictionary with number of reads) and searching for read numbers (' 3,') manually in a text editor 
+    one = test_dict[0]['CGTA_chr12_25398125_25398174_fwd_R2']
+    print(one[0])
+    consensus_maker(one, 98, 0.7)
+    
+    two = test_dict[0]['CGCT_chr12_25398338_25398275_rev_R1']
+    print(two[0])
+    print(two[1])
+    consensus_maker(two, 98, 0.7)    
+    
+    
+    three = test_dict[0]['GGTA_chr12_25398200_25398200_rev_R2']
+    three = three[0:3]
+    print(three[0])
+    print(three[1])
+    print(three[2])
+    consensus_maker(three, 98, 0.7)
+    
+    
+    four = test_dict[0]['GGTA_chr12_25398200_25398200_rev_R2']
+    five = test_dict[0]['GTAT_chr12_25398293_116531889_fwd_R2']    
+
+    
+
+    four2 = test_dict[0]['AGCG_chr12_25398322_25398222_rev_R1']
+    print(four2[0])
+    print(four2[1])
+    print(four2[2])
+    print(four2[3])
+    consensus_maker(four2, 98, 0.7)
+    
+    four3 = test_dict[0]['AGCG_chr12_25398322_25398222_rev_R1'][0:2] + test_dict[0]['TGTG_chr12_25398369_25398301_rev_R1'][0:2]
+    print(four3[0])
+    print(four3[1])
+    print(four3[2])
+    print(four3[3])    
+    consensus_maker(four3, 98, 0.7)
+    #import time
+    #start_time = time.time()
+    #main()  
+    #print((time.time() - start_time)/60)  
 
 
 # use python, write to temp files, then merge together using samtools or bamtools and then delete temp files
