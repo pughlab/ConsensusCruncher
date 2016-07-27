@@ -35,7 +35,7 @@ from argparse import ArgumentParser
 ##         Functions         ##
 ###############################
 
-def uid_dict(bamfile):
+def uid_dict(bamfile, read_chr = None, read_start = None, read_end = None):
     '''(bamfile object) -> dict, dict, int, int
     
     Input: bamfile object created from pysam.AlignmentFile
@@ -51,7 +51,10 @@ def uid_dict(bamfile):
     bam_dict = collections.OrderedDict() #dict that remembers order entries were added
     tag_dict = collections.defaultdict(int) #dict tracking int
     
-    bamLines = bamfile.fetch(until_eof = True)
+    if read_chr == None:
+        bamLines = bamfile.fetch(until_eof = True)
+    else:
+        bamLines = bamfile.fetch(read_chr, read_start, read_end)
     
     bad_reads = 0
     counter = 0
@@ -112,7 +115,7 @@ def read_mode(field, bam_reads):
 
 
 def create_aligned_segment(bam_reads, sscs, sscs_qual):
-    '''(list, str) -> pysam object
+    '''(list, str, list) -> pysam object
     Return pysam object with new consensus seq given list of bam reads.
     
     '''

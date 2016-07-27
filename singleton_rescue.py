@@ -31,6 +31,9 @@ from random import randint
 from argparse import ArgumentParser
 
 from consensus_helper import *
+#from SSCS_maker import consensus_maker
+from SSCS_median_fastq import consensus_maker, mismatch_pos
+
 
 ###############################
 ##         Functions         ##
@@ -56,24 +59,24 @@ def duplex_consensus(seq1, seq2, readlength):
     return consensus
 
 
-def rescue_duplex(read_tag, duplex_tag, singleton_dict, bamfile = None):
+def rescue_duplex(read_tag, duplex_tag, singleton_dict, sscs_dict = None):
     '''(str, str, dict, dict) -> Pysam.AlignedSegment
     
-    Return consensus read from singleton + duplex read.
+    Return consensus read from singleton + duplex read (either found in SSCS or singleton bam).
     - Duplex read: Matching sequence on the other strand
     
-    Quality scores: SSCS quality scores or average of two singletons
+    Quality scores: Retain quality score of singleton being rescued
     
-    If not additional bamfile provided, singleton_dict will bee used for read rescue.
+    If additional dict is provided (SSCS_dict), duplex rescue with SSCS_dict. If no additional bamfile provided, singleton_dict will bee used for read rescue.
     '''
     
     read = singleton_dict[read_tag][0]
     
     # If bamfile provided, perform SSCS singleton rescue 
-    if bamfile == None:
+    if sscs_dict == None:
         duplex_read = singleton_dict[duplex_tag][0]
     else:
-        duplex_read = bamfile[duplex_tag][0]
+        duplex_read = sscs_dict[duplex_tag][0]
         
     dcs = duplex_consensus(read.query_alignment_sequence, duplex_read.query_alignment_sequence, read.query_alignment_length)
 
@@ -81,14 +84,182 @@ def rescue_duplex(read_tag, duplex_tag, singleton_dict, bamfile = None):
     if dcs.count('N')/len(dcs) > 0.3:
         return None
     
-    # If SSCS used to rescue read, create segment based on 
-    if bamfile == None:
-        dsc_read = create_aligned_segment([read], dcs, read.query_alignment_qualities)
-    else:
-        dsc_read = create_aligned_segment([read, duplex_read], dcs, read.query_alignment_qualities)
+    dsc_read = create_aligned_segment([read], dcs, read.query_alignment_qualities)
+    
+    ## If SSCS used to rescue read, create segment based on 
+    #if bamfile == None:
+        #dsc_read = create_aligned_segment([read], dcs, read.query_alignment_qualities)
+    #else:
+        #dsc_read = create_aligned_segment([read, duplex_read], dcs, read.query_alignment_qualities)
         
 
     return dsc_read
+
+
+def pileup(pysam_bam, start, end, read_cutoff):
+    '''(pysam.calignmentfile.AlignmentFile, int, int) -> str
+    
+    Return consensus of pileup
+    '''
+    nuc_lst = ['A', 'C', 'G', 'T', 'N']
+    
+    for pileupcol in pysam_bam.pileup(read_chr, int(start), int(end), truncate = True):
+        #nuc = [0, 0 ,0, 0, 0] # A, C, G, T, N 
+        nuc = ''
+        
+        # Make consensus from > 2 reads at each position
+        if pileupcol.n < read_cutoff:
+            return None
+        else:
+            #print(pileupcol)
+            for pileupread in pileupcol.pileups:
+                if not pileupread.is_del and not pileupread.is_refskip:                       
+                    nuc += pileupread.alignment.query_sequence[pileupread.query_position]
+                    #nuc_index = nuc_lst.index(nuc)
+                    #position_score[nuc_index] += 1
+                    
+        consensus = collections.Counter(nuc).most_common(1)[0]  
+        
+        # Since we trust pileup reads less, set more stringent threshold 
+        if consensus[1]/len(nuc) != 1:
+            return None
+        else:
+            return consensus[0]    
+
+
+def rescue_pileup(read_tag, pysam_bam, bam_read, read_cutoff):
+    '''(str, pysam.calignmentfile.AlignmentFile, pysam.calignedsegment.AlignedSegment, int) -> str
+    
+    Return consensus sequence from pileup of all reads in region of input read (singleton).
+    
+    DETERMINE LOCATION OF VARIANT -> if less than specified # of reads, don't make consensus (utilize SSCS_maker.py - mismatch_pos)
+    
+    Require variant positions to meet read cutoff rather than each position of sequence since non-variant positions match to reference and shouldn't differ by much. (Also faster runtime if we only do mpileup at variant positions!)
+    - Read_cutoff: 1 SSCS or 3 Singleton (as its included in pileup) => 1.0 cutoff (want it to be more stringent since reads are not from same mol)
+    
+    If SSCS pileup rescue, compare SSCS consensus with singleton being rescued => mismatch positions assign N
+    '''
+    read_chr = read_tag.split('_')[1]
+    read_start = read_tag.split('_')[2]
+    read_end = read_tag.split('_')[3]
+    strand = read_tag.split('_')[4]
+    read = read_tag.split('_')[5]
+    
+    consensus = ''
+    
+    # === Inorporate soft clipped regions with start and stop pos ====
+    readLength = max(collections.Counter(i.query_alignment_length for i in bam_dict[i]))
+    
+    if 'S' in bam_read.cigarstring:
+        cigar_pos = [x for x,y in bam_read.cigar] # => IT COULD BE BOTH FRONT AN END
+        soft_pos = [i for i,x in enumerate(cigar_pos) if x == 4]
+        
+        start = int(read_start) 
+        end = start + readLength        
+
+        if len(soft_pos) == 1:
+            start_sc = bam_read.cigar[soft_pos[0]][1]
+                
+        else:
+            start_sc = bam_read.cigar[soft_pos[0]][1]
+            end_sc = bam_read.cigar[soft_pos[1]][1]
+                        
+        consensus += 'N'*start_sc
+            
+    
+    mismatch_pos_lst = mismatch_pos(bam_read.cigar, bam_read.get_tag('MD'))
+    
+    for i in range(readLength):
+        if i in mismatch_pos_lst[i]:
+            
+    
+    
+    
+    
+    
+    
+    
+    
+    start = read_start
+    readLength = sum([y for x,y in bam_read.cigar])
+    end = int(read_start) + readLength
+    
+    ### NEED TO ADDRESS SOFT CLIPS AT START OF SEQ -> actual seq much shorter
+    # don't locate with start and end, use start and read length to determine consensus 
+    #if (strand == 'fwd' and read == 'R1') or (strand == 'rev' and read == 'R1'):
+        #start = read_start
+    #else:
+        #start = read_end
+    
+    #end = int(start) + readLength
+    
+     
+    #else:
+        #if strand == 'fwd':
+            #end = read_end
+        #else:
+            #end = read_start
+        #start = int(end) - readLength        
+    
+    consensus = ''
+    
+    ## Soft clips: only want seq that match ref, give Ns for remainder => mpileup shorter region to reflect what is sequenced
+    
+    #sc_end = False
+    ##readLength = sum([y for x,y in read.cigar])
+    if 'S' in bam_read.cigarstring:
+        soft_pos = [x for x,y in bam_read.cigar].index(4) # => IT COULD BE BOTH FRONT AN END
+        num_sc = bam_read.cigar[soft_pos][1]
+        
+        end = int(read_start) - readLength
+        #if soft_pos == 0:
+            #consensus += 'N'*num_sc
+        #else:
+            #sc_end = True
+            #start = int(read_start) + num_sc
+        #else:
+            #end = int(read_start) + readLength    
+    
+    #print(start,end)
+    ### PILE UP ONLY VARIANT REGIONS 
+    for pileupcol in pysam_bam.pileup(read_chr, int(start), int(end)):
+        nuc = '' # change to dictionary
+        #print(pileupcol.n)
+        # Make consensus from > 2 reads at each position
+        if pileupcol.pos < int(start) or pileupcol.pos >= int(end):
+            continue
+        elif pileupcol.n < read_cutoff: ## <== SHOULD WE RESTRICT THIS TO VARIANT POS ONLY?? yes! determine variant from singleton bam
+            return None
+        else:
+            #print(pileupcol)
+            for pileupread in pileupcol.pileups:
+                if not pileupread.is_del and not pileupread.is_refskip:
+
+                    try:
+                        #print(pileupread.query_position)
+                        #print(pileupread.alignment.query_sequence)
+                        #print(pileupread.alignment.query_sequence[pileupread.query_position])  
+                        #print(pileupread)                        
+                        nuc += pileupread.alignment.query_sequence[pileupread.query_position]
+                    except:
+                        print(pileupread.query_position)
+                        print(pileupread.alignment.query_sequence)
+                        print(pileupread.alignment.query_sequence[pileupread.query_position - 1])  
+                        print(pileupread)
+                        #print(pileupread.next_reference_start)
+                        #print(pileupread.is_reverse)
+                        #print(pileupread.is_read2)
+                        
+                        
+            #print(collections.Counter(nuc).most_common(1)[0][0])
+            #return collections.Counter(nuc).most_common(1)
+            
+            ### INCLUDE SINGLETON WITH SSCS reads => after making consensus, compare consensus with singleton (0.7 cut off for variants) 
+            consensus += collections.Counter(nuc).most_common(1)[0][0]
+    
+    #if sc_end == True:
+        #consensus += 'N'*num_sc
+    return consensus
 
 
 def main():
@@ -98,13 +269,16 @@ def main():
     #parser.add_argument("--rescue_outfile", action = "store", dest="rescue_outfile", help="output BAM file", required = True)
     args = parser.parse_args()
     
+    #infile ='/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test/MEM-001_KRAS.singleton.sort.bam'
+
     ### Later include flags to turn on/off certain rescues ###
     
     
     start_time = time.time()
     
+    # initialize bams and dicts
     singleton_bam = pysam.AlignmentFile(args.infile, "rb") 
-    sscs_bam = pysam.AlignmentFile('{}.sscs.bam'.format(args.infile.split('.singleton.sort.bam')[0]), "rb")
+    sscs_bam = pysam.AlignmentFile('{}.sscs.sort.bam'.format(args.infile.split('.singleton.sort.bam')[0]), "rb")
     rescue_bam = pysam.AlignmentFile('{}.rescue.bam'.format(args.infile.split('.singleton.sort.bam')[0]), "wb", template = sscs_bam)
     stats = open('{}_stats.txt'.format(args.infile.split('.singleton.sort.bam')[0]), 'a')
     time_tracker = open('{}_time_tracker.txt'.format(args.infile.split('.singleton.sort.bam')[0]), 'a')
@@ -115,6 +289,8 @@ def main():
     
     sscs_dup_rescue = 0
     singleton_dup_rescue = 0
+    sscs_rescue = 0
+    singleton_rescue = 0
     
     rescue_dict = collections.OrderedDict()
     
@@ -129,44 +305,88 @@ def main():
         else:
             read_num = 'R1'
         
-        duplex = pair_barcode + '_' + i.split('_', 1)[1][:-2] + read_num # pair read is other read on opposite strand
+        duplex = pair_barcode + '_' + i.split('_', 1)[1][:-2] + read_num # pair read is other read on opposite strand (e.g. read = ACGT_fwd_R1, duplex = GTAC_fwd_R2)
         
         
-        # Check if there's duplicate singletons or singletons already rescued
-        if read not in rescue_dict.keys():
+        # Check if there's duplicate singletons or if singleton is already rescued (in the case of singleton - singleton duplex rescue)
+        if i not in rescue_dict.keys():
         
             # 1) Duplex rescue: Singleton + SSCS -> Check for singleton matching duplex sequence in SSCS bam
-            if duplex in sscs_dict.keys():            
-                dcs_read = rescue_duplex(i, duplex, singleton_dict, sscs_dict)           
-                # Check if read passes Ncutoff (0.3)
-                if dcs_read != None:
+            if duplex in sscs_dict.keys():
+                rescue_read = rescue_duplex(i, duplex, singleton_dict, sscs_dict)
+                # If read doesn't passes Ncutoff (0.3), None is given
+                if rescue_read != None:
                     sscs_dup_rescue += 1
-                    #dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order [NOT CURRENTLY IMPLEMENTED - as rescued reads still go through duplex consensus making]
-                    rescue_bam.write(dcs_read)
                     
+                    #dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order [NOT CURRENTLY IMPLEMENTED - as rescued reads still go through duplex consensus making]
+            
             # 2) Duplex rescue: Singleton + Singleton -> Check for singleton matching duplex sequence in Singleton bam -> WOULD YOU RESCUE BOTH SINGLETONS THEN??
-            elif duplex in singleton_dict.keys() and duplex not in rescue_dict.keys():            
-                dcs_read = rescue_duplex(i, duplex, singleton_dict)
+            elif duplex in singleton_dict.keys():
+                rescue_read = rescue_duplex(i, duplex, singleton_dict)
                 
-                if dcs_read != None:
+                if rescue_read != None:
                     singleton_dup_rescue += 1                
-                    #dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order                 
-                    rescue_bam.write(dcs_read)
             
-            # 3) Non-duplex rescue: Any SSCS mapping to region 
+            # 3) Non-duplex rescue: Any SSCS mapping to region => use pileup method            
+            else:
+                ### CHECK TO SEE IF YOU NEED TO SHIFT START BY 1
+                ## e.g. GGACCCTGACAAACTCCCAAGGAAAGTAAAGTTCCCATATTAATGGTTACATATAACTTGAAACCCAAGGTACATTTCAGATAACTTAACTTTCAGCA vs TGGGACCCTGACAAACTCCCAAGGAAAGTAAAGTTCCCATATTAATGGTTACATATAACTTGAAACCCAAGGTACATTTCAGATAACTTAACTTTCAG
+                
+                #readLength = max(collections.Counter(i.query_alignment_length for i in sscs_dict[i]))
+                #sscs_consensus_seq = rescue_pileup(i, sscs_bam, readLength, 2)
+                
+                #rescue_read = None
+                #readLength = sum([y for x,y in singleton_dict[i][0].cigar])
+                sscs_consensus_seq = rescue_pileup(i, sscs_bam, singleton_dict[i][0], 2)
+                
+                if sscs_consensus_seq != None:
+                    sscs_rescue += 1
+                #else:
+                    ##### Hold off on singleton_rescue right now as singleton seq soft clips are diff -> soft clips not included in sequence (so shorter seq, need to account for that) 
+                    
+                    #readLength = max(collections.Counter(i.query_alignment_length for i in singleton_dict[i]))
+                    #sscs_consensus_seq = rescue_pileup(i, singleton_bam, readLength, 3)
+                    #if sscs_consensus_seq != None:
+                        #singleton_rescue += 1                    
+
+                try:
+                    rescue_read = create_aligned_segment([singleton_dict[i][0]], sscs_consensus_seq, singleton_dict[i][0].query_alignment_qualities)
+                except:
+                    #print(readLength)
+                    print(sscs_consensus_seq)
+                    print(singleton_dict[i][0])             
+                    return 'hi'
+                # Note: rescued seq does not include soft clips 
+                # e.g. GCCT_chr12_25398127_25398127_rev_R2
+                # singleton_seq = NNNNNNNNNNNNNATGAAAATGGTCAGAGAAACCTTTATCTGTATCAAAGAATGGTCCTGCACCAGTAATATGCATATTAAAACAAGATTTACCTCTA
+                # consensus = ATGAAAATGGTCAGAGAAACCTTTATCTGTATCAAAGAATGGTCCTGCACCAGTAATATGCATATTAAAACAAGATTTACCTCTATTGTTGGATCATA
+                
+                #print(sscs_consensus_seq)
+                #if sscs_consensus_seq != None:
+                    #sscs_rescue += 1
+                    #read = singleton_dict[i][0]
+                    #rescue_read = create_aligned_segment([read], sscs_consensus_seq, read.query_alignment_qualities)
+                    
+                #else:
+                    #singleton_consensus_seq = rescue_pileup(i, singleton_bam)
+                    #if singleton_consensus_seq !=None:
+                        #singleton_rescue += 1
+                        #read = singleton_dict[i][0]
+                        #rescue_read = create_aligned_segment([read], singleton_consensus_seq, read.query_alignment_qualities)               
             
-            #else:
-
-# rescued bams should be based on the singleton sequence, but with the duplex consensus 
-# duplex consensus should have filters (Ncutoff) to reflect 
-
-
+            
+            if rescue_read != None:
+                rescue_dict[i] = singleton_dict[i][0]
+                rescue_bam.write(rescue_read)
+            
     time_tracker.write('Singleton Rescue: ')
     time_tracker.write(str((time.time() - start_time)/60) + '\n')
 
     
     summary_stats='''SSCS duplex rescue: {} \n
-Singleton duplex rescue: {} \n'''.format(sscs_dup_rescue, singleton_dup_rescue)
+Singleton duplex rescue: {} \n
+SSCS rescue: {} \n
+Singleton rescue: {} \n'''.format(sscs_dup_rescue, singleton_dup_rescue, sscs_rescue, singleton_rescue)
     
     stats.write(summary_stats)
     
@@ -185,4 +405,122 @@ if __name__ == "__main__":
     import time
     start_time = time.time()
     main()  
+    
+    ## TEST
+    #infile = '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test2/MEM-001_KRAS.singleton.sort.bam'
+    #singleton_bam = pysam.AlignmentFile(infile, "rb")
+    #sscs_bam = pysam.AlignmentFile('{}.sscs.sort.bam'.format(infile.split('.singleton.sort.bam')[0]), "rb")
+
+    #bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus_test/test2/MEM-001_KRAS.bam', "rb")
+    #bam_dict = uid_dict(bam)[0]
+    
+    #singleton_dict = uid_dict(singleton_bam)[0]
+    #sscs_dict = uid_dict(sscs_bam)[0]    
+    
+    #i = 'GTGG_chr12_25398271_25398214_rev_R1'
+    #barcode = i.split('_')[0]
+    #barcode_bases = int(len(barcode)/2)
+    #pair_barcode = barcode[barcode_bases:] + barcode[:barcode_bases] # get barcode of mate pair read (opposite strand)
+    #read_num = i[-2:]
+    #if read_num == 'R1':
+        #read_num = 'R2'
+    #else:
+        #read_num = 'R1'
+    
+    #duplex = pair_barcode + '_' + i.split('_', 1)[1][:-2] + read_num # pair read is other read on opposite strand (e.g.
+    
+    ##rescue_pileup(i, sscs_bam)
+    #readLength = sum([y for x,y in singleton_dict[i][0].cigar])
+    
+    #rescue_pileup('GCCT_chr12_25398127_25398127_rev_R2', sscs_bam, readLength)
+
+
     print((time.time() - start_time)/60)  
+            
+            
+            
+            #elif duplex in singleton_dict.keys() and duplex not in rescue_dict.keys():
+                #rescue_read = rescue_duplex(i, duplex, singleton_dict)
+                
+                #if dcs_read != None:
+                    #singleton_dup_rescue += 1
+                    ##dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order
+                    #rescue_bam.write(rescue_read)
+                    
+                    ## rescue duplex pair
+                    #duplex_rescue_read = rescue_duplex(duplex, i, singleton_dict)
+                    #rescue_bam.write(duplex_rescue_read)
+            
+            ## 3) Non-duplex rescue: Any SSCS mapping to region => use pileup method
+            #else:
+                #sscs_consensus_seq = rescue_pileup(i, sscs_bam)
+                
+                #if sscs_consensus_seq != None:
+                    #sscs_rescue += 1
+                    #read = singleton_dict[i][0]
+                    #rescue_read = create_aligned_segment([read], sscs_consensus_seq, read.query_alignment_qualities)
+                    
+                #else:
+                    #singleton_consensus_seq = rescue_pileup(i, singleton_bam)
+                    #if singleton_consensus_seq !=None:
+                        #singleton_rescue += 1
+                        #read = singleton_dict[i][0]
+                        #rescue_read = create_aligned_segment([read], singleton_consensus_seq, read.query_alignment_qualities)                        
+            
+            #if rescue_read != None:
+                #rescue_bam.write(rescue_read)
+            
+            
+
+            
+            
+            #read_chr = i.split('_')[1]
+            #read_start = i.split('_')[2]
+            #read_end = i.split('_')[3]            
+            
+            
+            #read_fwd = '{}_{}_{}'.format(read_chr, read_start, read_end)
+            #read_rev = '{}_{}_{}'.format(read_chr, read_end, read_start)
+
+            #keys_in_region = [key for key in sscs_dict if read_fwd in key or read_rev in key]
+            
+            #if len(keys_in_region) > 0:
+                #reads_in_region = [sscs_dict.get(key)[0] for key in keys_in_region]
+                #reads_in_region += [singleton_dict.get(i)]
+                
+                #readLength = max(collections.Counter(read.query_alignment_length for read in reads_in_region))
+                
+                ## consensus maker to find most freq between SSCSs + singleton read
+                #rescue_consensus = consensus_maker(reads_in_region, readLength, 0.7)
+                
+                #if rescue_consensus[0].count('N')/len(rescue_consensus[0]) > float(0.3):
+                    #continue
+                #else:
+                    #rescue_read = create_aligned_segment([reads_in_region], rescue_consensus[0], rescue_consensus[1])
+                    #rescue_bam.write(rescue_read)
+
+                
+            ## 4) Any read in region of variant
+            #bam_in_region = sscs_bam.fetch(read_chr, int(read_start), int(read_end))
+            #reads_in_region = [read for read in bam_in_region]
+            
+            
+            #elif any('{}_{}_{}'.format(read_chr, read_start, read_end) in s for s in sscs_dict.keys()) or any('{}_{}_{}'.format(read_chr, read_end, read_start) in s for s in sscs_dict.keys()):
+                
+                
+                
+            
+            
+
+            #for read in sscs_bam.fetch(read_chr, int(read_start), int(read_end)):
+                
+            
+            
+            
+            #else:
+
+# rescued bams should be based on the singleton sequence, but with the duplex consensus 
+# duplex consensus should have filters (Ncutoff) to reflect 
+
+
+

@@ -319,22 +319,22 @@ def main():
     parser.add_argument("--outfile", action = "store", dest="outfile", help="output SSCS BAM file", required = True)
     args = parser.parse_args()
     
-    # need separate outfile argument as path is diff from input
     
     start_time = time.time()
     
     # ===== Initialize input and output bam files =====
     bamfile = pysam.AlignmentFile(args.infile, "rb")    
     SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
-    stats = open('{}_stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
-    singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
+    singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)    
+    doubleton_bam = pysam.AlignmentFile('{}.doubleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
     # setup fastq files
-    fastqFile1 = open('{}.r1.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
-    fastqFile2 = open('{}.r2.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
+    fastqFile1 = open('{}.r1.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
+    fastqFile2 = open('{}.r2.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
     
     
-    time_tracker = open('{}_time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
+    time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     
     bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added
     tag_dict = collections.defaultdict(int)
@@ -342,6 +342,7 @@ def main():
     unmapped = 0
     unpaired = 0
     counter = 0  
+    doubletons = 0
     singletons = 0
     SSCS_reads = 0      
         
@@ -403,26 +404,30 @@ def main():
                 singletons += 1
                 singleton_bam.write(bam_dict[i][0])
             else:
+                if tag_dict[i] == 2:
+                    doubletons += 1
+                    doubleton_bam.write(bam_dict[i][0])
+		
                 readLength = max(collections.Counter(i.query_alignment_length for i in bam_dict[i]))
 
                 SSCS = consensus_maker(bam_dict[i], readLength, float(args.cutoff))
-                
-                ## NEED TO FIX FOR ALL CONSENSUS MAKING!!!!! Need to divide by total number of bases                 
+			
+		## NEED TO FIX FOR ALL CONSENSUS MAKING!!!!! Need to divide by total number of bases                 
                 if SSCS[0].count('N')/len(SSCS[0]) > float(args.Ncutoff):
                     continue
-		
-                # write as bam
+	
+		# write as bam
                 SSCS_read = create_aligned_segment(bam_dict[i], SSCS[0], SSCS[1])
                 SSCS_bam.write(SSCS_read)
 
 		# write as fastq file
                 if "R1" in i:
-		    # fastq format: query_name, consensus_seq, qual score
-                    fastqFile1.write('@:{}\n{}\n+\n{}\n'.format(SSCS_read.qname, SSCS[0], pysam.qualities_to_qualitystring(SSCS[1])))
+		   # fastq format: query_name, consensus_seq, qual score
+                    fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.qname, SSCS[0], pysam.qualities_to_qualitystring(SSCS[1])))
                 else:
-                    fastqFile2.write('@:{}\n{}\n+\n{}\n'.format(SSCS_read.qname, SSCS[0], pysam.qualities_to_qualitystring(SSCS[1])))
-                
-                
+                    fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.qname, SSCS[0], pysam.qualities_to_qualitystring(SSCS[1])))
+		
+		
                 SSCS_reads += 1
 	   
         # reset dictionary            
@@ -445,8 +450,9 @@ def main():
 Unmapped reads: {} \n
 Unpaired reads: {} \n
 SSCS reads: {} \n
-Singletons: {} \n
-'''.format(counter, unmapped, unpaired, SSCS_reads, singletons)
+singletons: {} \n
+doubletons: {} \n
+'''.format(counter, unmapped, unpaired, SSCS_reads, singletons, doubletons)
 
     stats.write(summary_stats)
     
@@ -454,7 +460,9 @@ Singletons: {} \n
     stats.close()
     bamfile.close()
     SSCS_bam.close()
-    singleton_bam.close()
+    doubleton_bam.close()
+    fastqFile1.close()
+    fastqFile2.close()
     
     
     # ===== Create tag family size plot =====
