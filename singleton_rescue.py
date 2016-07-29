@@ -96,72 +96,75 @@ def rescue_duplex(read_tag, duplex_tag, singleton_dict, sscs_dict = None):
     return dsc_read
 
 
-def pileup(pysam_bam, start, end, read_cutoff):
-    '''(pysam.calignmentfile.AlignmentFile, int, int) -> str
+def pileup(pysam_bam, read_chr, start, read_cutoff):
+    '''(pysam.calignmentfile.AlignmentFile, str, int, int) -> str
     
-    Return consensus of pileup
-    '''
-    nuc_lst = ['A', 'C', 'G', 'T', 'N']
+    Return consensus of pileup reads at a single position. 
     
-    for pileupcol in pysam_bam.pileup(read_chr, int(start), int(end), truncate = True):
+    - Read_cutoff: 1 SSCS or 3 Singleton (as read is included in pileup) => 1.0 allelic freq cutoff (want it to be more stringent since reads are not from same mol)
+    - Should we make exceptions for this? e.g. [('T', 4812), ('N', 1)] => N due to soft clips
+    
+    Return None or 'N'???
+    '''    
+    for pileupcol in pysam_bam.pileup(read_chr, start, start + 1, truncate = True):
         #nuc = [0, 0 ,0, 0, 0] # A, C, G, T, N 
         nuc = ''
         
         # Make consensus from > 2 reads at each position
         if pileupcol.n < read_cutoff:
-            return None
+            return 'N'
         else:
             #print(pileupcol)
             for pileupread in pileupcol.pileups:
                 if not pileupread.is_del and not pileupread.is_refskip:                       
                     nuc += pileupread.alignment.query_sequence[pileupread.query_position]
-                    #nuc_index = nuc_lst.index(nuc)
-                    #position_score[nuc_index] += 1
+                    #if pileupread.alignment.query_sequence[pileupread.query_position] == 'N':
+                        #print(pileupread)
+                        #print(pileupread.query_position)
+
                     
         consensus = collections.Counter(nuc).most_common(1)[0]  
         
-        # Since we trust pileup reads less, set more stringent threshold 
+        # Since we trust pileup reads less, set more stringent threshold (all the reads have to have same base to make consensus)
+        #print(consensus)
+        #print(len(nuc))
+        #print(collections.Counter(nuc).most_common())
         if consensus[1]/len(nuc) != 1:
-            return None
+            return 'N'
         else:
             return consensus[0]    
 
 
-def rescue_pileup(read_tag, pysam_bam, bam_read, read_cutoff):
+def rescue_pileup(pysam_bam, bam_read, read_cutoff):
     '''(str, pysam.calignmentfile.AlignmentFile, pysam.calignedsegment.AlignedSegment, int) -> str
     
-    Return consensus sequence from pileup of all reads in region of input read (singleton).
+    Return consensus sequence from pileup of all reads in region of bam_read (singleton).
     
     DETERMINE LOCATION OF VARIANT -> if less than specified # of reads, don't make consensus (utilize SSCS_maker.py - mismatch_pos)
     
     Require variant positions to meet read cutoff rather than each position of sequence since non-variant positions match to reference and shouldn't differ by much. (Also faster runtime if we only do mpileup at variant positions!)
-    - Read_cutoff: 1 SSCS or 3 Singleton (as its included in pileup) => 1.0 cutoff (want it to be more stringent since reads are not from same mol)
+    - Read_cutoff: 1 SSCS or 3 Singleton (as read is included in pileup) => 1.0 cutoff (want it to be more stringent since reads are not from same mol)
     
     If SSCS pileup rescue, compare SSCS consensus with singleton being rescued => mismatch positions assign N
     '''
-    read_chr = read_tag.split('_')[1]
-    read_start = read_tag.split('_')[2]
-    read_end = read_tag.split('_')[3]
-    strand = read_tag.split('_')[4]
-    read = read_tag.split('_')[5]
+    start = bam_read.reference_start
     
     consensus = ''
     
     # === Inorporate soft clipped regions with start and stop pos ====
-    readLength = max(collections.Counter(i.query_alignment_length for i in bam_dict[i]))
+    readLength = bam_read.query_alignment_length # soft clips not included
     
     if 'S' in bam_read.cigarstring:
         cigar_pos = [x for x,y in bam_read.cigar] # => IT COULD BE BOTH FRONT AN END
         soft_pos = [i for i,x in enumerate(cigar_pos) if x == 4]
         
-        start = int(read_start) 
-        end = start + readLength        
-
         if len(soft_pos) == 1:
+            # Number of soft clips at start
             start_sc = bam_read.cigar[soft_pos[0]][1]
                 
         else:
             start_sc = bam_read.cigar[soft_pos[0]][1]
+            # Number of soft clips at end
             end_sc = bam_read.cigar[soft_pos[1]][1]
                         
         consensus += 'N'*start_sc
@@ -170,98 +173,31 @@ def rescue_pileup(read_tag, pysam_bam, bam_read, read_cutoff):
     mismatch_pos_lst = mismatch_pos(bam_read.cigar, bam_read.get_tag('MD'))
     
     for i in range(readLength):
-        if i in mismatch_pos_lst[i]:
+        if i in mismatch_pos_lst:
+            # Pileup consensus of variant
+            mismatch_start = start + i
             
-    
-    
-    
-    
-    
-    
-    
-    
-    start = read_start
-    readLength = sum([y for x,y in bam_read.cigar])
-    end = int(read_start) + readLength
-    
-    ### NEED TO ADDRESS SOFT CLIPS AT START OF SEQ -> actual seq much shorter
-    # don't locate with start and end, use start and read length to determine consensus 
-    #if (strand == 'fwd' and read == 'R1') or (strand == 'rev' and read == 'R1'):
-        #start = read_start
-    #else:
-        #start = read_end
-    
-    #end = int(start) + readLength
-    
-     
-    #else:
-        #if strand == 'fwd':
-            #end = read_end
-        #else:
-            #end = read_start
-        #start = int(end) - readLength        
-    
-    consensus = ''
-    
-    ## Soft clips: only want seq that match ref, give Ns for remainder => mpileup shorter region to reflect what is sequenced
-    
-    #sc_end = False
-    ##readLength = sum([y for x,y in read.cigar])
-    if 'S' in bam_read.cigarstring:
-        soft_pos = [x for x,y in bam_read.cigar].index(4) # => IT COULD BE BOTH FRONT AN END
-        num_sc = bam_read.cigar[soft_pos][1]
-        
-        end = int(read_start) - readLength
-        #if soft_pos == 0:
-            #consensus += 'N'*num_sc
-        #else:
-            #sc_end = True
-            #start = int(read_start) + num_sc
-        #else:
-            #end = int(read_start) + readLength    
-    
-    #print(start,end)
-    ### PILE UP ONLY VARIANT REGIONS 
-    for pileupcol in pysam_bam.pileup(read_chr, int(start), int(end)):
-        nuc = '' # change to dictionary
-        #print(pileupcol.n)
-        # Make consensus from > 2 reads at each position
-        if pileupcol.pos < int(start) or pileupcol.pos >= int(end):
-            continue
-        elif pileupcol.n < read_cutoff: ## <== SHOULD WE RESTRICT THIS TO VARIANT POS ONLY?? yes! determine variant from singleton bam
-            return None
+            consensus += pileup(pysam_bam, bam_read.reference_name, mismatch_start, read_cutoff)
+            
         else:
-            #print(pileupcol)
-            for pileupread in pileupcol.pileups:
-                if not pileupread.is_del and not pileupread.is_refskip:
-
-                    try:
-                        #print(pileupread.query_position)
-                        #print(pileupread.alignment.query_sequence)
-                        #print(pileupread.alignment.query_sequence[pileupread.query_position])  
-                        #print(pileupread)                        
-                        nuc += pileupread.alignment.query_sequence[pileupread.query_position]
-                    except:
-                        print(pileupread.query_position)
-                        print(pileupread.alignment.query_sequence)
-                        print(pileupread.alignment.query_sequence[pileupread.query_position - 1])  
-                        print(pileupread)
-                        #print(pileupread.next_reference_start)
-                        #print(pileupread.is_reverse)
-                        #print(pileupread.is_read2)
-                        
-                        
-            #print(collections.Counter(nuc).most_common(1)[0][0])
-            #return collections.Counter(nuc).most_common(1)
+            # No pileup needed for bases matching ref
+            consensus += bam_read.query_alignment_sequence[i] # soft clips not included
             
-            ### INCLUDE SINGLETON WITH SSCS reads => after making consensus, compare consensus with singleton (0.7 cut off for variants) 
-            consensus += collections.Counter(nuc).most_common(1)[0][0]
+    if 'end_sc' in locals():
+        consensus += 'N'*end_sc
+
+    if read_cutoff == 1:
+        # Compare singleton read with SSCS consensus (not needed for singleton consensus as singleton already included)
+        consensus = duplex_consensus(bam_read.query_sequence, consensus, bam_read.query_length)
     
-    #if sc_end == True:
-        #consensus += 'N'*num_sc
+    consensus_read = create_aligned_segment([bam_read], consensus, bam_read.query_alignment_qualities)
+    # Check to see consensus < 0.3 Ns (excluding softclips)
+    if consensus.count('N')/len(dcs) > 0.3:
+        return None
+    
     return consensus
-
-
+    
+    
 def main():
     # Command-line parameters
     parser = ArgumentParser()
@@ -308,54 +244,55 @@ def main():
         duplex = pair_barcode + '_' + i.split('_', 1)[1][:-2] + read_num # pair read is other read on opposite strand (e.g. read = ACGT_fwd_R1, duplex = GTAC_fwd_R2)
         
         
-        # Check if there's duplicate singletons or if singleton is already rescued (in the case of singleton - singleton duplex rescue)
-        if i not in rescue_dict.keys():
+        # Check if there's duplicate singletons or if singleton is already rescued (in the case of singleton - singleton duplex rescue) => not an issue if we're not rescuing singleton & duplex at same time
+        #if i not in rescue_dict.keys():
         
-            # 1) Duplex rescue: Singleton + SSCS -> Check for singleton matching duplex sequence in SSCS bam
-            if duplex in sscs_dict.keys():
-                rescue_read = rescue_duplex(i, duplex, singleton_dict, sscs_dict)
-                # If read doesn't passes Ncutoff (0.3), None is given
-                if rescue_read != None:
-                    sscs_dup_rescue += 1
-                    
-                    #dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order [NOT CURRENTLY IMPLEMENTED - as rescued reads still go through duplex consensus making]
-            
-            # 2) Duplex rescue: Singleton + Singleton -> Check for singleton matching duplex sequence in Singleton bam -> WOULD YOU RESCUE BOTH SINGLETONS THEN??
-            elif duplex in singleton_dict.keys():
-                rescue_read = rescue_duplex(i, duplex, singleton_dict)
+        # 1) Duplex rescue: Singleton + SSCS -> Check for singleton matching duplex sequence in SSCS bam
+        if duplex in sscs_dict.keys():
+            rescue_read = rescue_duplex(i, duplex, singleton_dict, sscs_dict)
+            # If read doesn't passes Ncutoff (0.3), None is given
+            if rescue_read != None:
+                sscs_dup_rescue += 1
                 
-                if rescue_read != None:
-                    singleton_dup_rescue += 1                
+                #dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order [NOT CURRENTLY IMPLEMENTED - as rescued reads still go through duplex consensus making]
+        
+        # 2) Duplex rescue: Singleton + Singleton -> Check for singleton matching duplex sequence in Singleton bam -> WOULD YOU RESCUE BOTH SINGLETONS THEN??
+        elif duplex in singleton_dict.keys():
+            rescue_read = rescue_duplex(i, duplex, singleton_dict)
             
-            # 3) Non-duplex rescue: Any SSCS mapping to region => use pileup method            
+            if rescue_read != None:
+                singleton_dup_rescue += 1                
+        
+        # 3) Non-duplex rescue: Any SSCS mapping to region => use pileup method            
+        else:
+            pileup_consensus = rescue_pileup(sscs_bam, singleton_dict[i][0], 1)
+            
+            if pileup_consensus != None:
+                sscs_rescue += 1
             else:
-                ### CHECK TO SEE IF YOU NEED TO SHIFT START BY 1
-                ## e.g. GGACCCTGACAAACTCCCAAGGAAAGTAAAGTTCCCATATTAATGGTTACATATAACTTGAAACCCAAGGTACATTTCAGATAACTTAACTTTCAGCA vs TGGGACCCTGACAAACTCCCAAGGAAAGTAAAGTTCCCATATTAATGGTTACATATAACTTGAAACCCAAGGTACATTTCAGATAACTTAACTTTCAG
+                # 4) Non-duplex rescue: Any singleton mapping to region => use pileup method 
+                pileup_consensus = rescue_pileup(singleton_bam, singleton_dict[i][0], 3)
                 
-                #readLength = max(collections.Counter(i.query_alignment_length for i in sscs_dict[i]))
-                #sscs_consensus_seq = rescue_pileup(i, sscs_bam, readLength, 2)
-                
-                #rescue_read = None
-                #readLength = sum([y for x,y in singleton_dict[i][0].cigar])
-                sscs_consensus_seq = rescue_pileup(i, sscs_bam, singleton_dict[i][0], 2)
-                
-                if sscs_consensus_seq != None:
-                    sscs_rescue += 1
-                #else:
-                    ##### Hold off on singleton_rescue right now as singleton seq soft clips are diff -> soft clips not included in sequence (so shorter seq, need to account for that) 
+                if pileup_consensus != None:
+                    singleton_rescue += 1
                     
-                    #readLength = max(collections.Counter(i.query_alignment_length for i in singleton_dict[i]))
-                    #sscs_consensus_seq = rescue_pileup(i, singleton_bam, readLength, 3)
-                    #if sscs_consensus_seq != None:
-                        #singleton_rescue += 1                    
+            
+                
+                   
+                ##### Hold off on singleton_rescue right now as singleton seq soft clips are diff -> soft clips not included in sequence (so shorter seq, need to account for that) 
+                
+                #readLength = max(collections.Counter(i.query_alignment_length for i in singleton_dict[i]))
+                #sscs_consensus_seq = rescue_pileup(i, singleton_bam, readLength, 3)
+                #if sscs_consensus_seq != None:
+                    #singleton_rescue += 1                    
 
-                try:
-                    rescue_read = create_aligned_segment([singleton_dict[i][0]], sscs_consensus_seq, singleton_dict[i][0].query_alignment_qualities)
-                except:
-                    #print(readLength)
-                    print(sscs_consensus_seq)
-                    print(singleton_dict[i][0])             
-                    return 'hi'
+            try:
+                rescue_read = create_aligned_segment([singleton_dict[i][0]], sscs_consensus_seq, singleton_dict[i][0].query_alignment_qualities)
+            except:
+                #print(readLength)
+                print(sscs_consensus_seq)
+                print(singleton_dict[i][0])             
+                return 'hi'
                 # Note: rescued seq does not include soft clips 
                 # e.g. GCCT_chr12_25398127_25398127_rev_R2
                 # singleton_seq = NNNNNNNNNNNNNATGAAAATGGTCAGAGAAACCTTTATCTGTATCAAAGAATGGTCCTGCACCAGTAATATGCATATTAAAACAAGATTTACCTCTA
@@ -416,6 +353,9 @@ if __name__ == "__main__":
     
     #singleton_dict = uid_dict(singleton_bam)[0]
     #sscs_dict = uid_dict(sscs_bam)[0]    
+    
+    ## Find key containing barcode and start coor
+    # [x for x in singleton_dict.keys() if re.match('ATCG_chr12_25398169', x)]
     
     #i = 'GTGG_chr12_25398271_25398214_rev_R1'
     #barcode = i.split('_')[0]
@@ -523,4 +463,87 @@ if __name__ == "__main__":
 # duplex consensus should have filters (Ncutoff) to reflect 
 
 
+
+#### pileup_rescue 
+
+#start = read_start
+#readLength = sum([y for x,y in bam_read.cigar])
+#end = int(read_start) + readLength
+
+#### NEED TO ADDRESS SOFT CLIPS AT START OF SEQ -> actual seq much shorter
+## don't locate with start and end, use start and read length to determine consensus 
+##if (strand == 'fwd' and read == 'R1') or (strand == 'rev' and read == 'R1'):
+    ##start = read_start
+##else:
+    ##start = read_end
+
+##end = int(start) + readLength
+
+ 
+##else:
+    ##if strand == 'fwd':
+        ##end = read_end
+    ##else:
+        ##end = read_start
+    ##start = int(end) - readLength        
+
+#consensus = ''
+
+### Soft clips: only want seq that match ref, give Ns for remainder => mpileup shorter region to reflect what is sequenced
+
+##sc_end = False
+###readLength = sum([y for x,y in read.cigar])
+#if 'S' in bam_read.cigarstring:
+    #soft_pos = [x for x,y in bam_read.cigar].index(4) # => IT COULD BE BOTH FRONT AN END
+    #num_sc = bam_read.cigar[soft_pos][1]
+    
+    #end = int(read_start) - readLength
+    ##if soft_pos == 0:
+        ##consensus += 'N'*num_sc
+    ##else:
+        ##sc_end = True
+        ##start = int(read_start) + num_sc
+    ##else:
+        ##end = int(read_start) + readLength    
+
+##print(start,end)
+#### PILE UP ONLY VARIANT REGIONS 
+#for pileupcol in pysam_bam.pileup(read_chr, int(start), int(end)):
+    #nuc = '' # change to dictionary
+    ##print(pileupcol.n)
+    ## Make consensus from > 2 reads at each position
+    #if pileupcol.pos < int(start) or pileupcol.pos >= int(end):
+        #continue
+    #elif pileupcol.n < read_cutoff: ## <== SHOULD WE RESTRICT THIS TO VARIANT POS ONLY?? yes! determine variant from singleton bam
+        #return None
+    #else:
+        ##print(pileupcol)
+        #for pileupread in pileupcol.pileups:
+            #if not pileupread.is_del and not pileupread.is_refskip:
+
+                #try:
+                    ##print(pileupread.query_position)
+                    ##print(pileupread.alignment.query_sequence)
+                    ##print(pileupread.alignment.query_sequence[pileupread.query_position])  
+                    ##print(pileupread)                        
+                    #nuc += pileupread.alignment.query_sequence[pileupread.query_position]
+                #except:
+                    #print(pileupread.query_position)
+                    #print(pileupread.alignment.query_sequence)
+                    #print(pileupread.alignment.query_sequence[pileupread.query_position - 1])  
+                    #print(pileupread)
+                    ##print(pileupread.next_reference_start)
+                    ##print(pileupread.is_reverse)
+                    ##print(pileupread.is_read2)
+                    
+                    
+        ##print(collections.Counter(nuc).most_common(1)[0][0])
+        ##return collections.Counter(nuc).most_common(1)
+        
+        #### INCLUDE SINGLETON WITH SSCS reads => after making consensus, compare consensus with singleton (0.7 cut off for variants) 
+        #consensus += collections.Counter(nuc).most_common(1)[0][0]
+
+##if sc_end == True:
+    ##consensus += 'N'*num_sc
+#return consensus
 

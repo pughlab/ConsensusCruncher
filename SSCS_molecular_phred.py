@@ -196,6 +196,12 @@ def query_seq_pos(cigar, readLength):
     return start, end
 
 
+def phred_qual(position_score):
+    '''(list) -> tuple
+    Return consensus base and phred quality
+    '''
+
+
 def consensus_maker(readList, readLength, cutoff):
     '''(list, int, int) -> str
     Return consensus sequence (without soft-clips) and quality score consensus.
@@ -230,7 +236,7 @@ def consensus_maker(readList, readLength, cutoff):
             # if seq length < or > region of query seq, add 1 to N and set qual score 0
             if i < query_pos[0] or i >= query_pos[1]:
                 position_score[4] += 1
-                quality_score[4].append(0)
+                #quality_score[4].append(0)
                 continue
 
             # === Phred filter mismatch positions ===     
@@ -263,19 +269,24 @@ def consensus_maker(readList, readLength, cutoff):
             max_nuc_pos = max_nuc_pos[randint(0, len(max_nuc_pos)-1)]
 	    
 	    # === Molecular Phred Quality Score ===
-	    P = 
-	    Q = -10 * math.log10(P)
-	    
-
-	    # Median quality score (round to larger value if qual score is a decimal)
-            #max_qual = math.ceil(statistics.median(quality_score[max_nuc]))
+	    # error = num variant bases (not most freq base)
+            error_bases = position_score[:max_nuc_pos] + position_score[(max_nuc_pos +1):]
+	    # probability of observed bases
+            P = sum(error_bases)/sum(position_score)
+            if P == 0:
+                Q = 62
+            else:
+                Q = round(-10 * math.log10(P))
+		
+            consensus_read += nuc_lst[max_nuc_pos]
+            quality_consensus.append(Q)
         
             # frequency of nuc at position > cutoff 
-            if max(position_score)/(len(readList) - phred_fail) > cutoff:
-                consensus_read += nuc_lst[max_nuc]
-                quality_consensus.append(max_qual)
-            else:
-                raise ValueError
+            #if max(position_score)/(len(readList) - phred_fail) > cutoff:
+                #consensus_read += nuc_lst[max_nuc_pos]
+                #quality_consensus.append(max_qual)
+            #else:
+                #raise ValueError
                             
         except:
             # For cases when # matches fail phred > # reads
@@ -349,7 +360,7 @@ def main():
     
     bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added
     tag_dict = collections.defaultdict(int)
-    quality_dict = collections.OrderedDict()
+    tag_quality_dict = collections.defaultdict(list)
        
     unmapped = 0
     unpaired = 0
@@ -368,6 +379,7 @@ def main():
         #print(x)
         bamLines = bamfile.fetch(reference = x.split('_')[0], start = chr_arm_coor[x][0], end =  chr_arm_coor[x][1]) # genomic start and end 0-based       
         # Create dictionary for each chrm
+	#bamLines = bamfile.fetch(until_eof=True)
         for line in bamLines:
             counter += 1
             strand = 'fwd'
@@ -414,21 +426,27 @@ def main():
         for i in tag_keys:
             if tag_dict[i] < 2:
                 singletons += 1
-                singleton_bam.write(bam_dict[i][0])
+                #singleton_bam.write(bam_dict[i][0])
             else:
                 if tag_dict[i] == 2:
                     doubletons += 1
-                    doubleton_bam.write(bam_dict[i][0])
+                    #doubleton_bam.write(bam_dict[i][0])
 		
                 readLength = max(collections.Counter(i.query_alignment_length for i in bam_dict[i]))
+                
+                SSCS = consensus_maker(bam_dict[i], readLength, 0.7)
 
-                SSCS = consensus_maker(bam_dict[i], readLength, float(args.cutoff))
+                #SSCS = consensus_maker(bam_dict[i], readLength, float(args.cutoff))
+
+
 			
 		## NEED TO FIX FOR ALL CONSENSUS MAKING!!!!! Need to divide by total number of bases                 
-                if SSCS[0].count('N')/len(SSCS[0]) > float(args.Ncutoff):
-                    continue
 		
-		quality_dict[i] = SSCS[1]
+		## Maybe move this filter under consensus maker!!! 
+                #if SSCS[0].count('N')/len(SSCS[0]) > float(args.Ncutoff):
+                    #continue
+		
+                tag_quality_dict[tag_dict[i]] += [round(np.mean(SSCS[1]))]
 	
 		# write as bam
                 SSCS_read = create_aligned_segment(bam_dict[i], SSCS[0], SSCS[1])
@@ -459,6 +477,10 @@ def main():
     tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     pickle.dump(tag_dict, tag_file)
     tag_file.close()
+    
+    quality_file = open(args.outfile.split('.sscs')[0] + '.quality.txt', 'ab+')
+    pickle.dump(tag_quality_dict, quality_file)
+    quality_file.close()
     
     summary_stats = '''Total reads: {} \n
 Unmapped reads: {} \n
@@ -494,6 +516,47 @@ doubletons: {} \n
     plt.ylabel('Fraction of total reads')
     
     plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')      
+    
+    # ===== Create quality score plot =====
+    
+    # Should we take average quality score of every read??????
+    #qual_dist = collections.Counter([i[0] for i in quality_dict.values()]).most_common()
+    #x = [x for x,y in qual_dist]
+    #y = [y for x,y in qual_dist]
+    
+    #plt.plot(x, y, "o")
+    #plt.xlabel('Phred Quality Score')
+    #plt.ylabel('Number of bases')
+    
+    #plt.savefig(args.outfile.split('.sscs')[0]+'quality_dist.png') 
+    
+    
+    # ===== Create quality score plot for each tag family =====
+    
+    # Figure out how to plot tag_quality_dict....
+    
+    x = [[i]*len(tag_quality_dict[i]) for i in tag_quality_dict]
+    y = list(tag_quality_dict.values())
+    
+    import itertools
+    x = list(itertools.chain.from_iterable(x))
+    y = list(itertools.chain.from_iterable(y))
+    
+    plt.figure(figsize=(7.195, 3.841), dpi=100)
+    
+    plt.plot(x, y, "o", markersize=np.sqrt(5))
+    
+    plt.xticks(np.arange(0, max(x)+1, 5.0), fontsize = 6)
+    plt.yticks(fontsize = 6)
+    
+    plt.ylabel('Phred Quality Score', fontsize = 8)
+    plt.xlabel('Tag family size', fontsize = 8)    
+    
+    #tick.label.set_fontsize(8)
+    
+    plt.grid() 
+    
+    plt.savefig(args.outfile.split('.sscs')[0]+'tag_fam_quality.png', dpi = 1000)
     
 
 ###############################
