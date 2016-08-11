@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################
 #
@@ -345,11 +345,11 @@ def reverse_seq(seq):
 
 def sscs_qname(tag):
     '''(str) -> str
-    Return new queryname for consensus sequences (barcode_chr_start_chr_end:tag_fam).
+    Return new tag/queryname for consensus sequences (barcode_chr_start_chr_end).
     
-    Since multiple reads go into making a consensus, a new unique identifier is required to match up the read with its pair.
+    * Since multiple reads go into making a consensus, a new unique identifier is required to match up the read with its pair *
     
-    Note: chr of start and end are used in case of translocations
+    Note: chr of start and end are used in case of translocations.
     
     Birthday problem??????
     
@@ -372,17 +372,18 @@ def sscs_qname(tag):
     >>> sscs_qname('CCCC_chr12_25398156_chr12_25398064_rev_R2')
     'CCCC_chr12_25398064_chr12_25398156_pos'
     '''
-    if "rev" in tag :
+    if "rev" in tag:
         new_tag = tag.split("_")
-        # flip coor values 
-        new_tag[1] = tag.split("_")[3]
-        new_tag[3] = tag.split("_")[1]
-        new_tag[2] = tag.split("_")[4]
-        new_tag[4] = tag.split("_")[2]
+        # flip coor values so rev matches fwd
+        new_tag[1] = tag.split("_")[3] # start chr
+        new_tag[3] = tag.split("_")[1] # stop chr
+        new_tag[2] = tag.split("_")[4] # start coor
+        new_tag[4] = tag.split("_")[2] # stop coor
         new_tag = "_".join(new_tag)
     else:
         new_tag = tag    
     
+    # Group pairs by strand
     if ('fwd' in tag and 'R1' in tag) or ('rev' in tag and 'R2' in tag):
         new_tag = new_tag[:-7] + '_pos'
     else:
@@ -404,7 +405,7 @@ def main():
     start_time = time.time()
     
     # ===== Initialize input and output bam files =====
-    bamfile = pysam.AlignmentFile(args.infile, "rb")    
+    bamfile = pysam.AlignmentFile(args.infile, "rb")
     SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)    
@@ -414,17 +415,17 @@ def main():
     fastqFile1 = open('{}.r1.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
     fastqFile2 = open('{}.r2.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
     
+    doubleton_fastqFile1 = open('{}.r1.doubleton.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
+    doubleton_fastqFile2 = open('{}.r2.doubleton.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')    
     
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     
     bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added
     tag_dict = collections.defaultdict(int)
-    consensus_dict = collections.OrderedDict()
-    
+    paired_dict = collections.OrderedDict()
+        
     tag_quality_dict = collections.defaultdict(list)
     quality_dict = collections.defaultdict(list)
-       
-    badreads = []
     
     unmapped = 0
     unmapped_flag = 0
@@ -443,14 +444,8 @@ def main():
     #unmapped_key = []
     
     for x in chr_arm_coor.keys():
-        #print(x)
         bamLines = bamfile.fetch(reference = x.split('_')[0], start = chr_arm_coor[x][0], end =  chr_arm_coor[x][1]) # genomic start and end 0-based       
         # Create dictionary for each chrm
-        #start_time = time.time()
-        #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus_test/test2/MEM-001_KRAS.bam', "rb")
-        #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus_test/MEM-001-LOD.processed.bam', "rb")        
-        #bamLines = bamfile.fetch(reference = 'chr12')
-        #bamLines = bamfile.fetch(until_eof=True)
         for line in bamLines:
             counter += 1
             strand = 'fwd'
@@ -501,9 +496,7 @@ def main():
                                           strand, # strand direction
                                           read # read num
                                           ) 
-            
-            # NEED TO CHANGE...STILL GETTING UNEVEN NUMBER OF R1 AND R2
-            
+                        
             try:
                 line.get_tag('MD')
             except:
@@ -511,9 +504,17 @@ def main():
                 continue
                 
             tag_dict[tag] += 1     
+            #paired_dict[] 
+            consensus_tag = sscs_qname(tag)
             
             if tag not in bam_dict:
                 bam_dict[tag] =[line]
+                
+                # Only add tag to paired_dict once (aka first time creating tag) 
+                if consensus_tag not in paired_dict:
+                    paired_dict[consensus_tag] = [tag]
+                else:
+                    paired_dict[consensus_tag].append(tag)                
         
             else:
                 bam_dict[tag].append(line)              
@@ -522,133 +523,67 @@ def main():
         if bool(bam_dict):
             rand_key = choice(list(bam_dict.keys()))
             readLength = bam_dict[rand_key][0].infer_query_length()        
-
-
-        #singletons_dict = collections.OrderedDict()
-        for i in bam_dict.keys():
-            if tag_dict[i] < 2:
-                singletons += 1
-                #singletons_dict[i] = bam_dict[i][0]
-                singleton_bam.write(bam_dict[i][0])
-            else:
-                if tag_dict[i] == 2:
-                    doubletons += 1
-                    doubleton_bam.write(bam_dict[i][0])
-                
-                #readLength = max(collections.Counter(i.query_alignment_length for i in bam_dict[i]))
-                
-                #SSCS = consensus_maker(bam_dict[i], readLength, 0.7)
-
-                SSCS = consensus_maker(bam_dict[i], readLength, float(args.cutoff))
-                
-                # Maybe move this filter under consensus maker!!! 
-                #if SSCS[0].count('N')/len(SSCS[0]) > float(args.Ncutoff):
-                    #continue
-                
-                quality_dict[i] += [SSCS[1]]
-                tag_quality_dict[tag_dict[i]] += [round(np.mean(SSCS[1]))]
-
-                ## write this as function        
-                # write as bam => SHOULD I WRITE THIS IN PAIRS?? 
-                if "rev" in i :
-                    tag = i.split("_")
-                    # flip coor values 
-                    tag[1] = i.split("_")[3]
-                    tag[3] = i.split("_")[1]
-                    tag[2] = i.split("_")[4]
-                    tag[4] = i.split("_")[2]
-                    tag = "_".join(tag)
-                else:
-                    tag = i
-                    
-                ## GROUP BY STRAND
-                if ('fwd' in i and 'R1' in i) or ('rev' in i and 'R2' in i):
-                    tag = i[:-7] + '_pos'
-                else:
-                    tag = i[:-7] + '_neg'
-                
-                # chance of birthday problem???
-                query_name = tag+ ':' + str(tag_dict[i])
-                #print(bam_dict[i])
-                #for j in bam_dict[i]:
-                    #print(j)
-                #print('mate')
-                #print(bamfile.mate(bam_dict[i][0]))
-                SSCS_read = create_aligned_segment(bam_dict[i], SSCS[0], SSCS[1])
-                SSCS_read.query_name = query_name
-                SSCS_bam.write(SSCS_read)
-                #print(SSCS_read)
-                if tag not in consensus_dict:
-                    consensus_dict[tag] = [SSCS_read]
-                else:
-                    consensus_dict[tag].append(SSCS_read)
-                
-                #print(bamfile.mate(SSCS_read))
-                #print(query_name)
-                #print(i)
-                #print('CCTG_chr12_25398000_25398118_fwd_R2' in tag_keys)
-                #break
-        #break
-
-                # ===== write as fastq file =====
-                # bam file seq are always in fwd direction, need to write rev comp for fastq
-                ## NEED TO WRITE FASTQ AS PAIRS 
-                
-        for tag in consensus_dict.keys():
-            if len(consensus_dict[tag]) != 2:
-                print(tag)
-                print(consensus_dict[tag])
-                #print(singletons_dict.keys())
-                #print([k for k in singletons_dict.keys() if tag in k])
-                #print(bamfile.mate(consensus_dict[tag][0]))  ## <- mate won't work as we've removed the optional parameters
-                print('uh oh birthday problem!!!')
-            else:
-                read1 = consensus_dict[tag][0]
-                read2 = consensus_dict[tag][1]
-                
-                if read1.is_reverse:
-                    R1 = [read1.query_name, reverse_seq(read1.query_sequence), pysam.qualities_to_qualitystring(reversed(read1.query_qualities))]
-                    R2 = [read2.query_name, read2.query_sequence, read2.query_qualities]
-                else:
-                    R2 = [read2.query_name, reverse_seq(read2.query_sequence), pysam.qualities_to_qualitystring(reversed(read2.query_qualities))]
-                    R1 = [read1.query_name, read1.query_sequence, read1.query_qualities]
-                    
-                if read1.is_read1:
-                    fastqFile1.write('@{}\n{}\n+\n{}\n'.format(R1[0], R1[1], R1[2]))
-                    fastqFile2.write('@{}\n{}\n+\n{}\n'.format(R2[0], R2[1], R2[2]))
-                else:
-                    fastqFile2.write('@{}\n{}\n+\n{}\n'.format(R1[0], R1[1], R1[2]))
-                    fastqFile1.write('@{}\n{}\n+\n{}\n'.format(R2[0], R2[1], R2[2]))                    
-                
-                #if (read1.) or (read1.is_reverse and read1.is_read2)
-                #if read1.is_reverse:
-                    #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(read1.query_name, reverse_seq(read1.query_sequence), pysam.qualities_to_qualitystring(reversed(read1.query_qualities))))
-                    #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(read2.query_name, read2.query_sequence, read2.query_qualities))
-                #else:
-                    #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(read2.query_name, reverse_seq(read2.query_sequence), pysam.qualities_to_qualitystring(reversed(read2.query_qualities))))
-                    #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(read1.query_name, read1.query_sequence, read1.query_qualities))
-                    
-                    
-                    
-                #if ('fwd' in i and 'R1' in i) or ('rev' in i and 'R2' in i):
-                    #fastq_seq = SSCS[0]
-                    #fastq_qual = pysam.qualities_to_qualitystring(SSCS[1])
-                #else:
-                    #fastq_seq = reverse_seq(SSCS[0])
-                    #fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS[1]))
-
-                #if "R1" in i:
-                    ## CHANGE QUERY NAME TO BE THE SAME SO WHEN ALIGNING THEY CAN BE GROUPED TOGETHER 
-                   ## fastq format: query_name, consensus_seq, qual score
-                    #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-
-                #else:
-                    #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                
-                
-                #SSCS_reads += 1
         
+        for readPair in paired_dict.keys():
+            # Check pairing
+            if len(paired_dict[readPair]) != 2:
+                print('uh oh pairing problem!!!')
+                print(readPair)
+                print(paired_dict[readPair])
+            else:
+                for tag in paired_dict[readPair]:
+                    # Check for singletons
+                    if tag_dict[tag] < 2:
+                        singletons += 1
+                        singleton_bam.write(bam_dict[tag][0])
+                    else:
+                        SSCS = consensus_maker(bam_dict[tag], readLength, float(args.cutoff))
+                        
+                        quality_dict[tag] += [SSCS[1]]
+                        tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
+                        
+                        new_tag = sscs_qname(tag)
+                        query_name = new_tag + ':' + str(tag_dict[tag])
+                        
+                        SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
+                        SSCS_read.query_name = query_name
+                        
+                        # Use aligned sequence in case of soft clips
+                        aligned_seq = SSCS_read.query_alignment_sequence
+                        if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
+                            print('uh oh too many Ns')
+                            print(aligned_seq)
+                            print(SSCS_read)
+                            continue                        
+
+                        if tag_dict[tag] == 2:
+                            doubletons += 1
+                            doubleton_bam.write(SSCS_read)
+                        else:
+                            SSCS_bam.write(SSCS_read)    
+                            SSCS_reads += 1
                 
+                        # ===== write as fastq file =====                        
+                        #if SSCS_read.is_reverse and SSCS_read.is_read1:
+                        fastq_seq = SSCS_read.query_sequence
+                        
+                        if 'rev' in tag:
+                            fastq_seq = reverse_seq(fastq_seq)
+                            fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
+                        else:
+                            fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
+                        
+                        if tag_dict[tag] == 2:
+                            if 'R1' in tag:
+                                doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                            else:
+                                doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
+                        else:
+                            if 'R1' in tag:
+                                fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                            else:
+                                fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                        
         import pickle
         read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
         pickle.dump(bam_dict, read_dict_file)
@@ -656,6 +591,7 @@ def main():
         
         # reset dictionary            
         bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added        
+        paired_dict = collections.OrderedDict()
         try:
             time_tracker.write(x + ': ')
             time_tracker.write(str((time.time() - start_time)/60) + '\n')
@@ -671,10 +607,12 @@ def main():
     
     summary_stats = '''Total reads: {} \n
 Unmapped reads: {} \n
+Unmapped flag reads: {} \n
+Secondary/Supplementary reads: {} \n
 SSCS reads: {} \n
 singletons: {} \n
 doubletons: {} \n
-'''.format(counter, unmapped, SSCS_reads, singletons, doubletons)
+'''.format(counter, unmapped, unmapped_flag, bad_reads, SSCS_reads, singletons, doubletons)
 
     stats.write(summary_stats)
     
@@ -685,6 +623,8 @@ doubletons: {} \n
     doubleton_bam.close()
     fastqFile1.close()
     fastqFile2.close()
+    doubleton_fastqFile1.close()
+    doubleton_fastqFile2.close()    
     
     
     # ===== Create tag family size plot =====
