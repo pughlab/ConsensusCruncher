@@ -79,9 +79,12 @@ def main():
     SSCS_bam = pysam.AlignmentFile(args.infile, "rb")    
     DCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = SSCS_bam)
     SSCS_singleton = pysam.AlignmentFile('{}.sscs.singleton.bam'.format(args.outfile.split('.dcs')[0]), "wb", template = SSCS_bam)
-    stats = open('{}_stats.txt'.format(args.outfile.split('.dcs')[0]), 'a')
-    time_tracker = open('{}_time_tracker.txt'.format(args.outfile.split('.dcs')[0]), 'a')
+    stats = open('{}.stats.txt'.format(args.outfile.split('.dcs')[0]), 'a')
+    time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.dcs')[0]), 'a')
     
+    # setup fastq files
+    fastqFile1 = open('{}.r1.dcs.fastq'.format(args.outfile.split('.dcs')[0]), 'w')
+    fastqFile2 = open('{}.r2.dcs.fastq'.format(args.outfile.split('.dcs')[0]), 'w')    
     
     bam_dicts = uid_dict(SSCS_bam)
     SSCS_dict = bam_dicts[0]
@@ -100,7 +103,7 @@ def main():
             read_num = 'R2'
         else:
             read_num = 'R1'
-                
+	# CHECK STRAND DIRECTION
         ds = pair_barcode + '_' + i.split('_', 1)[1][:-2] + read_num
         
         if ds in SSCS_dict.keys() and ds not in duplex_dict.keys():
@@ -113,14 +116,32 @@ def main():
             #print(read)
             #print(ds)
             #print(duplex)
-            dsc = duplex_consensus(read.query_alignment_sequence, duplex.query_alignment_sequence, read.query_alignment_length)  
+            dcs = duplex_consensus(read.query_alignment_sequence, duplex.query_alignment_sequence, read.query_alignment_length)  
             
-            dsc_read = create_aligned_segment([read, duplex], dsc, read.query_alignment_qualities)
-            dsc_read.query_name = "{}|{}|{}\t".format(dsc_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order
+            dcs_read = create_aligned_segment([read, duplex], dcs, read.query_qualities)
+            dcs_read.query_name = "{}|{}|{}\t".format(dcs_read.query_name.split('|')[0], min(barcode, pair_barcode), max(barcode, pair_barcode)) # Add both barcodes to header in alphabetical order
             
-            duplex_dict[i] = dsc_read # when i is the duplexed pair, it'll find that i is already in dictionary
+            duplex_dict[i] = dcs_read # when i is the duplexed pair, it'll find that i is already in dictionary
             
-            DCS_bam.write(dsc_read)   
+            DCS_bam.write(dcs_read)   
+	    
+	    # ===== write as fastq file =====
+	    # bam file seq are always in fwd direction, need to write rev comp for fastq
+	    if ('fwd' in i and 'R1' in i) or ('rev' in i and 'R2' in i):
+		fastq_seq = dcs
+		fastq_qual = pysam.qualities_to_qualitystring(read.query_qualities)
+	    else:
+		fastq_seq = reverse_seq(dcs)
+		fastq_qual = pysam.qualities_to_qualitystring(reversed(read.query_qualities))
+
+	    if "R1" in i:
+	       # fastq format: query_name, consensus_seq, qual score
+		fastqFile1.write('@{}\n{}\n+\n{}\n'.format(dcs_read.qname, fastq_seq, fastq_qual))
+
+	    else:
+		fastqFile2.write('@{}\n{}\n+\n{}\n'.format(dcs_read.qname, fastq_seq, fastq_qual))
+ 
+		
         else:
             SSCS_singleton.write(SSCS_dict[i][0])
 
@@ -135,6 +156,8 @@ def main():
     stats.close()
     DCS_bam.close()
     SSCS_singleton.close()
+    fastqFile1.close()
+    fastqFile2.close()    
     
     return duplex_dict
 
