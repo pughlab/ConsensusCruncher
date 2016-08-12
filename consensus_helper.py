@@ -72,13 +72,14 @@ def uid_dict(bamfile, read_chr = None, read_start = None, read_end = None):
             read = 'R2'
             
         try:
-            tag = '{}_{}_{}_{}_{}_{}'.format(line.qname.split("|")[1], # mol barcode
-                                          line.reference_name, # chr num
-                                          line.reference_start, # Start R1 (0-based)
-                                          line.next_reference_start, # Start R2
+            tag = '{}_{}_{}_{}_{}_{}_{}'.format(line.qname.split("|")[1], # mol barcode
+                                          line.reference_id, # chr num
+                                          line.reference_start, # start R1 (0-based)
+                                          line.next_reference_id,
+                                          line.next_reference_start, # start R2
                                           strand, # strand direction
-                                          read # Read num
-                                          )        
+                                          read # read num
+                                          ) 
             
             # Raise error if cigarstring is empty indicating bad read
             if 'I' in line.cigarstring:

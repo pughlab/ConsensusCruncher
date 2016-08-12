@@ -343,51 +343,100 @@ def reverse_seq(seq):
     return rev_comp
 
 
-def sscs_qname(tag):
-    '''(str) -> str
+def sscs_qname(tag, flag):
+    '''(str, int) -> str
     Return new tag/queryname for consensus sequences (barcode_chr_start_chr_end).
     
     * Since multiple reads go into making a consensus, a new unique identifier is required to match up the read with its pair *
     
-    Note: chr of start and end are used in case of translocations.
-    
-    Birthday problem??????
+    Note: chr of start and end are used in case of translocations. In addition, coordinates are orientated as lower_chr -> higher_chr number for translocations.
+    (e.g. TTCA_10_135461271_0_2364_fwd_R2 -> TTCA_0_2364_10_135461271_trans)
     
     Examples:
-    (+)                        [Flag]
-    ACGT_chr1_1_chr1_230_fwd_R1 [99] --->     ACGT_chr1_1_chr1_230_pos
-    ACGT_chr1_230_chr1_1_rev_R2 o147]
+    (+)                  [Flag]
+    ACGT_1_1_1_230_fwd_R1 [99] --->     ACGT_chr1_1_chr1_230_pos
+    ACGT_1_230_1_1_rev_R2 [147]
     
     (-)
-    ACGT_chr1_230_chr1_1_rev_R1 [83] --->     ACGT_chr1_1_chr1_230_neg
-    ACGT_chr1_1_chr1_230_fwd_R2 [163]
+    ACGT_1_230_1_1_rev_R1 [83] --->     ACGT_chr1_1_chr1_230_neg
+    ACGT_1_1_1_230_fwd_R2 [163]
+
+    
+    ATGT_1_249239818_1_10060_fwd_R1 [65] --->     ATGT_1_10060_1_249239818_pos
+    ATGT_1_10060_1_249239818_fwd_R2 [129]
+    
+    
+    Special cases (duplex and pair reads all in the same orientation):
+    ['AGAG_3_178919046_8_75462483_rev_R1', 'AGAG_3_178919046_8_75462483_rev_R2', 'AGAG_8_75462483_3_178919046_rev_R2', 'AGAG_8_75462483_3_178919046_rev_R1']
+    - Use pos/neg to differentiate between strand
 
     Test cases:
-    >>> sscs_qname('CCCC_chr12_25398064_chr12_25398156_fwd_R1')
-    'CCCC_chr12_25398064_chr12_25398156_pos'
-    >>> sscs_qname('CCCC_chr12_25398064_chr12_25398156_fwd_R2')
-    'CCCC_chr12_25398064_chr12_25398156_neg'
-    >>> sscs_qname('CCCC_chr12_25398156_chr12_25398064_rev_R1')
-    'CCCC_chr12_25398064_chr12_25398156_neg'
-    >>> sscs_qname('CCCC_chr12_25398156_chr12_25398064_rev_R2')
-    'CCCC_chr12_25398064_chr12_25398156_pos'
-    '''
-    if "rev" in tag:
-        new_tag = tag.split("_")
-        # flip coor values so rev matches fwd
-        new_tag[1] = tag.split("_")[3] # start chr
-        new_tag[3] = tag.split("_")[1] # stop chr
-        new_tag[2] = tag.split("_")[4] # start coor
-        new_tag[4] = tag.split("_")[2] # stop coor
-        new_tag = "_".join(new_tag)
-    else:
-        new_tag = tag    
+    >>> sscs_qname('CCCC_12_25398064_12_25398156_fwd_R1', 99)
+    'CCCC_12_25398064_12_25398156_99_147
+    >>> sscs_qname('CCCC_12_25398156_12_25398064_rev_R2', 147)
+    'CCCC_12_25398064_12_25398156_99_147'
+    >>> sscs_qname('CCCC_12_25398156_12_25398064_rev_R1', 83)
+    'CCCC_12_25398064_12_25398156_83_163'
+    >>> sscs_qname('CCCC_12_25398064_12_25398156_fwd_R2', 163)
+    'CCCC_12_25398064_12_25398156_83_163'
+
     
-    # Group pairs by strand
-    if ('fwd' in tag and 'R1' in tag) or ('rev' in tag and 'R2' in tag):
-        new_tag = new_tag[:-7] + '_pos'
+    Translocation:
+    >>> sscs_qname('TGGT_1_21842527_13_72956752_rev_R1', 113)
+    'TGGT_1_21842527_13_72956752_113_177'
+    >>> sscs_qname('TGGT_13_72956752_1_21842527_rev_R2', 177)
+    'TGGT_1_21842527_13_72956752_113_177'
+    >>> sscs_qname('TTCA_0_2364_10_135461271_fwd_R1', 65)
+    'TTCA_0_2364_10_135461271_65_129'
+    >>> sscs_qname('TTCA_10_135461271_0_2364_fwd_R2', 129)
+    'TTCA_0_2364_10_135461271_65_129'
+    '''
+    flag_pairings = {99:147, 147:99, 83:163, 163:83, \
+                     # mapped within insert size, but wrong orientation (++, --)
+                     67:131, 131:67, 115:179, 179:115, \
+                     ## === translocations ===
+                     # mapped uniquely, but wrong insert size
+                     81:161, 161:81, 97:145, 145:97, \
+                     # wrong insert size and wrong orientation
+                     65:129, 129:65, 113:177, 177:113
+                     }
+
+    start_chr = tag.split("_")[1]
+    stop_chr = tag.split("_")[3]
+    start_coor = tag.split("_")[2]
+    stop_coor = tag.split("_")[4]
+
+    # Order by chr coordinate
+    if (int(start_coor) > int(stop_coor) and start_chr == stop_chr) or \
+       (start_chr != stop_coor and int(start_chr) > int(stop_chr)):
+        new_tag = tag.split("_")
+        new_tag[1] = stop_chr
+        new_tag[3] = start_chr
+        new_tag[2] = stop_coor
+        new_tag[4] = start_coor
+        new_tag = "_".join(new_tag)[:-7]
+        # Determine strand 
+        if 'R1' in tag: # rev_R1
+            new_tag = new_tag + '_neg'
+        else: # rev_R2
+            new_tag = new_tag + '_pos'
     else:
-        new_tag = new_tag[:-7] + '_neg'
+        # Use flags to determine strand for reads with the same coordinate as mate 
+        if start_chr == stop_chr and start_coor == stop_coor:
+            if flag in [99, 147]:
+                new_tag = tag[:-7] + '_pos'
+            elif flag in [83, 163]:
+                new_tag = tag[:-7] + '_neg'
+        elif 'R1' in tag: # fwd_R1
+            new_tag = tag[:-7] + '_pos'
+        else: # fwd_R2
+            new_tag = tag[:-7] + '_neg'
+            
+    # Group pairs by strand unless translocation
+    if flag < flag_pairings[flag]:
+        new_tag = '{}_{}_{}'.format(new_tag, flag, flag_pairings[flag])
+    else:
+        new_tag = '{}_{}_{}'.format(new_tag, flag_pairings[flag], flag)
     
     return new_tag
     
@@ -412,11 +461,11 @@ def main():
     doubleton_bam = pysam.AlignmentFile('{}.doubleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
     # setup fastq files
-    fastqFile1 = open('{}.r1.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
-    fastqFile2 = open('{}.r2.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
+    fastqFile1 = open('{}.sscs_R1.fastq.gz'.format(args.outfile.split('.sscs')[0]), 'w')
+    fastqFile2 = open('{}.sscs_R2.fastq.gz'.format(args.outfile.split('.sscs')[0]), 'w')
     
-    doubleton_fastqFile1 = open('{}.r1.doubleton.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')
-    doubleton_fastqFile2 = open('{}.r2.doubleton.sscs.fastq'.format(args.outfile.split('.sscs')[0]), 'w')    
+    doubleton_fastqFile1 = open('{}.doubleton.sscs_R1.fastq.gz'.format(args.outfile.split('.sscs')[0]), 'w')
+    doubleton_fastqFile2 = open('{}.doubleton.sscs_R2.fastq.gz'.format(args.outfile.split('.sscs')[0]), 'w')    
     
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     
@@ -489,9 +538,9 @@ def main():
                 continue        
         
             tag = '{}_{}_{}_{}_{}_{}_{}'.format(line.qname.split("|")[1], # mol barcode
-                                          line.reference_name, # chr num
+                                          line.reference_id, # chr num
                                           line.reference_start, # start R1 (0-based)
-                                          line.next_reference_name,
+                                          line.next_reference_id,
                                           line.next_reference_start, # start R2
                                           strand, # strand direction
                                           read # read num
@@ -505,7 +554,7 @@ def main():
                 
             tag_dict[tag] += 1     
             #paired_dict[] 
-            consensus_tag = sscs_qname(tag)
+            consensus_tag = sscs_qname(tag, int(line.flag))
             
             if tag not in bam_dict:
                 bam_dict[tag] =[line]
@@ -519,10 +568,13 @@ def main():
             else:
                 bam_dict[tag].append(line)              
         
+        
         # ===== Create consenus seq for reads in each chrm arm and reset =====
         if bool(bam_dict):
             rand_key = choice(list(bam_dict.keys()))
             readLength = bam_dict[rand_key][0].infer_query_length()        
+        
+        ## WHY ARE MATES OF READS WITH TRANSLOCATIONS NOT GROUPED TOGETHER? 
         
         for readPair in paired_dict.keys():
             # Check pairing
@@ -542,10 +594,10 @@ def main():
                         quality_dict[tag] += [SSCS[1]]
                         tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
                         
-                        new_tag = sscs_qname(tag)
-                        query_name = new_tag + ':' + str(tag_dict[tag])
-                        
                         SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
+                        
+                        #new_tag = sscs_qname(tag, SSCS_read.flag)
+                        query_name = readPair + ':' + str(tag_dict[tag])   
                         SSCS_read.query_name = query_name
                         
                         # Use aligned sequence in case of soft clips
@@ -565,7 +617,9 @@ def main():
                 
                         # ===== write as fastq file =====                        
                         #if SSCS_read.is_reverse and SSCS_read.is_read1:
-                        fastq_seq = SSCS_read.query_sequence
+                        #fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
+                        fastq_seq = SSCS_read.query_sequence 
+                        
                         
                         if 'rev' in tag:
                             fastq_seq = reverse_seq(fastq_seq)
