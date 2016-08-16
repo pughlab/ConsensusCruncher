@@ -114,6 +114,7 @@ def mismatch_pos(cigar, mismatch_tag):
     >>> mismatch_pos([(0, 37), (5, 61)], '37')
     []
     '''
+    mismatch_tag = mismatch_tag.split('N0')[0]
     mismatches = re.split('[^0-9, \^]+', mismatch_tag) #split by letters
     mis_pos = []
     index = 0    
@@ -145,6 +146,8 @@ def mismatch_pos(cigar, mismatch_tag):
                 # Need to add 1 to positions for correct indexing (except for first position)
                 mis_pos[-1] += mis_pos[-2] + 1
     
+    ## NEED TO RE-WRITE - have to offset mismatch pos if there's insertion    
+    
     # Incorporate insertions 
     insert = 0
     for i in cigar:
@@ -169,6 +172,8 @@ def query_seq_pos(cigar, readLength):
     '''(list of tuples, int) -> tuples
     Return tuple of seq position excluding soft clips and hard clips (0-based).
     
+    Soft clips are shown in seq, hard clips are not.
+    
     0 = Match/mismatch
     1 = Insertion
     2 = Deletion
@@ -177,6 +182,8 @@ def query_seq_pos(cigar, readLength):
     
     >>> query_seq_pos([(4, 73), (0, 20), (4, 5)], 98)
     (73, 93)
+    >>> query_seq_pos([(5, 78), (0, 15), (4, 5)], 98)
+    (0, 15)
     >>> query_seq_pos([(4, 6), (0, 92)], 98)
     (6, 98)
     >>> query_seq_pos([(0, 23), (4, 75)], 98)
@@ -197,7 +204,7 @@ def query_seq_pos(cigar, readLength):
 
 
 def consensus_maker(readList, readLength, cutoff):
-    '''(list, int, int) -> str
+    '''(list, int, int) -> strq
     Return consensus sequence (without soft-clips) and quality score consensus.
     
     Majority rules concept where if no majority is reached above the cutoff, an 'N' is assigned to the position. 
@@ -343,104 +350,6 @@ def reverse_seq(seq):
     return rev_comp
 
 
-def sscs_qname(tag, flag):
-    '''(str, int) -> str
-    Return new tag/queryname for consensus sequences (barcode_chr_start_chr_end).
-    
-    * Since multiple reads go into making a consensus, a new unique identifier is required to match up the read with its pair *
-    
-    Note: chr of start and end are used in case of translocations. In addition, coordinates are orientated as lower_chr -> higher_chr number for translocations.
-    (e.g. TTCA_10_135461271_0_2364_fwd_R2 -> TTCA_0_2364_10_135461271_trans)
-    
-    Examples:
-    (+)                  [Flag]
-    ACGT_1_1_1_230_fwd_R1 [99] --->     ACGT_chr1_1_chr1_230_pos
-    ACGT_1_230_1_1_rev_R2 [147]
-    
-    (-)
-    ACGT_1_230_1_1_rev_R1 [83] --->     ACGT_chr1_1_chr1_230_neg
-    ACGT_1_1_1_230_fwd_R2 [163]
-
-    
-    ATGT_1_249239818_1_10060_fwd_R1 [65] --->     ATGT_1_10060_1_249239818_pos
-    ATGT_1_10060_1_249239818_fwd_R2 [129]
-    
-    
-    Special cases (duplex and pair reads all in the same orientation):
-    ['AGAG_3_178919046_8_75462483_rev_R1', 'AGAG_3_178919046_8_75462483_rev_R2', 'AGAG_8_75462483_3_178919046_rev_R2', 'AGAG_8_75462483_3_178919046_rev_R1']
-    - Use pos/neg to differentiate between strand
-
-    Test cases:
-    >>> sscs_qname('CCCC_12_25398064_12_25398156_fwd_R1', 99)
-    'CCCC_12_25398064_12_25398156_99_147
-    >>> sscs_qname('CCCC_12_25398156_12_25398064_rev_R2', 147)
-    'CCCC_12_25398064_12_25398156_99_147'
-    >>> sscs_qname('CCCC_12_25398156_12_25398064_rev_R1', 83)
-    'CCCC_12_25398064_12_25398156_83_163'
-    >>> sscs_qname('CCCC_12_25398064_12_25398156_fwd_R2', 163)
-    'CCCC_12_25398064_12_25398156_83_163'
-
-    
-    Translocation:
-    >>> sscs_qname('TGGT_1_21842527_13_72956752_rev_R1', 113)
-    'TGGT_1_21842527_13_72956752_113_177'
-    >>> sscs_qname('TGGT_13_72956752_1_21842527_rev_R2', 177)
-    'TGGT_1_21842527_13_72956752_113_177'
-    >>> sscs_qname('TTCA_0_2364_10_135461271_fwd_R1', 65)
-    'TTCA_0_2364_10_135461271_65_129'
-    >>> sscs_qname('TTCA_10_135461271_0_2364_fwd_R2', 129)
-    'TTCA_0_2364_10_135461271_65_129'
-    '''
-    flag_pairings = {99:147, 147:99, 83:163, 163:83, \
-                     # mapped within insert size, but wrong orientation (++, --)
-                     67:131, 131:67, 115:179, 179:115, \
-                     ## === translocations ===
-                     # mapped uniquely, but wrong insert size
-                     81:161, 161:81, 97:145, 145:97, \
-                     # wrong insert size and wrong orientation
-                     65:129, 129:65, 113:177, 177:113
-                     }
-
-    start_chr = tag.split("_")[1]
-    stop_chr = tag.split("_")[3]
-    start_coor = tag.split("_")[2]
-    stop_coor = tag.split("_")[4]
-
-    # Order by chr coordinate
-    if (int(start_coor) > int(stop_coor) and start_chr == stop_chr) or \
-       (start_chr != stop_coor and int(start_chr) > int(stop_chr)):
-        new_tag = tag.split("_")
-        new_tag[1] = stop_chr
-        new_tag[3] = start_chr
-        new_tag[2] = stop_coor
-        new_tag[4] = start_coor
-        new_tag = "_".join(new_tag)[:-7]
-        # Determine strand 
-        if 'R1' in tag: # rev_R1
-            new_tag = new_tag + '_neg'
-        else: # rev_R2
-            new_tag = new_tag + '_pos'
-    else:
-        # Use flags to determine strand for reads with the same coordinate as mate 
-        if start_chr == stop_chr and start_coor == stop_coor:
-            if flag in [99, 147]:
-                new_tag = tag[:-7] + '_pos'
-            elif flag in [83, 163]:
-                new_tag = tag[:-7] + '_neg'
-        elif 'R1' in tag: # fwd_R1
-            new_tag = tag[:-7] + '_pos'
-        else: # fwd_R2
-            new_tag = tag[:-7] + '_neg'
-            
-    # Group pairs by strand unless translocation
-    if flag < flag_pairings[flag]:
-        new_tag = '{}_{}_{}'.format(new_tag, flag, flag_pairings[flag])
-    else:
-        new_tag = '{}_{}_{}'.format(new_tag, flag_pairings[flag], flag)
-    
-    return new_tag
-    
-
 def main():
     # Command-line parameters
     parser = ArgumentParser()
@@ -469,16 +378,15 @@ def main():
     
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     
-    bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added
-    tag_dict = collections.defaultdict(int)
-    paired_dict = collections.OrderedDict()
-        
+    trans_pair = collections.OrderedDict()
+    trans_dict = collections.OrderedDict()
+    
     tag_quality_dict = collections.defaultdict(list)
     quality_dict = collections.defaultdict(list)
     
     unmapped = 0
     unmapped_flag = 0
-    bad_reads = 0
+    bad_reads = 0 # secondary/supplementary reads
     counter = 0  
     doubletons = 0
     singletons = 0
@@ -488,85 +396,23 @@ def main():
     chr_len = [x['LN'] for x in bamfile.header['SQ']]
     
     chr_arm_coor = chr_arm_pos(chrm, chr_len)
-    #print(chr_arm_coor)
-    
-    #unmapped_key = []
     
     for x in chr_arm_coor.keys():
-        bamLines = bamfile.fetch(reference = x.split('_')[0], start = chr_arm_coor[x][0], end =  chr_arm_coor[x][1]) # genomic start and end 0-based       
         # Create dictionary for each chrm
-        for line in bamLines:
-            counter += 1
-            strand = 'fwd'
-            if line.is_reverse:
-                strand = 'rev'
-                
-            read = 'R1'
-            if line.is_read2:
-                read = 'R2'              
-            
-            # KEEP UNMAPPED READS THAT HAVE PAIR THATS MAPPED
-            # if only map one side of it, chuck both
-            ## chuck unmapped reads and their pairs!!! TODAY throw them for now
-            # Later, if unmapped, use absolute sequence to build families 
-            # if coordinates unavailable, compare sequence fix 
-            
-            #good_flags = [99, 147, 83, 163]
-            
-            # do we want to keep reads that have the pair mapped to reverse?????
-            
-            # Read 1 vs Read 2
-            # Unique mol: read1 = 7975, read2 = 7934
-            # original bam (test file): read1 = 229324, read2 = 229517
-            # original bam (full): read1 = 35929483, read 2 = 35934622
-            
-            ## JUST FILTER OUT UNMAPPED as I won't have a R2 
-            
-            bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]
-            
-            if line.is_unmapped:
-                unmapped += 1
-                continue
-            elif line.is_secondary:
-                bad_reads += 1
-                continue
-            elif line.is_supplementary:
-                bad_reads += 1
-                continue
-            elif line.flag in bad_flags :
-                unmapped_flag += 1
-                continue        
+        chr_data = read_bam(bamfile, read_chr = x.split('_')[0], read_start = chr_arm_coor[x][0], read_end = chr_arm_coor[x][1]) # genomic start and end 0-based
         
-            tag = '{}_{}_{}_{}_{}_{}_{}'.format(line.qname.split("|")[1], # mol barcode
-                                          line.reference_id, # chr num
-                                          line.reference_start, # start R1 (0-based)
-                                          line.next_reference_id,
-                                          line.next_reference_start, # start R2
-                                          strand, # strand direction
-                                          read # read num
-                                          ) 
-                        
-            try:
-                line.get_tag('MD')
-            except:
-                print(line)
-                continue
-                
-            tag_dict[tag] += 1     
-            #paired_dict[] 
-            consensus_tag = sscs_qname(tag, int(line.flag))
-            
-            if tag not in bam_dict:
-                bam_dict[tag] =[line]
-                
-                # Only add tag to paired_dict once (aka first time creating tag) 
-                if consensus_tag not in paired_dict:
-                    paired_dict[consensus_tag] = [tag]
-                else:
-                    paired_dict[consensus_tag].append(tag)                
+        # Dictionary is reset each loop to contain only data from given chr coor
+        bam_dict = chr_data[0]
+        tag_dict = chr_data[1]
+        paired_dict = chr_data[2]
         
-            else:
-                bam_dict[tag].append(line)              
+        trans_dict.update(chr_data[3])
+        trans_pair.update(chr_data[4])
+        
+        counter += chr_data[5]
+        unmapped += chr_data[6]
+        unmapped_flag += chr_data[7]
+        bad_reads += chr_data[8]
         
         
         # ===== Create consenus seq for reads in each chrm arm and reset =====
@@ -574,7 +420,68 @@ def main():
             rand_key = choice(list(bam_dict.keys()))
             readLength = bam_dict[rand_key][0].infer_query_length()        
         
-        ## WHY ARE MATES OF READS WITH TRANSLOCATIONS NOT GROUPED TOGETHER? 
+        written_pairs = []
+        
+        for readPair in trans_pair.keys():
+            if len(trans_pair[readPair]) == 2:
+                for tag in trans_pair[readPair]:
+                    # Check for singletons
+                    if tag_dict[tag] < 2:
+                        singletons += 1
+                        singleton_bam.write(trans_dict[tag][0])
+                    else:
+                        SSCS = consensus_maker(trans_dict[tag], readLength, float(args.cutoff))
+                        
+                        quality_dict[tag] += [SSCS[1]]
+                        tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
+                        
+                        SSCS_read = create_aligned_segment(trans_dict[tag], SSCS[0], SSCS[1])
+                        
+                        #new_tag = sscs_qname(tag, SSCS_read.flag)
+                        query_name = readPair + ':' + str(tag_dict[tag])   
+                        SSCS_read.query_name = query_name
+                        
+                        # Use aligned sequence in case of soft clips
+                        aligned_seq = SSCS_read.query_alignment_sequence
+                        if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
+                            print('uh oh too many Ns')
+                            print(aligned_seq)
+                            print(SSCS_read)
+                            continue                        
+
+                        if tag_dict[tag] == 2:
+                            doubletons += 1
+                            doubleton_bam.write(SSCS_read)
+                        else:
+                            SSCS_bam.write(SSCS_read)    
+                            SSCS_reads += 1
+                
+                        # ===== write as fastq file =====                        
+                        #if SSCS_read.is_reverse and SSCS_read.is_read1:
+                        #fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
+                        fastq_seq = SSCS_read.query_sequence 
+                        
+                        
+                        if 'rev' in tag:
+                            fastq_seq = reverse_seq(fastq_seq)
+                            fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
+                        else:
+                            fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
+                        
+                        if tag_dict[tag] == 2:
+                            if 'R1' in tag:
+                                doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                            else:
+                                doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
+                        else:
+                            if 'R1' in tag:
+                                fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                            else:
+                                fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                written_pairs.append(readPair)
+                
+        for read in written_pairs:
+            trans_pair.pop(read)        
         
         for readPair in paired_dict.keys():
             # Check pairing
@@ -582,6 +489,27 @@ def main():
                 print('uh oh pairing problem!!!')
                 print(readPair)
                 print(paired_dict[readPair])
+                print(bam_dict[paired_dict[readPair][0]][0])
+                m = bamfile.mate(bam_dict[paired_dict[readPair][0]][0])
+                print(m)
+                
+                strand = 'fwd'
+                if m.is_reverse:
+                    strand = 'rev'
+                    
+                read = 'R1'
+                if m.is_read2:
+                    read = 'R2'            
+                mtag = '{}_{}_{}_{}_{}_{}_{}'.format(m.qname.split("|")[1], # mol barcode
+                                                      m.reference_id, # chr num
+                                                      m.reference_start, # start R1 (0-based)
+                                                      m.next_reference_id,
+                                                      m.next_reference_start, # start R2
+                                                      strand, # strand direction
+                                                      read # read num
+                                                      )             
+                print(mtag)
+                return readPair                
             else:
                 for tag in paired_dict[readPair]:
                     # Check for singletons
