@@ -76,6 +76,10 @@ def mismatch_pos(cigar, mismatch_tag, readLength):
     Return 0-based index of mismatch positions in sequence (including insertions,
     ignoring deletions) - list of variant positions.
     
+    Positions are adjusted to reflect insertions. 
+    
+    First and last position indicate start and end of ALIGNED sequence (soft clips are excluded).
+    
     === Background Info ===
     == CIGAR ==  
     - soft clips, hard clips, insertions, deletions
@@ -103,21 +107,15 @@ def mismatch_pos(cigar, mismatch_tag, readLength):
     # 14S29M2D30M50S, cigar = 59, MD = 59 
     >>> mismatch_pos([(4, 14), (0, 29), (2, 2), (0, 30), (4, 50)], '13c0g14^ga3g23N0N0N0', 123)
     [14, 27, 28, 46, 70, 71, 72, 73]
-    
-    ((14, 73), [13, 14, 32, 56, 57, 58])
-    
+        
     # 47M3D27M6I13M30S
     >>>mismatch_pos([(0, 47), (2, 3), (0, 27), (1, 6), (0, 13), (4, 30)], '19a27^ggc12g25N0N0', 123)
     [0, 19, 59, 74, 75, 76, 77, 78, 79, 91, 92, 93]
-    
-    ((0, 93), [19, 59, 74, 75, 76, 77, 78, 79, 91, 92])
-    
+        
     # 35M4I16M5I32M31H <- realistically, hard clips are filtered out
     >>>mismatch_pos([(0, 35), (1, 4), (0, 16), (1, 5), (0, 32), (5, 31)], '3g10g10g1g15c38N0', 92)
     [0, 3, 14, 25, 27, 35, 36, 37, 38, 47, 55, 56, 57, 58, 59, 91, 92]
-    
-    ((0, 92), [3, 14, 25, 27, 35, 36, 37, 38, 47, 55, 56, 57, 58, 59, 60, 91])
-    
+        
     8S115M
     >>>mismatch_pos([(4, 8), (0, 115)], '0N0N113', 123)
     [8, 8, 9, 123]
@@ -129,7 +127,7 @@ def mismatch_pos(cigar, mismatch_tag, readLength):
     
     First mismatch "G' at position 19 + 8
     '''
-    # Adjust for softclips - CHECK TO SEE IF INDEXED CORRECTLY
+    # Adjust for softclips
     start = 0
     end = readLength
     
@@ -247,40 +245,6 @@ def consensus_maker(readList, readLength, cutoff):
             consensus_read += 'N'
             quality_consensus.append(0)        
         
-        #max_nuc_index = [f for f, k in enumerate(position_score) if k == max(position_score)]
-        ## If there's more than one max, randomly select nuc
-        #max_nuc = max_nuc_index[randint(0, len(max_nuc_index)-1)]
-        ## Median quality score (round to larger value if qual score is a decimal)
-        #import statistics
-        #import math
-        #try:
-            #med_qual = math.ceil(statistics.median(quality_score[max_nuc]))
-        #except:
-            #print(position_score)
-            #print(quality_score)
-            #print(quality_score[max_nuc])
-            #print(phred_fail)
-            #print(i)
-            #print(readList[0])
-            #print(readList[1])
-            #return 'hi'
-        
-        ## frequency of nuc at position > cutoff
-        ##if len(readList) != phred_fail:
-        #try:
-            ##print(position_score[max_nuc])
-            ##print((len(readList) - phred_fail))
-            #if position_score[max_nuc]/(len(readList) - phred_fail) > cutoff:
-                #consensus_read += nuc_lst[max_nuc]
-                #quality_consensus.append(med_qual)
-            #else:
-                #raise ValueError
-        #except ValueError:
-            #consensus_read += 'N'
-            #quality_consensus.append(0)
-        #print(i)
-        #print(consensus_read)
-        
     return consensus_read, quality_consensus 
 
 
@@ -353,8 +317,9 @@ def main():
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     
     # ===== Initialize dictionaries =====
-    trans_pair = collections.OrderedDict()
-    trans_dict = collections.OrderedDict()
+    bam_dict = collections.OrderedDict() # dict that remembers order of entries
+    tag_dict = collections.defaultdict(int)
+    pair_dict = collections.OrderedDict()
     
     tag_quality_dict = collections.defaultdict(list)
     quality_dict = collections.defaultdict(list)
@@ -379,127 +344,35 @@ def main():
         # Create dictionary for each chrm
         #print(trans_pair)        
         ## carry over information from trans dict from one chr to another
-        chr_data = read_bam(bamfile, read_chr = x.split('_')[0], read_start = chr_arm_coor[x][0], read_end = chr_arm_coor[x][1], trans_pair = trans_pair, trans_dict = trans_dict) # genomic start and end 0-based
+        chr_data = read_bam(bamfile, 
+                            pair_dict = pair_dict, 
+                            read_dict = bam_dict,
+                            tag_dict = tag_dict, 
+                            read_chr = x.split('_')[0], 
+                            read_start = chr_arm_coor[x][0], 
+                            read_end = chr_arm_coor[x][1])
         
         # Dictionary is reset each loop to contain only data from given chr coor
         bam_dict = chr_data[0]
         tag_dict = chr_data[1]
-        paired_dict = chr_data[2]
+        pair_dict = chr_data[2]
         
-        trans_dict.update(chr_data[3])
-        trans_pair.update(chr_data[4])
-        
-        counter += chr_data[5]
-        unmapped += chr_data[6]
-        unmapped_flag += chr_data[7]
-        bad_reads += chr_data[8]    
-        
-        #print(paired_dict['CTTC_1_116099948_1_116100023_neg_83_163'])
-        #print(tag_dict['CTTC_1_116100023_1_116099948_rev_R1'])
+        counter += chr_data[3]
+        unmapped += chr_data[4]
+        unmapped_flag += chr_data[5]
+        bad_reads += chr_data[6]    
         
     
-        # ===== Create consenus seq for reads in each chrm arm and reset =====
+        ## ===== Create consenus seq for reads in each chrm arm and reset =====
         if bool(bam_dict):
             rand_key = choice(list(bam_dict.keys()))
             readLength = bam_dict[rand_key][0].infer_query_length()        
         
         written_pairs = []
         
-        for readPair in trans_pair.keys():
-            #if readPair == 'ACGC_12_120699897_12_120699962_neg_83_163':
-                #print(trans_pair[readPair])
-            if len(trans_pair[readPair]) == 2:
-                for tag in trans_pair[readPair]:
-                    # Check for singletons
-                    if tag_dict[tag] < 2:
-                        singletons += 1
-                        singleton_bam.write(trans_dict[tag][0])
-                    else:
-                        SSCS = consensus_maker(trans_dict[tag], readLength, float(args.cutoff))
-                        
-                        quality_dict[tag] += [SSCS[1]]
-                        tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
-                        
-                        SSCS_read = create_aligned_segment(trans_dict[tag], SSCS[0], SSCS[1])
-                        
-                        #new_tag = sscs_qname(tag, SSCS_read.flag)
-                        query_name = readPair + ':' + str(tag_dict[tag])   
-                        SSCS_read.query_name = query_name
-                        
-                        # Use aligned sequence in case of soft clips
-                        #aligned_seq = SSCS_read.query_alignment_sequence
-                        #if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
-                            #print('uh oh too many Ns')
-                            #print(aligned_seq)
-                            #print(SSCS_read)
-                            #continue                        
-
-                        if tag_dict[tag] == 2:
-                            doubletons += 1
-                            doubleton_bam.write(SSCS_read)
-                        else:
-                            SSCS_bam.write(SSCS_read)    
-                            SSCS_reads += 1
-                
-                        # ===== write as fastq file =====                        
-                        #if SSCS_read.is_reverse and SSCS_read.is_read1:
-                        #fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
-                        fastq_seq = SSCS_read.query_sequence 
-                        
-                        
-                        if 'rev' in tag:
-                            fastq_seq = reverse_seq(fastq_seq)
-                            fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
-                        else:
-                            fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
-                        
-                        if tag_dict[tag] == 2:
-                            if 'R1' in tag:
-                                doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                            else:
-                                doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
-                        else:
-                            if 'R1' in tag:
-                                fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                            else:
-                                fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                written_pairs.append(readPair)
-                
-        for read in written_pairs:
-            trans_pair.pop(read)        
-        
-        for readPair in paired_dict.keys():          
-            # Check pairing
-            if len(paired_dict[readPair]) != 2:
-                print('uh oh pairing problem!!!')
-                print(chr_arm_coor[x][0])
-                print(chr_arm_coor[x][1])
-                print(readPair)
-                print(paired_dict[readPair])
-                print(bam_dict[paired_dict[readPair][0]][0])
-                m = bamfile.mate(bam_dict[paired_dict[readPair][0]][0])
-                print(m)
-                
-                strand = 'fwd'
-                if m.is_reverse:
-                    strand = 'rev'
-                    
-                read = 'R1'
-                if m.is_read2:
-                    read = 'R2'            
-                mtag = '{}_{}_{}_{}_{}_{}_{}'.format(m.qname.split("|")[1], # mol barcode
-                                                      m.reference_id, # chr num
-                                                      m.reference_start, # start R1 (0-based)
-                                                      m.next_reference_id,
-                                                      m.next_reference_start, # start R2
-                                                      strand, # strand direction
-                                                      read # read num
-                                                      )             
-                print(mtag)
-                print(sscs_qname(mtag, m.flag))                
-                return readPair                
-            else:
-                for tag in paired_dict[readPair]:
+        for readPair in list(pair_dict.keys()):
+            if len(pair_dict[readPair]) == 2:
+                for tag in pair_dict[readPair]:
                     # Check for singletons
                     if tag_dict[tag] < 2:
                         singletons += 1
@@ -512,18 +385,9 @@ def main():
                         
                         SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
                         
-                        #new_tag = sscs_qname(tag, SSCS_read.flag)
                         query_name = readPair + ':' + str(tag_dict[tag])   
                         SSCS_read.query_name = query_name
                         
-                        ## Use aligned sequence in case of soft clips
-                        #aligned_seq = SSCS_read.query_alignment_sequence
-                        #if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
-                            #print('uh oh too many Ns')
-                            #print(aligned_seq)
-                            #print(SSCS_read)
-                            #continue                        
-
                         if tag_dict[tag] == 2:
                             doubletons += 1
                             doubleton_bam.write(SSCS_read)
@@ -553,21 +417,28 @@ def main():
                                 fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
                             else:
                                 fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                                
+                # Remove key from dictionary after writing
+                del pair_dict[readPair]                                               
                         
         import pickle
         read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
         pickle.dump(bam_dict, read_dict_file)
         read_dict_file.close()
         
-        # reset dictionary            
-        bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added        
-        paired_dict = collections.OrderedDict()
+        ## reset dictionary            
+        #bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added        
+        #paired_dict = collections.OrderedDict()
         try:
             time_tracker.write(x + ': ')
             time_tracker.write(str((time.time() - start_time)/60) + '\n')
             
         except:
             continue
+        
+    if bool(pair_dict):
+        for i in pair_dict:
+            print(i)
     
     # ===== write tag family size dictionary to file ===== 
     # (key = tags, value = int [number of reads in that family]) 
@@ -622,3 +493,156 @@ if __name__ == "__main__":
     start_time = time.time()
     main()
     print((time.time() - start_time)/60)  
+    
+    
+
+                            
+                    
+    #for readPair in trans_pair.keys():
+        ##if readPair == 'ACGC_12_120699897_12_120699962_neg_83_163':
+            ##print(trans_pair[readPair])
+        #if len(trans_pair[readPair]) == 2:
+            #for tag in trans_pair[readPair]:
+                ## Check for singletons
+                #if tag_dict[tag] < 2:
+                    #singletons += 1
+                    #singleton_bam.write(trans_dict[tag][0])
+                #else:
+                    #SSCS = consensus_maker(trans_dict[tag], readLength, float(args.cutoff))
+                    
+                    #quality_dict[tag] += [SSCS[1]]
+                    #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
+                    
+                    #SSCS_read = create_aligned_segment(trans_dict[tag], SSCS[0], SSCS[1])
+                    
+                    ##new_tag = sscs_qname(tag, SSCS_read.flag)
+                    #query_name = readPair + ':' + str(tag_dict[tag])   
+                    #SSCS_read.query_name = query_name
+                    
+                    ## Use aligned sequence in case of soft clips
+                    ##aligned_seq = SSCS_read.query_alignment_sequence
+                    ##if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
+                        ##print('uh oh too many Ns')
+                        ##print(aligned_seq)
+                        ##print(SSCS_read)
+                        ##continue                        
+
+                    #if tag_dict[tag] == 2:
+                        #doubletons += 1
+                        #doubleton_bam.write(SSCS_read)
+                    #else:
+                        #SSCS_bam.write(SSCS_read)    
+                        #SSCS_reads += 1
+            
+                    ## ===== write as fastq file =====                        
+                    ##if SSCS_read.is_reverse and SSCS_read.is_read1:
+                    ##fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
+                    #fastq_seq = SSCS_read.query_sequence 
+                    
+                    
+                    #if 'rev' in tag:
+                        #fastq_seq = reverse_seq(fastq_seq)
+                        #fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
+                    #else:
+                        #fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
+                    
+                    #if tag_dict[tag] == 2:
+                        #if 'R1' in tag:
+                            #doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                        #else:
+                            #doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
+                    #else:
+                        #if 'R1' in tag:
+                            #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                        #else:
+                            #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+            #written_pairs.append(readPair)
+            
+    #for read in written_pairs:
+        #trans_pair.pop(read)        
+    
+    #for readPair in paired_dict.keys():          
+        ## Check pairing
+        #if len(paired_dict[readPair]) != 2:
+            #print('uh oh pairing problem!!!')
+            #print(chr_arm_coor[x][0])
+            #print(chr_arm_coor[x][1])
+            #print(readPair)
+            #print(paired_dict[readPair])
+            #print(bam_dict[paired_dict[readPair][0]][0])
+            #m = bamfile.mate(bam_dict[paired_dict[readPair][0]][0])
+            #print(m)
+            
+            #strand = 'fwd'
+            #if m.is_reverse:
+                #strand = 'rev'
+                
+            #read = 'R1'
+            #if m.is_read2:
+                #read = 'R2'            
+            #mtag = '{}_{}_{}_{}_{}_{}_{}'.format(m.qname.split("|")[1], # mol barcode
+                                                  #m.reference_id, # chr num
+                                                  #m.reference_start, # start R1 (0-based)
+                                                  #m.next_reference_id,
+                                                  #m.next_reference_start, # start R2
+                                                  #strand, # strand direction
+                                                  #read # read num
+                                                  #)             
+            #print(mtag)
+            #print(sscs_qname(mtag, m.flag))                
+            #return readPair                
+        #else:
+            #for tag in paired_dict[readPair]:
+                ## Check for singletons
+                #if tag_dict[tag] < 2:
+                    #singletons += 1
+                    #singleton_bam.write(bam_dict[tag][0])
+                #else:
+                    #SSCS = consensus_maker(bam_dict[tag], readLength, float(args.cutoff))
+                    
+                    #quality_dict[tag] += [SSCS[1]]
+                    #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
+                    
+                    #SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
+                    
+                    ##new_tag = sscs_qname(tag, SSCS_read.flag)
+                    #query_name = readPair + ':' + str(tag_dict[tag])   
+                    #SSCS_read.query_name = query_name
+                    
+                    ### Use aligned sequence in case of soft clips
+                    ##aligned_seq = SSCS_read.query_alignment_sequence
+                    ##if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
+                        ##print('uh oh too many Ns')
+                        ##print(aligned_seq)
+                        ##print(SSCS_read)
+                        ##continue                        
+
+                    #if tag_dict[tag] == 2:
+                        #doubletons += 1
+                        #doubleton_bam.write(SSCS_read)
+                    #else:
+                        #SSCS_bam.write(SSCS_read)    
+                        #SSCS_reads += 1
+            
+                    ## ===== write as fastq file =====                        
+                    ##if SSCS_read.is_reverse and SSCS_read.is_read1:
+                    ##fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
+                    #fastq_seq = SSCS_read.query_sequence 
+                    
+                    
+                    #if 'rev' in tag:
+                        #fastq_seq = reverse_seq(fastq_seq)
+                        #fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
+                    #else:
+                        #fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
+                    
+                    #if tag_dict[tag] == 2:
+                        #if 'R1' in tag:
+                            #doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                        #else:
+                            #doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
+                    #else:
+                        #if 'R1' in tag:
+                            #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
+                        #else:
+                            #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
