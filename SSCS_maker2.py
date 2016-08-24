@@ -193,7 +193,7 @@ def consensus_maker(readList, readLength, cutoff):
     '''
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
     consensus_read = ''
-    quality_consensus = array.array('B')
+    quality_consensus = []
     
     mismatch_pos_lst = []
     
@@ -229,22 +229,37 @@ def consensus_maker(readList, readLength, cutoff):
             max_nuc_index = [f for f, k in enumerate(position_score) if k == max(position_score)]
             # If there's more than one max, randomly select nuc
             max_nuc = max_nuc_index[randint(0, len(max_nuc_index)-1)]
-            # Median quality score (round to larger value if qual score is a decimal)
-            import statistics
+            
+            # === Molecular phred quality of error (multiple probabilities of error) ===
+            error_qualities = quality_score[:max_nuc] + quality_score[(max_nuc +1):]
+            from itertools import chain
             import math
-            med_qual = math.ceil(statistics.median(quality_score[max_nuc]))
+            err_qual_unlisted = list(chain(*error_qualities))
+            
+            if err_qual_unlisted == []:
+                # No error/all consensus, calculate probability of error corresponding to max capped quality score and multiply all of them
+                mol_qual = 62
+            else:
+                P = 1
+                for Q in err_qual_unlisted:
+                    P *= 10**(-(Q/10))
+                    
+                mol_qual = round(-10 * math.log10(P))
+                
+                if mol_qual > 62:
+                    mol_qual = 62
 
             # frequency of nuc at position > cutoff
             if position_score[max_nuc]/(len(readList) - phred_fail) > cutoff:
                 consensus_read += nuc_lst[max_nuc]
-                quality_consensus.append(med_qual)
+                quality_consensus.append(mol_qual)
             else:
                 raise ValueError                
     
-        except ValueError:
+        except:
             consensus_read += 'N'
-            quality_consensus.append(0)        
-        
+            quality_consensus.append(0)
+                    
     return consensus_read, quality_consensus 
 
 
@@ -361,12 +376,16 @@ def main():
         unmapped += chr_data[4]
         unmapped_flag += chr_data[5]
         bad_reads += chr_data[6]    
-        
-    
+            
         ## ===== Create consenus seq for reads in each chrm arm and reset =====
         if bool(bam_dict):
             rand_key = choice(list(bam_dict.keys()))
-            readLength = bam_dict[rand_key][0].infer_query_length()        
+            read = bam_dict[rand_key][0]
+            # safety measure to ensure no hard clips...but they should be filtered out anyways
+            if 'H' not in read.cigarstring:
+                readLength = read.infer_query_length()
+            else:
+                print('uh oh hard clip')
         
         written_pairs = []
         
@@ -394,18 +413,17 @@ def main():
                         else:
                             SSCS_bam.write(SSCS_read)    
                             SSCS_reads += 1
-                
+                        
                         # ===== write as fastq file =====                        
                         #if SSCS_read.is_reverse and SSCS_read.is_read1:
                         #fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
-                        fastq_seq = SSCS_read.query_sequence 
-                        
+                        fastq_seq = SSCS[0] 
                         
                         if 'rev' in tag:
                             fastq_seq = reverse_seq(fastq_seq)
-                            fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
+                            fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS[1]))
                         else:
-                            fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
+                            fastq_qual = pysam.qualities_to_qualitystring(SSCS[1])
                         
                         if tag_dict[tag] == 2:
                             if 'R1' in tag:
@@ -417,18 +435,22 @@ def main():
                                 fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
                             else:
                                 fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                                
+                        
+                    # Remove read from dictionary after writing
+                    del bam_dict[tag]
+                        
                 # Remove key from dictionary after writing
                 del pair_dict[readPair]                                               
-                        
+        print(x)
+
         import pickle
-        read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
-        pickle.dump(bam_dict, read_dict_file)
-        read_dict_file.close()
+        # This ends up writing everything to the file, also dictionary of reads is not decreasing over time -> memory issue
+        #read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
+        #pickle.dump(bam_dict, read_dict_file)
+        #read_dict_file.close()
         
-        ## reset dictionary            
-        #bam_dict = collections.OrderedDict() # dict subclass that remembers order entries were added        
-        #paired_dict = collections.OrderedDict()
+
+        print(str((time.time() - start_time)/60))
         try:
             time_tracker.write(x + ': ')
             time_tracker.write(str((time.time() - start_time)/60) + '\n')
@@ -436,9 +458,23 @@ def main():
         except:
             continue
         
+        
+    # Reads left over at the end due to how pysam fetches reads -> does it get read twice?
+        
+    print('pair_dict remaining')
     if bool(pair_dict):
         for i in pair_dict:
             print(i)
+            print(pair_dict[i])
+            print(bam_dict[pair_dict[i][0]])
+            print(bamfile.mate(bam_dict[pair_dict[i][0]][0]))
+    print('bam_dict remaining')
+    if bool(bam_dict):
+        for i in bam_dict:
+            print(i)
+            print(bam_dict[i])
+            print(bam_dict[i][0])
+            #print(bamfile.mate(bam_dict[i][0]))            
     
     # ===== write tag family size dictionary to file ===== 
     # (key = tags, value = int [number of reads in that family]) 
@@ -452,7 +488,7 @@ Unmapped flag reads: {} \n
 Secondary/Supplementary reads: {} \n
 SSCS reads: {} \n
 singletons: {} \n
-doubletons: {} \n
+doubleton_consensus: {} \n
 '''.format(counter, unmapped, unmapped_flag, bad_reads, SSCS_reads, singletons, doubletons)
 
     stats.write(summary_stats)
@@ -477,6 +513,7 @@ doubletons: {} \n
     read_fraction = [(i*j)/total_reads for i,j in lst_fam_per_read] 
     
     plt.bar(list(fam_per_read_group), read_fraction)
+    
     #plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
     plt.xlabel('Tag family size (# of reads per family)')
     plt.ylabel('Fraction of total reads')
