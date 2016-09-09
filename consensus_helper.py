@@ -35,71 +35,6 @@ from argparse import ArgumentParser
 ##         Functions         ##
 ###############################
 
-def uid_dict(bamfile, read_chr = None, read_start = None, read_end = None):
-    '''(bamfile object) -> dict, dict, int, int
-    
-    Input: bamfile object created from pysam.AlignmentFile
-    
-    Output:
-    1) bam_dict: dictionary of bamfile reads
-                 - Key: barcode_chr_startR1_startR2_strand_ReadNum
-                 - Value: bamfile read
-    2) tag_dict: integer dictionary of number of reads in each read family
-    3) counter: total number of reads
-    4) bad_reads: number of reads that not properly mapped (lack cigar string)
-    '''
-    bam_dict = collections.OrderedDict() #dict that remembers order of entries
-    tag_dict = collections.defaultdict(int) #dict tracking int
-    
-    if read_chr == None:
-        bamLines = bamfile.fetch(until_eof = True)
-    else:
-        bamLines = bamfile.fetch(read_chr, read_start, read_end)
-    
-    bad_reads = 0
-    counter = 0
-    
-    for line in bamLines:
-        #print(line)
-        counter += 1
-        
-        strand = 'fwd'
-        if line.is_reverse:
-            strand = 'rev'
-        
-        read = 'R1'
-        if line.is_read2:
-            read = 'R2'
-            
-        try:
-            tag = '{}_{}_{}_{}_{}_{}_{}'.format(line.qname.split("|")[1], # barcode
-                                          line.reference_id, # chr num
-                                          line.reference_start, # start R1 (0-based)
-                                          line.next_reference_id,
-                                          line.next_reference_start, # start R2
-                                          strand, # strand direction
-                                          read # read num
-                                          ) 
-            
-            # Raise error if cigarstring is empty indicating bad read
-            if 'I' in line.cigarstring:
-                line.cigarstring
-
-            tag_dict[tag] += 1     
-            
-            if tag not in bam_dict:
-                bam_dict[tag] =[line]
-        
-            else:
-                bam_dict[tag].append(line)             
-            
-        except:
-            # Bad reads won't have cigar or MD 
-            bad_reads += 1
-
-    return bam_dict, tag_dict, counter, bad_reads
-
-
 def sscs_qname(tag, flag):
     '''(str, int) -> str
     Return new tag/queryname for consensus sequences:
@@ -182,7 +117,7 @@ def sscs_qname(tag, flag):
         new_tag[3] = ref_chr
         new_tag[2] = mate_coor
         new_tag[4] = ref_coor
-        new_tag = "_".join(new_tag)[:-7]
+        new_tag = "_".join(new_tag)[:-9]
         # Determine strand 
         if 'R1' in tag: # rev_R1
             new_tag = new_tag + '_neg'
@@ -191,15 +126,16 @@ def sscs_qname(tag, flag):
     else:
         # === Use flags to determine strand direction === 
         # for reads with the same coordinate mate (start and stop are the same)
+        consensus_tag = tag[:-9]
         if ref_chr == mate_chr and ref_coor == mate_coor:
             if flag in pos_flag:
-                new_tag = tag[:-7] + '_pos'
+                new_tag = consensus_tag + '_pos'
             else:
-                new_tag = tag[:-7] + '_neg'
+                new_tag = consensus_tag + '_neg'
         elif 'R1' in tag: # fwd_R1
-            new_tag = tag[:-7] + '_pos'
+            new_tag = consensus_tag + '_pos'
         else: # fwd_R2
-            new_tag = tag[:-7] + '_neg'
+            new_tag = consensus_tag + '_neg'
 
     # === Add flag information to query name ===
     # with smaller flag ordered first, to help differentiate between reads 
@@ -307,12 +243,18 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_chr = None,
             
         ref_start = line.reference_start
         next_start = line.next_reference_start
+        
+        if 'S' in line.cigarstring:
+            softclip = 'S'
+        else:
+            softclip = 'M'
     
-        tag = '{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
+        tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
                                       line.reference_id, # chr num
                                       ref_start, # start R1 (0-based)
                                       line.next_reference_id,
                                       next_start, # start R2
+                                      softclip,
                                       strand, # strand direction
                                       read # read num
                                       )    
@@ -357,221 +299,6 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_chr = None,
         
     return read_dict, tag_dict, pair_dict, counter, unmapped, unmapped_flag, \
            bad_reads        
-
-
-#def trans_read_bam(bamfile, read_chr = None, read_start = None, read_end = None, 
-             #duplex = None, trans_pair = None, trans_dict = None):
-    #'''(bamfile object, str, int, int, str, dict, dict) -> 
-    #dict, dict, dict, dict, dict, int, int, int, int
-    
-    #=== Input === 
-    #- bamfile: pysam.AlignmentFile object
-    #- read_chr: string of chromosome region to fetch reads
-    #- read_start: integer of starting position to fetch reads
-    #- read_end: integer of stopping position to fetch reads
-    #- duplex: any string or bool specifying duplex consensus making,
-              #query name for SSCS and DCS differ
-    #- trans_pair: {query name: [read_tag, mate_tag]} -> dictionary of paired tags 
-                  #(retains data from translocations or reads crossing cytobands 
-                  #to preserve pairing as reads are divided into sections for 
-                  #consensus making of large bam files)
-    #- trans_dict: {read_tag: [<pysam.calignedsegment.AlignedSegment>, 
-                  #<pysam.calignedsegment.AlignedSegment>, ..etc.]} 
-    
-    #=== Output ===
-    #1) bam_dict: dictionary of bamfile reads 
-                 #{read_tag: [<pysam.calignedsegment.AlignedSegment>, 
-                 #<pysam.calignedsegment.AlignedSegment>, ..etc.]} 
-                 #- Key: barcode_chr_startR1_startR2_strand_ReadNum
-                 #- Value: list of bamfile reads
-    #2) tag_dict: integer dictionary indicating number of reads in each read family 
-                 #{read_tag: 2, ..etc} 
-    #3) paired_dict: dictionary of paired tags  
-                    #{query name: [read_tag, mate_tag]}
-    #4) trans_dict: dictionary of reads with mate pair on a different chromosome 
-                   #or reads crossing cytobands (regions of data division)
-    #5) trans_pair: dictionary of paired tags from different regionsor separated 
-                   #by data division
-    #6) counter: total number of reads
-    #7) unmapped: reads without a flag
-    #8) unmapped_flag: unmapped reads or unmapped mates
-    #9) bad_reads: number of reads that not properly mapped 
-                  #- secondary reads: same sequence aligns to multiple locations
-                  #- supplementary reads: multiple parts of sequence align to 
-                                         #multiple locations
-    #'''    
-    #bam_dict = collections.OrderedDict() # dict that remembers order of entries
-    #tag_dict = collections.defaultdict(int)
-    #paired_dict = collections.OrderedDict()
-    
-    #if read_chr == None:
-        #bamLines = bamfile.fetch(until_eof = True)
-    #else:
-        #bamLines = bamfile.fetch(read_chr, read_start, read_end)
-        
-    #unmapped = 0
-    #unmapped_flag = 0
-    #bad_reads = 0 # secondary/supplementary reads
-    #counter = 0   
-    
-    #for line in bamLines:
-        #counter += 1
-        #strand = 'fwd'
-        #if line.is_reverse:
-            #strand = 'rev'
-            
-        #read = 'R1'
-        #if line.is_read2:
-            #read = 'R2'      
-        
-        ## Unmapped flags
-        #bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]
-        
-        #if line.is_unmapped: # flag != 0
-            #unmapped += 1
-            #continue
-        #elif line.is_secondary:
-            #bad_reads += 1
-            #continue
-        #elif line.is_supplementary:
-            #bad_reads += 1
-            #continue
-        #elif line.flag in bad_flags :
-            #unmapped_flag += 1
-            #continue
-        
-        #else:
-            ## Should no longer get this error with samtools calmd creating MD 
-            ## tags for those missed by bwa mem
-            #try:
-                #line.get_tag('MD')
-            #except:
-                #print('MD error')
-                #print(line)
-                #continue        
-        
-        #if duplex == None or duplex == False:
-            ## SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT 
-            #barcode = line.qname.split("|")[1] 
-        #else:
-            ## DCS query name: CCTG_12_25398000_12_25398118_neg_83_163:56
-            #barcode = line.qname.split("_")[0]
-            
-        #ref_start = line.reference_start
-        #next_start = line.next_reference_start
-    
-        #tag = '{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
-                                      #line.reference_id, # chr num
-                                      #ref_start, # start R1 (0-based)
-                                      #line.next_reference_id,
-                                      #next_start, # start R2
-                                      #strand, # strand direction
-                                      #read # read num
-                                      #)    
-    
-        #tag_dict[tag] += 1     
-        #consensus_tag = sscs_qname(tag, int(line.flag))
-        
-        
-        
-        
-        
-        ### INSTEAD OF THIS... write everything to one dictionary and pop values out as you're writing pairs!
-        
-        #if read_chr != None:
-            ## If reads are divided, check to see if read and its mate pair are...
-            ## 1) translocations
-            ## 2) separated by cytoband region 
-            ##(read_end - 100 < ref_start < read_end + 100) 
-            
-            #if line.flag in [81, 161, 97, 145, 65, 129, 113, 177] or \
-               #(ref_start < read_end and next_start >= read_end) or \
-               #(ref_start < read_start and next_start >= read_start) or \
-               #(ref_start > read_start and next_start <= read_start) or \
-               #(ref_start > read_end and next_start <= read_end):     
-                #lost_pair = True
-            #else:
-                #if not read_start < ref_start < read_end and \
-                   #not read_start < next_start < read_end:
-                    #print('Reads not from region...')
-                    #print(read_chr)
-                    #print(read_start)
-                    #print(read_end)
-                    #print(line)
-                    #print(tag)
-                    #print(consensus_tag)
-                    #print(bamfile.mate(line))
-                    #lost_pair = None
-                #else:
-                    #lost_pair = False
-        #else:
-            #lost_pair = False
-            
-                    
-        #if lost_pair == True:
-            #if tag not in trans_dict:
-                #trans_dict[tag] =[line]
-                
-                ## Only add tag to paired_dict once (aka first time creating tag) 
-                #if consensus_tag not in trans_pair:
-                    #trans_pair[consensus_tag] = [tag]
-                #else:
-                    #trans_pair[consensus_tag].append(tag)
-            #else:
-                #trans_dict[tag].append(line)
-        #elif lost_pair == None:
-            #continue
-        #else:
-            #if tag not in bam_dict:
-                #bam_dict[tag] =[line]
-                
-                ## Only add tag to paired_dict once (aka first time creating tag) 
-                #if consensus_tag not in paired_dict:
-                    #paired_dict[consensus_tag] = [tag]
-                #else:
-                    #paired_dict[consensus_tag].append(tag)                
-        
-            #else:
-                #bam_dict[tag].append(line)
-          
-        
-        ##if line.flag in [81, 161, 97, 145, 65, 129, 113, 177] or \
-           ##(ref_start < read_end and next_start >= read_end) or \
-           ##(ref_start < read_start and next_start >= read_start) or \
-           ##(ref_start > read_start and next_start <= read_start) or \
-           ##(ref_start > read_end and next_start <= read_end):
-            ##if tag not in trans_dict:
-                ##trans_dict[tag] =[line]
-                
-                ### Only add tag to paired_dict once (aka first time creating tag) 
-                ##if consensus_tag not in trans_pair:
-                    ##trans_pair[consensus_tag] = [tag]
-                ##else:
-                    ##trans_pair[consensus_tag].append(tag)
-            ##else:
-                ##trans_dict[tag].append(line)            
-        ##else:
-            ##if read_start < ref_start < read_end and read_start < next_start < read_end:
-                ##if tag not in bam_dict:
-                    ##bam_dict[tag] =[line]
-                    
-                    ### Only add tag to paired_dict once (aka first time creating tag) 
-                    ##if consensus_tag not in paired_dict:
-                        ##paired_dict[consensus_tag] = [tag]
-                    ##else:
-                        ##paired_dict[consensus_tag].append(tag)                
-            
-                ##else:
-                    ##bam_dict[tag].append(line)
-            ##else:
-                ##print('Reads not from region...')
-                ##print(read_chr)
-                ##print(read_start)
-                ##print(read_end)
-                ##print(line)
-        
-    #return bam_dict, tag_dict, paired_dict, trans_dict, trans_pair, counter, \
-           #unmapped, unmapped_flag, bad_reads
 
 
 def read_mode(field, bam_reads):
@@ -646,17 +373,3 @@ def reverse_seq(seq):
         rev_comp = nuc[base] + rev_comp
         
     return rev_comp
-
-################################
-###           Main            ##
-################################
-#if __name__ == "__main__": 
-    #import time
-    #start_time = time.time()
-    #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test5/MEM-001-KRAS.bam', 'rb')
-    #bam_dict = collections.OrderedDict() # dict that remembers order of entries
-    #tag_dict = collections.defaultdict(int)
-    #paired_dict = collections.OrderedDict()
-    
-    #a = read_bam(bamfile, pair_dict = paired_dict, read_dict = bam_dict, tag_dict = tag_dict)
-    #print((time.time() - start_time)/60)  
