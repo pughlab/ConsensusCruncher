@@ -65,7 +65,7 @@ import time
 import inspect
 import os
 
-from consensus_helper import *
+from consensus_helper_sc import *
 
 ###############################
 ##         Functions         ##
@@ -184,7 +184,7 @@ def consensus_maker(readList, readLength, cutoff):
     
     Majority rules concept where if no majority is reached above the cutoff, an 'N' is assigned to the position. 
     
-    - Add N's for soft clipped regions so it aligns with full length sequences
+    - Add N's for soft clipped regions so it aligns with full length sequences [IGNORE]
     
     - At each position, add quality score to list corresponding to nucleotide. 
       Take max quality score of nucleotide with highest frequency
@@ -194,6 +194,7 @@ def consensus_maker(readList, readLength, cutoff):
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
     consensus_read = ''
     quality_consensus = []
+    proportion_scores = []
     
     mismatch_pos_lst = []
     
@@ -207,22 +208,22 @@ def consensus_maker(readList, readLength, cutoff):
         
         for j in range(len(readList)):
             # === Add N and set qual score to 0 for soft clipped regions ===
-            if i < mismatch_pos_lst[j][0] or i >= mismatch_pos_lst[j][-1]:
-                position_score[4] += 1
-                quality_score[4].append(0)
-            else:
-                # === Phred filter mismatch positions - Phred cutoff of 30 ===
-                # need to either offset i or add start to the mismatch positions
-                if i in mismatch_pos_lst[j][1:-1]:
-                    if readList[j].query_qualities[i] < 30: 
-                        phred_fail += 1
-                        continue
-                
-                nuc = readList[j].query_sequence[i]
-                nuc_index = nuc_lst.index(nuc)
-                position_score[nuc_index] += 1
-                quality_score[nuc_index].append(readList[j].query_qualities[i])
-                
+            #if i < mismatch_pos_lst[j][0] or i >= mismatch_pos_lst[j][-1]:
+                #position_score[4] += 1
+                #quality_score[4].append(0)
+            #else:
+            # === Phred filter mismatch positions - Phred cutoff of 30 ===
+            # need to either offset i or add start to the mismatch positions
+            if i in mismatch_pos_lst[j][1:-1]:
+                if readList[j].query_qualities[i] < 30: 
+                    phred_fail += 1
+                    continue
+            
+            nuc = readList[j].query_sequence[i]
+            nuc_index = nuc_lst.index(nuc)
+            position_score[nuc_index] += 1
+            quality_score[nuc_index].append(readList[j].query_qualities[i])
+            
         # Find most common nuc 
         # there's scenarios were phred fail == len(readList) resulting in empty quality score list, this also causes zero division error 
         try:
@@ -231,10 +232,12 @@ def consensus_maker(readList, readLength, cutoff):
             max_nuc = max_nuc_index[randint(0, len(max_nuc_index)-1)]
             
             # === Molecular phred quality of error (multiple probabilities of error) ===
-            error_qualities = quality_score[:max_nuc] + quality_score[(max_nuc +1):]
+            #error_qualities = quality_score[:max_nuc] + quality_score[(max_nuc +1):]
+            ## error qual of majority instead of minority
+            err_qual_unlisted = quality_score[max_nuc]
             from itertools import chain
             import math
-            err_qual_unlisted = list(chain(*error_qualities))
+            #err_qual_unlisted = list(chain(*error_qualities))
             
             if err_qual_unlisted == []:
                 # No error/all consensus, calculate probability of error corresponding to max capped quality score and multiply all of them
@@ -250,9 +253,11 @@ def consensus_maker(readList, readLength, cutoff):
                     mol_qual = 62
 
             # frequency of nuc at position > cutoff
-            if position_score[max_nuc]/(len(readList) - phred_fail) > cutoff:
+            prop_score = position_score[max_nuc]/(len(readList) - phred_fail)
+            if prop_score > cutoff:
                 consensus_read += nuc_lst[max_nuc]
                 quality_consensus.append(mol_qual)
+                proportion_scores.append(prop_score)
             else:
                 raise ValueError                
     
@@ -260,7 +265,8 @@ def consensus_maker(readList, readLength, cutoff):
             consensus_read += 'N'
             quality_consensus.append(0)
                     
-    return consensus_read, quality_consensus 
+    return consensus_read, quality_consensus, proportion_scores
+#, position_score[max_nuc], phred_fail # INCLUDE PHRED FAIL AS THIS DIFFERS FROM TOTAL NUMBER OF READS IN FAMILY
 
 
 def chr_arm_pos(chr_lst, chr_len, bedfile = None):
@@ -288,6 +294,8 @@ def chr_arm_pos(chr_lst, chr_len, bedfile = None):
         filepath = os.path.abspath(inspect.getfile(inspect.currentframe())).rsplit('/', 1)[0]
         bedfile = filepath + '/cytoBand.txt'
     
+    ### Should write script to incorporate any chr not found in cytoband file....!!!
+    
     with open(bedfile) as f:
         next(f) # Skip header
         for line in f:
@@ -298,6 +306,9 @@ def chr_arm_pos(chr_lst, chr_len, bedfile = None):
             chr_val = (start, end)
 
             chr_arm_coor[chr_key] = chr_val
+            
+    #if 'chrHPV16_gi_333031' in chr_lst:
+        #chr_arm_coor['chrHPV16_gi_333031'] = (0, chr_len[chr_lst.index('chrHPV16_gi_333031')])
     
     return chr_arm_coor
 
@@ -320,6 +331,7 @@ def main():
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)    
     doubleton_bam = pysam.AlignmentFile('{}.doubleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    tag_bam = pysam.AlignmentFile('{}.tag_reads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
     # set up fastq files
     fastqFile1 = open('{}.sscs_R1.fastq.gz'.format(args.outfile.split('.sscs')[0]), 'w')
@@ -336,8 +348,12 @@ def main():
     tag_dict = collections.defaultdict(int)
     pair_dict = collections.OrderedDict()
     
-    tag_quality_dict = collections.defaultdict(list)
+    #tag_quality_dict = collections.defaultdict(list)
     quality_dict = collections.defaultdict(list)
+    prop_dict = collections.defaultdict(list)
+    
+    sc_lst=[]
+    read_pair_dict = collections.defaultdict(list)    
     
     unmapped = 0
     unmapped_flag = 0
@@ -362,8 +378,9 @@ def main():
         chr_data = read_bam(bamfile, 
                             pair_dict = pair_dict, 
                             read_dict = bam_dict,
-                            tag_dict = tag_dict, 
-                            read_chr = x.split('_')[0], 
+                            tag_dict = tag_dict,
+                            read_pair_dict = read_pair_dict,
+                            read_chr = x.rsplit('_', 1)[0], 
                             read_start = chr_arm_coor[x][0], 
                             read_end = chr_arm_coor[x][1])
         
@@ -372,10 +389,12 @@ def main():
         tag_dict = chr_data[1]
         pair_dict = chr_data[2]
         
-        counter += chr_data[3]
-        unmapped += chr_data[4]
-        unmapped_flag += chr_data[5]
-        bad_reads += chr_data[6]    
+        read_pair_dict = chr_data[3]
+        
+        counter += chr_data[4]
+        unmapped += chr_data[5]
+        unmapped_flag += chr_data[6]
+        bad_reads += chr_data[7]    
             
         ## ===== Create consenus seq for reads in each chrm arm and reset =====
         if bool(bam_dict):
@@ -399,14 +418,21 @@ def main():
                     else:
                         SSCS = consensus_maker(bam_dict[tag], readLength, float(args.cutoff))
                         
-                        quality_dict[tag] += [SSCS[1]]
-                        tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
-                        
                         SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
                         
                         query_name = readPair + ':' + str(tag_dict[tag])   
                         SSCS_read.query_name = query_name
                         
+                        quality_dict[query_name] += [SSCS[1]]
+                        prop_dict[query_name] += [SSCS[2]] #### SAVE BY QUERY NAME OR TAG NAME?
+                        #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]                        
+                        
+                        # === Write new bamfile with consensus query name in read group ===
+                        for r in bam_dict[tag]:
+                            r.set_tag('RG', query_name)
+                            tag_bam.write(r)
+                        
+                        # ===== Write consensus bam =====
                         if tag_dict[tag] == 2:
                             doubletons += 1
                             doubleton_bam.write(SSCS_read)
@@ -440,10 +466,22 @@ def main():
                     del bam_dict[tag]
                         
                 # Remove key from dictionary after writing
-                del pair_dict[readPair]                                               
+                del pair_dict[readPair]                         
+                
+                ##### NEED TO ALSO REMOVE SC FROM SC_LST AFTER WRITING PAIR!!!!
         print(x)
 
-        import pickle
+        import pickle        
+        qual_file = open(args.outfile.split('.sscs')[0] + '.q_scores.txt', 'ab+')
+        pickle.dump(quality_dict, qual_file)
+        qual_file.close()            
+        quality_dict = collections.defaultdict(list)
+        
+        prop_file = open(args.outfile.split('.sscs')[0] + '.prop_scores.txt', 'ab+')
+        pickle.dump(prop_dict, prop_file)
+        prop_file.close()            
+        prop_dict = collections.defaultdict(list)
+        
         # This ends up writing everything to the file, also dictionary of reads is not decreasing over time -> memory issue
         #read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
         #pickle.dump(bam_dict, read_dict_file)
@@ -460,7 +498,13 @@ def main():
         
         
     # Reads left over at the end due to how pysam fetches reads -> does it get read twice?
-        
+    print('read pairs remaining')
+    if bool(read_pair_dict):
+        for i in read_pair_dict:
+            print(i)
+            print(read_pair_dict[i])
+            print(bamfile.mate(read_pair_dict[i][0]))
+    
     print('pair_dict remaining')
     if bool(pair_dict):
         for i in pair_dict:
@@ -482,13 +526,14 @@ def main():
     pickle.dump(tag_dict, tag_file)
     tag_file.close()
     
+    
     summary_stats = '''Total reads: {} \n
 Unmapped reads: {} \n
 Unmapped flag reads: {} \n
 Secondary/Supplementary reads: {} \n
 SSCS reads: {} \n
-singletons: {} \n
-doubleton_consensus: {} \n
+Singletons: {} \n
+Doubleton consensus: {} \n
 '''.format(counter, unmapped, unmapped_flag, bad_reads, SSCS_reads, singletons, doubletons)
 
     stats.write(summary_stats)
@@ -498,6 +543,7 @@ doubleton_consensus: {} \n
     bamfile.close()
     SSCS_bam.close()
     doubleton_bam.close()
+    tag_bam.close()
     fastqFile1.close()
     fastqFile2.close()
     doubleton_fastqFile1.close()
@@ -505,6 +551,7 @@ doubleton_consensus: {} \n
     
     # ===== Create tag family size plot =====
     # Count number of families containing each number of read (e.g. Counter({1: 3737, 32: 660... -> 3737 families are singletons)
+    
     fam_per_read_group = collections.Counter([i for i in tag_dict.values()])
     lst_fam_per_read = list(fam_per_read_group.items()) # conver to list
     
@@ -513,6 +560,9 @@ doubleton_consensus: {} \n
     read_fraction = [(i*j)/total_reads for i,j in lst_fam_per_read] 
     
     plt.bar(list(fam_per_read_group), read_fraction)
+    
+    # == Determine read family size range to standardize plot axis ==
+    plt.xlim([0, math.ceil(lst_fam_per_read[-1][0]/10) * 10])
     
     #plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
     plt.xlabel('Tag family size (# of reads per family)')
@@ -531,155 +581,3 @@ if __name__ == "__main__":
     main()
     print((time.time() - start_time)/60)  
     
-    
-
-                            
-                    
-    #for readPair in trans_pair.keys():
-        ##if readPair == 'ACGC_12_120699897_12_120699962_neg_83_163':
-            ##print(trans_pair[readPair])
-        #if len(trans_pair[readPair]) == 2:
-            #for tag in trans_pair[readPair]:
-                ## Check for singletons
-                #if tag_dict[tag] < 2:
-                    #singletons += 1
-                    #singleton_bam.write(trans_dict[tag][0])
-                #else:
-                    #SSCS = consensus_maker(trans_dict[tag], readLength, float(args.cutoff))
-                    
-                    #quality_dict[tag] += [SSCS[1]]
-                    #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
-                    
-                    #SSCS_read = create_aligned_segment(trans_dict[tag], SSCS[0], SSCS[1])
-                    
-                    ##new_tag = sscs_qname(tag, SSCS_read.flag)
-                    #query_name = readPair + ':' + str(tag_dict[tag])   
-                    #SSCS_read.query_name = query_name
-                    
-                    ## Use aligned sequence in case of soft clips
-                    ##aligned_seq = SSCS_read.query_alignment_sequence
-                    ##if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
-                        ##print('uh oh too many Ns')
-                        ##print(aligned_seq)
-                        ##print(SSCS_read)
-                        ##continue                        
-
-                    #if tag_dict[tag] == 2:
-                        #doubletons += 1
-                        #doubleton_bam.write(SSCS_read)
-                    #else:
-                        #SSCS_bam.write(SSCS_read)    
-                        #SSCS_reads += 1
-            
-                    ## ===== write as fastq file =====                        
-                    ##if SSCS_read.is_reverse and SSCS_read.is_read1:
-                    ##fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
-                    #fastq_seq = SSCS_read.query_sequence 
-                    
-                    
-                    #if 'rev' in tag:
-                        #fastq_seq = reverse_seq(fastq_seq)
-                        #fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
-                    #else:
-                        #fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
-                    
-                    #if tag_dict[tag] == 2:
-                        #if 'R1' in tag:
-                            #doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                        #else:
-                            #doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
-                    #else:
-                        #if 'R1' in tag:
-                            #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                        #else:
-                            #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-            #written_pairs.append(readPair)
-            
-    #for read in written_pairs:
-        #trans_pair.pop(read)        
-    
-    #for readPair in paired_dict.keys():          
-        ## Check pairing
-        #if len(paired_dict[readPair]) != 2:
-            #print('uh oh pairing problem!!!')
-            #print(chr_arm_coor[x][0])
-            #print(chr_arm_coor[x][1])
-            #print(readPair)
-            #print(paired_dict[readPair])
-            #print(bam_dict[paired_dict[readPair][0]][0])
-            #m = bamfile.mate(bam_dict[paired_dict[readPair][0]][0])
-            #print(m)
-            
-            #strand = 'fwd'
-            #if m.is_reverse:
-                #strand = 'rev'
-                
-            #read = 'R1'
-            #if m.is_read2:
-                #read = 'R2'            
-            #mtag = '{}_{}_{}_{}_{}_{}_{}'.format(m.qname.split("|")[1], # mol barcode
-                                                  #m.reference_id, # chr num
-                                                  #m.reference_start, # start R1 (0-based)
-                                                  #m.next_reference_id,
-                                                  #m.next_reference_start, # start R2
-                                                  #strand, # strand direction
-                                                  #read # read num
-                                                  #)             
-            #print(mtag)
-            #print(sscs_qname(mtag, m.flag))                
-            #return readPair                
-        #else:
-            #for tag in paired_dict[readPair]:
-                ## Check for singletons
-                #if tag_dict[tag] < 2:
-                    #singletons += 1
-                    #singleton_bam.write(bam_dict[tag][0])
-                #else:
-                    #SSCS = consensus_maker(bam_dict[tag], readLength, float(args.cutoff))
-                    
-                    #quality_dict[tag] += [SSCS[1]]
-                    #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
-                    
-                    #SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
-                    
-                    ##new_tag = sscs_qname(tag, SSCS_read.flag)
-                    #query_name = readPair + ':' + str(tag_dict[tag])   
-                    #SSCS_read.query_name = query_name
-                    
-                    ### Use aligned sequence in case of soft clips
-                    ##aligned_seq = SSCS_read.query_alignment_sequence
-                    ##if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
-                        ##print('uh oh too many Ns')
-                        ##print(aligned_seq)
-                        ##print(SSCS_read)
-                        ##continue                        
-
-                    #if tag_dict[tag] == 2:
-                        #doubletons += 1
-                        #doubleton_bam.write(SSCS_read)
-                    #else:
-                        #SSCS_bam.write(SSCS_read)    
-                        #SSCS_reads += 1
-            
-                    ## ===== write as fastq file =====                        
-                    ##if SSCS_read.is_reverse and SSCS_read.is_read1:
-                    ##fastq_seq = SSCS_read.query_sequence.decode("utf-8") 
-                    #fastq_seq = SSCS_read.query_sequence 
-                    
-                    
-                    #if 'rev' in tag:
-                        #fastq_seq = reverse_seq(fastq_seq)
-                        #fastq_qual = pysam.qualities_to_qualitystring(reversed(SSCS_read.query_qualities))
-                    #else:
-                        #fastq_qual = pysam.qualities_to_qualitystring(SSCS_read.query_qualities)
-                    
-                    #if tag_dict[tag] == 2:
-                        #if 'R1' in tag:
-                            #doubleton_fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                        #else:
-                            #doubleton_fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))                            
-                    #else:
-                        #if 'R1' in tag:
-                            #fastqFile1.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
-                        #else:
-                            #fastqFile2.write('@{}\n{}\n+\n{}\n'.format(SSCS_read.query_name, fastq_seq, fastq_qual))
