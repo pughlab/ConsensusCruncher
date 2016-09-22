@@ -100,7 +100,7 @@ def sscs_qname(tag, flag):
                      65:129, 129:65, 113:177, 177:113
                      }
     
-    # Flags indicating read from positive strand
+    ## Flags indicating read from positive strand
     pos_flag = [99, 147, 67, 131, 97, 145, 65, 129]    
 
     ref_chr = tag.split("_")[1]
@@ -124,8 +124,8 @@ def sscs_qname(tag, flag):
         else: # rev_R2
             new_tag = new_tag + '_pos'
     else:
-        # === Use flags to determine strand direction === 
-        # for reads with the same coordinate mate (start and stop are the same)
+        ## === Use flags to determine strand direction === 
+        ## for reads with the same coordinate mate (start and stop are the same)
         consensus_tag = tag[:-7]
         if ref_chr == mate_chr and ref_coor == mate_coor:
             if flag in pos_flag:
@@ -138,6 +138,7 @@ def sscs_qname(tag, flag):
             new_tag = consensus_tag + '_neg'
 
     # === Add flag information to query name ===
+    # Need pos/neg to differentiate between reads with same flag from diff strands (e.g. 113, 177)
     # with smaller flag ordered first, to help differentiate between reads 
     # (e.g. read and its duplex might have same coordinate and strand direction, 
     # after ordering coordinates from smallest -> biggest) 
@@ -150,7 +151,7 @@ def sscs_qname(tag, flag):
 
 
 def which_read(flag):
-    '''(str) -> str
+    '''(int) -> str
     Returns str indicating read 1 or 2 based on flag.
     '''
     read1 = [99, 83, 67, 115, 81, 97, 65, 113]
@@ -166,6 +167,24 @@ def which_read(flag):
     
     return read
 
+
+def which_ori_strand(flag):
+    '''(int) -> str
+    Return str indicating direction of original DNA strand based on flags.
+    '''
+    pos = [99, 147, 67, 131, 81, 161, 65, 129]
+    neg = [83, 163, 115, 179, 97, 145, 113, 177]
+    
+    if flag in pos:
+        strand = 'pos'
+    elif flag in neg:
+        strand = 'neg'
+    else:
+        print('STRAND ERROR')
+        print(flag)
+        
+    return strand
+    
 
 def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_pair_dict, read_chr = None, 
              read_start = None, read_end = None, duplex = None):
@@ -250,12 +269,42 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_pair_dict, read_chr =
         read_pair_dict[line.qname].append(line)
         
         if len(read_pair_dict[line.qname]) == 2:
-            ## == Check if read pair contains softclips ==
-            if 'S' in read_pair_dict[line.qname][0].cigarstring or \
-               'S' in read_pair_dict[line.qname][1].cigarstring:
-                softclip = 'S'
+            ## == Add cigar string to tag ==
+            # Pos strand, R1 cigar first | Neg strand, R2 cigar first 
+            ori_strand = which_ori_strand(read_pair_dict[line.qname][0].flag)
+            read_num = which_read(read_pair_dict[line.qname][0].flag)
+            
+            if (ori_strand == 'pos' and read_num == 'R1') or \
+               (ori_strand == 'neg' and read_num == 'R2'):
+                softclip = '{}_{}'.format(read_pair_dict[line.qname][0].cigarstring, 
+                                 read_pair_dict[line.qname][1].cigarstring)
             else:
-                softclip = 'M'
+                softclip = '{}_{}'.format(read_pair_dict[line.qname][1].cigarstring, 
+                                 read_pair_dict[line.qname][0].cigarstring)        
+                
+            
+            #flag_pairings = {99:147, 147:99, 83:163, 163:83, \
+                             ## mapped within insert size, but wrong orientation (++, --)
+                             #67:131, 131:67, 115:179, 179:115, \
+                             ### === translocations ===
+                             ## mapped uniquely, but wrong insert size
+                             #81:161, 161:81, 97:145, 145:97, \
+                             ## wrong insert size and wrong orientation
+                             #65:129, 129:65, 113:177, 177:113
+                             #}            
+                    
+            #flag = read_pair_dict[line.qname][0].flag
+            #if flag < flag_pairings[flag]:
+                #pair_flag = '{}_{}'.format(flag, flag_pairings[flag])
+            #else:
+                #pair_flag = '{}_{}'.format(flag_pairings[flag], flag)            
+
+            ## == Check if read pair contains softclips ==
+            #if 'S' in read_pair_dict[line.qname][0].cigarstring or \
+               #'S' in read_pair_dict[line.qname][1].cigarstring:
+                #softclip = 'S'
+            #else:
+                #softclip = 'M'
             
             for read in read_pair_dict[line.qname]:
                 ## Barcodes extracted from diff position for duplex                
@@ -267,7 +316,7 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_pair_dict, read_chr =
                     barcode = read.qname.split("_")[0]             
                 
                 # == identify read ==
-                readNum = which_read(read.flag)    
+                readNum = which_read(read.flag)   
                 strand = 'fwd'
                 if read.is_reverse:
                     strand = 'rev'        
@@ -278,6 +327,7 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_pair_dict, read_chr =
                                               read.next_reference_id,
                                               read.next_reference_start, # start R2
                                               softclip,
+                                              #pair_flag,
                                               strand, # strand direction
                                               readNum
                                               )
@@ -433,5 +483,10 @@ def reverse_seq(seq):
     
     #read_pair_dict = chr_data[3]    
     
-    ##print([x for x in pair_dict.values() if len(x) !=2])
-    
+    #print([x for x in pair_dict.values() if len(x) !=2])
+
+    # S/M tags
+    # [(1, 650432), (2, 162078), (3, 33644), (4, 6414), (5, 1174), (6, 254), (7, 44), (8, 6), (9, 4)]
+
+    # cigar tags
+    #[(1, 653070), (2, 161162), (3, 33432), (4, 6394), (5, 1156), (6, 254), (7, 44), (8, 6), (9, 4)]
