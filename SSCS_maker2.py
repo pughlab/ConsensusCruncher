@@ -321,6 +321,7 @@ def main():
     parser.add_argument("--infile", action = "store", dest="infile", help="input BAM file", required = True)
     parser.add_argument("--outfile", action = "store", dest="outfile", help="output SSCS BAM file", required = True)
     parser.add_argument("--bedfile", action = "store", dest="bedfile", help="input bedfile", required = False)
+    parser.add_argument("--taginRGbam", action = "store", dest="RGbam", help="output bamfile with consensus tag in read group", required = False)
     args = parser.parse_args()
     
     start_time = time.time()
@@ -331,6 +332,8 @@ def main():
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)    
     doubleton_bam = pysam.AlignmentFile('{}.doubleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    
     tag_bam = pysam.AlignmentFile('{}.tag_reads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
     # set up fastq files
@@ -352,7 +355,6 @@ def main():
     quality_dict = collections.defaultdict(list)
     prop_dict = collections.defaultdict(list)
     
-    sc_lst=[]
     read_pair_dict = collections.defaultdict(list)    
     
     unmapped = 0
@@ -380,9 +382,11 @@ def main():
                             read_dict = bam_dict,
                             tag_dict = tag_dict,
                             read_pair_dict = read_pair_dict,
+                            badRead_bam = badRead_bam,
                             read_chr = x.rsplit('_', 1)[0], 
                             read_start = chr_arm_coor[x][0], 
-                            read_end = chr_arm_coor[x][1])
+                            read_end = chr_arm_coor[x][1]
+                            )
         
         # Dictionary is reset each loop to contain only data from given chr coor
         bam_dict = chr_data[0]
@@ -428,9 +432,10 @@ def main():
                         #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]                        
                         
                         # === Write new bamfile with consensus query name in read group ===
-                        for r in bam_dict[tag]:
-                            r.set_tag('RG', query_name)
-                            tag_bam.write(r)
+                        if 'args.RGbam' in locals():
+                            for r in bam_dict[tag]:
+                                r.set_tag('RG', query_name)
+                                tag_bam.write(r)
                         
                         # ===== Write consensus bam =====
                         if tag_dict[tag] == 2:
@@ -470,17 +475,6 @@ def main():
                 
                 ##### NEED TO ALSO REMOVE SC FROM SC_LST AFTER WRITING PAIR!!!!
         print(x)
-
-        import pickle        
-        qual_file = open(args.outfile.split('.sscs')[0] + '.q_scores.txt', 'ab+')
-        pickle.dump(quality_dict, qual_file)
-        qual_file.close()            
-        quality_dict = collections.defaultdict(list)
-        
-        prop_file = open(args.outfile.split('.sscs')[0] + '.prop_scores.txt', 'ab+')
-        pickle.dump(prop_dict, prop_file)
-        prop_file.close()            
-        prop_dict = collections.defaultdict(list)
         
         # This ends up writing everything to the file, also dictionary of reads is not decreasing over time -> memory issue
         #read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
@@ -521,6 +515,17 @@ def main():
             #print(bamfile.mate(bam_dict[i][0]))            
     
     # ===== write tag family size dictionary to file ===== 
+    import pickle        
+    qual_file = open(args.outfile.split('.sscs')[0] + '.q_scores.txt', 'ab+')
+    pickle.dump(quality_dict, qual_file)
+    qual_file.close()            
+    quality_dict = collections.defaultdict(list)
+    
+    prop_file = open(args.outfile.split('.sscs')[0] + '.prop_scores.txt', 'ab+')
+    pickle.dump(prop_dict, prop_file)
+    prop_file.close()            
+    prop_dict = collections.defaultdict(list)    
+
     # (key = tags, value = int [number of reads in that family]) 
     tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     pickle.dump(tag_dict, tag_file)
@@ -543,6 +548,7 @@ Doubleton consensus: {} \n
     bamfile.close()
     SSCS_bam.close()
     doubleton_bam.close()
+    badRead_bam.close()
     tag_bam.close()
     fastqFile1.close()
     fastqFile2.close()
@@ -570,7 +576,9 @@ Doubleton consensus: {} \n
     
     plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')      
     
-
+    # ===== Create prop plot =====
+        
+    
 
 ###############################
 ##           Main            ##
