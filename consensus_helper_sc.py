@@ -167,7 +167,7 @@ def which_read(flag):
     return read
 
 
-def read_bam(bamfile, pair_dict, read_dict, tag_dict, sc_lst, read_pair_dict, read_chr = None, 
+def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_pair_dict, read_chr = None, 
              read_start = None, read_end = None, duplex = None):
     '''(bamfile object, dict, dict, dict, str, int, int, str) -> 
     dict, dict, dict, dict, dict, int, int, int, int
@@ -222,7 +222,7 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, sc_lst, read_pair_dict, re
         ### === Filter out 'bad' reads ====
         # Unmapped flags
         bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]
-        
+        ### MOVE UNMAPPED READS INTO SEPARATE FILE
         if line.is_unmapped: # flag != 0
             unmapped += 1
             continue
@@ -235,16 +235,16 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, sc_lst, read_pair_dict, re
         elif line.flag in bad_flags:
             unmapped_flag += 1
             continue
-        
         else:
             # Should no longer get this error with samtools calmd creating MD 
             # tags for those missed by bwa mem
-            try:
-                line.get_tag('MD')
-            except:
-                print('MD error')
-                print(line)
-                continue        
+            if duplex == None or duplex == False:
+                try:
+                    line.get_tag('MD')
+                except:
+                    print('MD error')
+                    print(line)
+                    continue        
         
         ### === Add reads to dictionary as pairs ===
         read_pair_dict[line.qname].append(line)
@@ -319,8 +319,9 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, sc_lst, read_pair_dict, re
                         continue
                 
                 tag_dict[tag] += 1
+            read_pair_dict.pop(line.qname)
                 
-    return read_dict, tag_dict, pair_dict, sc_lst, read_pair_dict, counter, unmapped, unmapped_flag, \
+    return read_dict, tag_dict, pair_dict, read_pair_dict, counter, unmapped, unmapped_flag, \
            bad_reads        
     
     
@@ -405,7 +406,7 @@ def reverse_seq(seq):
     #import time
     #import pysam
     #start_time = time.time()
-    #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEM-001-p015625.bam', "rb")
+    #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEMU/MEM-001-p015625.bam', "rb")
 
     ##bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus_test/test/MEM-001_KRAS.bam', "rb")
     
@@ -417,14 +418,12 @@ def reverse_seq(seq):
     #quality_dict = collections.defaultdict(list)
     #prop_dict = collections.defaultdict(list)
     
-    #sc_lst=[]
     #read_pair_dict = collections.defaultdict(list)    
     
     #chr_data = read_bam(bamfile, 
                         #pair_dict = pair_dict, 
                         #read_dict = bam_dict,
                         #tag_dict = tag_dict,
-                        #sc_lst = sc_lst,
                         #read_pair_dict = read_pair_dict)    
     #print((time.time() - start_time)/60)  
     
@@ -432,8 +431,7 @@ def reverse_seq(seq):
     #tag_dict = chr_data[1]
     #pair_dict = chr_data[2]
     
-    #sc_lst = chr_data[3]
-    #read_pair_dict = chr_data[4]    
+    #read_pair_dict = chr_data[3]    
     
-    #print([x for x in pair_dict.values() if len(x) !=2])
+    ##print([x for x in pair_dict.values() if len(x) !=2])
     
