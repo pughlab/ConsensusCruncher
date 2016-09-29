@@ -254,7 +254,7 @@ def consensus_maker(readList, readLength, cutoff):
 
             # frequency of nuc at position > cutoff
             prop_score = position_score[max_nuc]/(len(readList) - phred_fail)
-            if prop_score > cutoff:
+            if prop_score >= cutoff:
                 consensus_read += nuc_lst[max_nuc]
                 quality_consensus.append(mol_qual)
                 proportion_scores.append(prop_score)
@@ -264,6 +264,7 @@ def consensus_maker(readList, readLength, cutoff):
         except:
             consensus_read += 'N'
             quality_consensus.append(0)
+            proportion_scores.append(0)
                     
     return consensus_read, quality_consensus, proportion_scores
 #, position_score[max_nuc], phred_fail # INCLUDE PHRED FAIL AS THIS DIFFERS FROM TOTAL NUMBER OF READS IN FAMILY
@@ -431,7 +432,18 @@ def main():
                         #prop_dict[query_name] += [SSCS[2]] #### SAVE BY QUERY NAME OR TAG NAME?
                         #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]                        
                         
-                        SSCS_read.set_tag('PR', SSCS[2])
+                        try:
+                            SSCS_read.set_tag('PR', SSCS[2])
+                        except:
+                            print(tag)
+                            print(SSCS)
+                        
+                        #aligned_seq = SSCS_read.query_alignment_sequence
+                        #if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):
+                            #print('uh oh too many Ns')
+                            #print(aligned_seq)
+                            #print(SSCS_read)
+                            #continue                         
                         
                         # === Write new bamfile with consensus query name in read group ===
                         if 'args.RGbam' in locals():
