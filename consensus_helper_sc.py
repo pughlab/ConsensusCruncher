@@ -270,110 +270,91 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_pair_dict, badRead_ba
             badRead_bam.write(line)
         else:
             ### === Add reads to dictionary as pairs ===
-            read_pair_dict[line.qname].append(line)
+            if line in read_pair_dict[line.qname]:
+                print('Read already read once!')
+                print(read_chr, read_start, read_end)
+                print(line.qname)
+                print(line)
+                print(read_pair_dict[line.qname])
+                #print(tag)
+                #print(read)
+                #print(read_dict[tag])
+                counter -= 1                
+            else:
+                read_pair_dict[line.qname].append(line)
             
-            if len(read_pair_dict[line.qname]) == 2:
-                ## == Add cigar string to tag ==
-                # Pos strand, R1 cigar first | Neg strand, R2 cigar first 
-                ori_strand = which_ori_strand(read_pair_dict[line.qname][0].flag)
-                read_num = which_read(read_pair_dict[line.qname][0].flag)
-                
-                if (ori_strand == 'pos' and read_num == 'R1') or \
-                   (ori_strand == 'neg' and read_num == 'R2'):
-                    softclip = '{}_{}'.format(read_pair_dict[line.qname][0].cigarstring, 
-                                     read_pair_dict[line.qname][1].cigarstring)
-                else:
-                    softclip = '{}_{}'.format(read_pair_dict[line.qname][1].cigarstring, 
-                                     read_pair_dict[line.qname][0].cigarstring)        
+                if len(read_pair_dict[line.qname]) == 2:
+                    ## == Add cigar string to tag ==
+                    # Pos strand, R1 cigar first | Neg strand, R2 cigar first 
+                    ori_strand = which_ori_strand(read_pair_dict[line.qname][0].flag)
+                    read_num = which_read(read_pair_dict[line.qname][0].flag)
                     
-                
-                #flag_pairings = {99:147, 147:99, 83:163, 163:83, \
-                                 ## mapped within insert size, but wrong orientation (++, --)
-                                 #67:131, 131:67, 115:179, 179:115, \
-                                 ### === translocations ===
-                                 ## mapped uniquely, but wrong insert size
-                                 #81:161, 161:81, 97:145, 145:97, \
-                                 ## wrong insert size and wrong orientation
-                                 #65:129, 129:65, 113:177, 177:113
-                                 #}            
-                        
-                #flag = read_pair_dict[line.qname][0].flag
-                #if flag < flag_pairings[flag]:
-                    #pair_flag = '{}_{}'.format(flag, flag_pairings[flag])
-                #else:
-                    #pair_flag = '{}_{}'.format(flag_pairings[flag], flag)            
-    
-                ## == Check if read pair contains softclips ==
-                #if 'S' in read_pair_dict[line.qname][0].cigarstring or \
-                   #'S' in read_pair_dict[line.qname][1].cigarstring:
-                    #softclip = 'S'
-                #else:
-                    #softclip = 'M'
-                
-                for read in read_pair_dict[line.qname]:
-                    ## Barcodes extracted from diff position for duplex                
-                    if duplex == None or duplex == False:
-                        # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT 
-                        barcode = read.qname.split("|")[1] 
+                    if (ori_strand == 'pos' and read_num == 'R1') or \
+                       (ori_strand == 'neg' and read_num == 'R2'):
+                        softclip = '{}_{}'.format(read_pair_dict[line.qname][0].cigarstring, 
+                                         read_pair_dict[line.qname][1].cigarstring)
                     else:
-                        # DCS query name: CCTG_12_25398000_12_25398118_neg_83_163:56
-                        barcode = read.qname.split("_")[0]             
+                        softclip = '{}_{}'.format(read_pair_dict[line.qname][1].cigarstring, 
+                                         read_pair_dict[line.qname][0].cigarstring)        
                     
-                    # == identify read ==
-                    readNum = which_read(read.flag)   
-                    strand = 'fwd'
-                    if read.is_reverse:
-                        strand = 'rev'        
-                
-                    tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
-                                                  read.reference_id, # chr num
-                                                  read.reference_start, # start R1 (0-based)
-                                                  read.next_reference_id,
-                                                  read.next_reference_start, # start R2
-                                                  softclip,
-                                                  #pair_flag,
-                                                  strand, # strand direction
-                                                  readNum
-                                                  )
-                    
-                    consensus_tag = sscs_qname(tag, int(read.flag))  
-                    
-                    if tag not in read_dict and tag not in tag_dict:                            
-                        read_dict[tag] =[read]
-                        
-                        # Only add tag to pair_dict once (aka first time creating tag) 
-                        if consensus_tag not in pair_dict:
-                            pair_dict[consensus_tag] = [tag]
+                    for read in read_pair_dict[line.qname]:
+                        ## Barcodes extracted from diff position for duplex                
+                        if duplex == None or duplex == False:
+                            # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT 
+                            barcode = read.qname.split("|")[1] 
                         else:
-                            pair_dict[consensus_tag].append(tag)            
-    
-                    else:
-                        try:
-                            if read in read_dict[tag]:
-                                # This doesn't even capture it all because if read was already paired and written, tag would be deleted
-                                print('Read already read once!')
+                            # DCS query name: CCTG_12_25398000_12_25398118_neg_83_163:56
+                            barcode = read.qname.split("_")[0]             
+                        
+                        # == identify read ==
+                        readNum = which_read(read.flag)   
+                        strand = 'fwd'
+                        if read.is_reverse:
+                            strand = 'rev'        
+                    
+                        tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
+                                                      read.reference_id, # chr num
+                                                      read.reference_start, # start R1 (0-based)
+                                                      read.next_reference_id,
+                                                      read.next_reference_start, # start R2
+                                                      softclip,
+                                                      #pair_flag,
+                                                      strand, # strand direction
+                                                      readNum
+                                                      )
+                        
+                        consensus_tag = sscs_qname(tag, int(read.flag))  
+                    
+                        if tag not in read_dict and tag not in tag_dict:                            
+                            read_dict[tag] =[read]
+                            
+                            # Only add tag to pair_dict once (aka first time creating tag) 
+                            if consensus_tag not in pair_dict:
+                                pair_dict[consensus_tag] = [tag]
+                            else:
+                                pair_dict[consensus_tag].append(tag)            
+        
+                        else:
+                            try:
+                                if read not in read_dict[tag]:
+                                    read_dict[tag].append(read)
+                                else:
+                                    print('read read multiple times!')
+                            except KeyError:
+                                # If tag found in tag_dict, but not read_dict means line was previously read and written to file (hence removal from read_dict but presence in tag_dict)
+                                print('Pair already written: line read twice - double check to see if its overlapping/near cytoband region (point of data division)')
                                 print(read_chr, read_start, read_end)
                                 print(tag)
                                 print(read)
-                                print(read_dict[tag])
+                                print(tag_dict[tag])
+                                print(consensus_tag)
+                                print(tag in tag_dict)
+                                #print(pair_dict[consensus_tag])
                                 counter -= 1
-                                continue
-                            else:
-                                read_dict[tag].append(read)
-                        except KeyError:
-                            print('Pair already written: line read twice - double check to see if its overlapping/near cytoband region (point of data division)')
-                            print(read_chr, read_start, read_end)
-                            print(tag)
-                            print(read)
-                            print(tag_dict[tag])
-                            print(consensus_tag)
-                            print(tag in tag_dict)
-                            #print(pair_dict[consensus_tag])
-                            counter -= 1
-                            continue
-                    
-                    tag_dict[tag] += 1
-                read_pair_dict.pop(line.qname)
+                                continue                            
+
+                        tag_dict[tag] += 1
+                    read_pair_dict.pop(line.qname)
                 
     return read_dict, tag_dict, pair_dict, read_pair_dict, counter, unmapped, unmapped_flag, \
            bad_reads        
@@ -456,38 +437,42 @@ def reverse_seq(seq):
 ################################
 ###           Main            ##
 ################################
-#if __name__ == "__main__": 
-    #import time
-    #import pysam
-    #start_time = time.time()
+if __name__ == "__main__": 
+    import time
+    import pysam
+    start_time = time.time()
     #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEMU/MEM-001-p015625.bam', "rb")
-
-    ##bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus_test/test/MEM-001_KRAS.bam', "rb")
     
-    #bam_dict = collections.OrderedDict() # dict that remembers order of entries
-    #tag_dict = collections.defaultdict(int)
-    #pair_dict = collections.OrderedDict()
+    bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/CAP-001-p0078125.sort.bam', "rb")
     
-    ##tag_quality_dict = collections.defaultdict(list)
-    #quality_dict = collections.defaultdict(list)
-    #prop_dict = collections.defaultdict(list)
+    #bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/PL_consensus_test/test/MEM-001_KRAS.bam', "rb")
+    badRead_bam = pysam.AlignmentFile('MEM-001.badReads.bam', "wb", template = bamfile)
     
-    #read_pair_dict = collections.defaultdict(list)    
+    bam_dict = collections.OrderedDict() # dict that remembers order of entries
+    tag_dict = collections.defaultdict(int)
+    pair_dict = collections.OrderedDict()
     
-    #chr_data = read_bam(bamfile, 
-                        #pair_dict = pair_dict, 
-                        #read_dict = bam_dict,
-                        #tag_dict = tag_dict,
-                        #read_pair_dict = read_pair_dict)    
-    #print((time.time() - start_time)/60)  
+    #tag_quality_dict = collections.defaultdict(list)
+    quality_dict = collections.defaultdict(list)
+    prop_dict = collections.defaultdict(list)
     
-    #bam_dict = chr_data[0]
-    #tag_dict = chr_data[1]
-    #pair_dict = chr_data[2]
+    read_pair_dict = collections.defaultdict(list)    
     
-    #read_pair_dict = chr_data[3]    
+    chr_data = read_bam(bamfile, 
+                        pair_dict = pair_dict, 
+                        read_dict = bam_dict,
+                        tag_dict = tag_dict,
+                        badRead_bam = badRead_bam,
+                        read_pair_dict = read_pair_dict)    
+    print((time.time() - start_time)/60)  
     
-    #print([x for x in pair_dict.values() if len(x) !=2])
+    bam_dict = chr_data[0]
+    tag_dict = chr_data[1]
+    pair_dict = chr_data[2]
+    
+    read_pair_dict = chr_data[3]    
+    
+    print([x for x in pair_dict.values() if len(x) !=2])
 
     ### ==== Comparisons ====
     # S/M tags

@@ -184,7 +184,7 @@ def consensus_maker(readList, readLength, cutoff):
     
     Majority rules concept where if no majority is reached above the cutoff, an 'N' is assigned to the position. 
     
-    - Add N's for soft clipped regions so it aligns with full length sequences [IGNORE]
+    - Add N's for soft clipped regions so it aligns with full length sequences
     
     - At each position, add quality score to list corresponding to nucleotide. 
       Take max quality score of nucleotide with highest frequency
@@ -194,6 +194,7 @@ def consensus_maker(readList, readLength, cutoff):
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
     consensus_read = ''
     quality_consensus = []
+    second_qual = []
     proportion_scores = []
     
     mismatch_pos_lst = []
@@ -208,64 +209,84 @@ def consensus_maker(readList, readLength, cutoff):
         
         for j in range(len(readList)):
             # === Add N and set qual score to 0 for soft clipped regions ===
-            #if i < mismatch_pos_lst[j][0] or i >= mismatch_pos_lst[j][-1]:
-                #position_score[4] += 1
-                #quality_score[4].append(0)
-            #else:
-            # === Phred filter mismatch positions - Phred cutoff of 30 ===
-            # need to either offset i or add start to the mismatch positions
-            if i in mismatch_pos_lst[j][1:-1]:
-                if readList[j].query_qualities[i] < 30: 
-                    phred_fail += 1
-                    continue
-            
-            nuc = readList[j].query_sequence[i]
-            nuc_index = nuc_lst.index(nuc)
-            position_score[nuc_index] += 1
-            quality_score[nuc_index].append(readList[j].query_qualities[i])
-            
+            if i < mismatch_pos_lst[j][0] or i >= mismatch_pos_lst[j][-1]:
+                position_score[4] += 1
+                quality_score[4].append(0)
+            else:
+                # === Phred filter mismatch positions - Phred cutoff of 30 ===
+                # need to either offset i or add start to the mismatch positions
+                if i in mismatch_pos_lst[j][1:-1]:
+                    if readList[j].query_qualities[i] < 30: # REMOVE Q30 filter 
+                        phred_fail += 1
+                        continue
+                
+                nuc = readList[j].query_sequence[i]
+                nuc_index = nuc_lst.index(nuc)
+                position_score[nuc_index] += 1
+                quality_score[nuc_index].append(readList[j].query_qualities[i])
+                
         # Find most common nuc 
         # there's scenarios were phred fail == len(readList) resulting in empty quality score list, this also causes zero division error 
         try:
-            max_nuc_index = [f for f, k in enumerate(position_score) if k == max(position_score)]
-            # If there's more than one max, randomly select nuc
-            max_nuc = max_nuc_index[randint(0, len(max_nuc_index)-1)]
+            #max_nuc_index = [f for f, k in enumerate(position_score) if k == max(position_score)]
+            ## If there's more than one max, randomly select nuc
+            #max_nuc = max_nuc_index[randint(0, len(max_nuc_index)-1)]
             
-            # === Molecular phred quality of error (multiple probabilities of error) ===
-            #error_qualities = quality_score[:max_nuc] + quality_score[(max_nuc +1):]
-            ## error qual of majority instead of minority
-            err_qual_unlisted = quality_score[max_nuc]
-            from itertools import chain
-            import math
-            #err_qual_unlisted = list(chain(*error_qualities))
-            
-            if err_qual_unlisted == []:
-                # No error/all consensus, calculate probability of error corresponding to max capped quality score and multiply all of them
-                mol_qual = 62
-            else:
+            ## === QUALITY RANKING ===
+            base_qual = [] # new qualities for each base (product of errors per base)
+            for qual_lst in quality_score:                 
                 P = 1
-                for Q in err_qual_unlisted:
+                for Q in qual_lst:
                     P *= 10**(-(Q/10))
-                    
                 mol_qual = round(-10 * math.log10(P))
                 
                 if mol_qual > 62:
-                    mol_qual = 62
+                    mol_qual = 62                
+                
+                base_qual += [mol_qual]
+
+            mol_qual = max(base_qual)
+            max_nuc = base_qual.index(mol_qual)
+            base_qual.pop(max_nuc)
+            second_q = max(base_qual)
+
+            ## === Molecular phred quality of error (multiple probabilities of error) ===
+            ##error_qualities = quality_score[:max_nuc] + quality_score[(max_nuc +1):]
+            ### error qual of majority instead of minority
+            #err_qual_unlisted = quality_score[max_nuc]
+            #from itertools import chain
+            #import math
+            ##err_qual_unlisted = list(chain(*error_qualities))
+            
+            #if err_qual_unlisted == []:
+                ## No error/all consensus, calculate probability of error corresponding to max capped quality score and multiply all of them
+                #mol_qual = 62
+            #else:
+                #P = 1
+                #for Q in err_qual_unlisted:
+                    #P *= 10**(-(Q/10))
+                    
+                #mol_qual = round(-10 * math.log10(P))
+                
+                #if mol_qual > 62:
+                    #mol_qual = 62
 
             # frequency of nuc at position > cutoff
             prop_score = position_score[max_nuc]/(len(readList) - phred_fail)
             if prop_score > cutoff:
                 consensus_read += nuc_lst[max_nuc]
                 quality_consensus.append(mol_qual)
+                second_qual.append(second_q)
                 proportion_scores.append(prop_score)
             else:
                 raise ValueError                
     
-        except:
+        except (ZeroDivisionError, ValueError) as e:
             consensus_read += 'N'
             quality_consensus.append(0)
+            second_qual.append(0)
                     
-    return consensus_read, quality_consensus, proportion_scores
+    return consensus_read, quality_consensus, second_qual, proportion_scores
 #, position_score[max_nuc], phred_fail # INCLUDE PHRED FAIL AS THIS DIFFERS FROM TOTAL NUMBER OF READS IN FAMILY
 
 
@@ -332,9 +353,9 @@ def main():
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)    
     doubleton_bam = pysam.AlignmentFile('{}.doubleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    tag_bam = pysam.AlignmentFile('{}.tag_reads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
-    tag_bam = pysam.AlignmentFile('{}.tag_reads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     
     # set up fastq files
     fastqFile1 = open('{}.sscs_R1.fastq.gz'.format(args.outfile.split('.sscs')[0]), 'w')
@@ -355,7 +376,11 @@ def main():
     quality_dict = collections.defaultdict(list)
     prop_dict = collections.defaultdict(list)
     
-    read_pair_dict = collections.defaultdict(list)    
+    read_pair_dict = collections.defaultdict(list)        
+    
+    qual_lst = []
+    second_qual = []
+    
     
     unmapped = 0
     unmapped_flag = 0
@@ -398,8 +423,8 @@ def main():
         counter += chr_data[4]
         unmapped += chr_data[5]
         unmapped_flag += chr_data[6]
-        bad_reads += chr_data[7]    
-            
+        bad_reads += chr_data[7] 
+        
         ## ===== Create consenus seq for reads in each chrm arm and reset =====
         if bool(bam_dict):
             rand_key = choice(list(bam_dict.keys()))
@@ -413,6 +438,20 @@ def main():
         written_pairs = []
         
         for readPair in list(pair_dict.keys()):
+            #paired = False
+            #if len(pair_dict[readPair]) > 2:
+                #num_fam = collections.Counter([i[-2:] for i in pair_dict[readPair]]) # number of read families for each read
+                #read1_fam = num_fam['R1']
+                #read2_fam = num_fam['R2']
+                
+                #if read1_fam == read2_fam:
+                    #paired = True
+                #else:
+                    
+                    #for family in pair_dict[readPair]:
+                        #if 'R1' in family and read1_fam > 1:
+                            
+                
             if len(pair_dict[readPair]) == 2:
                 for tag in pair_dict[readPair]:
                     # Check for singletons
@@ -421,20 +460,28 @@ def main():
                         singleton_bam.write(bam_dict[tag][0])
                     else:
                         SSCS = consensus_maker(bam_dict[tag], readLength, float(args.cutoff))
+                        #SSCS = consensus_maker(bam_dict[tag], readLength, float(0.7))
                         
                         SSCS_read = create_aligned_segment(bam_dict[tag], SSCS[0], SSCS[1])
                         
                         query_name = readPair + ':' + str(tag_dict[tag])   
                         SSCS_read.query_name = query_name
                         
-                        #quality_dict[query_name] += [SSCS[1]]
-                        #prop_dict[query_name] += [SSCS[2]] #### SAVE BY QUERY NAME OR TAG NAME?
-                        #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]                        
+                        quality_dict[query_name] += [SSCS[1]]
+                        prop_dict[query_name] += [SSCS[3]] #### SAVE BY QUERY NAME OR TAG NAME?
+                        #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]    
                         
-                        SSCS_read.set_tag('PR', SSCS[2])
+                        SSCS_read.set_tag('PR', SSCS[3])                        
+                        
+                        qual_lst += [SSCS[1]]
+                        second_qual += [SSCS[2]]
+                        
+                        if len(SSCS[1]) != len(SSCS[2]):
+                            print(SSCS[1])
+                            print(SSCS[2])
                         
                         # === Write new bamfile with consensus query name in read group ===
-                        if 'args.RGbam' in locals():
+                        if 'args.RGbam' in locals():                        
                             for r in bam_dict[tag]:
                                 r.set_tag('RG', query_name)
                                 tag_bam.write(r)
@@ -473,11 +520,10 @@ def main():
                     del bam_dict[tag]
                         
                 # Remove key from dictionary after writing
-                del pair_dict[readPair]                         
-                
-                ##### NEED TO ALSO REMOVE SC FROM SC_LST AFTER WRITING PAIR!!!!
+                del pair_dict[readPair]                                               
         print(x)
-        
+
+
         # This ends up writing everything to the file, also dictionary of reads is not decreasing over time -> memory issue
         #read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
         #pickle.dump(bam_dict, read_dict_file)
@@ -500,7 +546,6 @@ def main():
             print(i)
             print(read_pair_dict[i])
             print(bamfile.mate(read_pair_dict[i][0]))
-    
     print('pair_dict remaining')
     if bool(pair_dict):
         for i in pair_dict:
@@ -526,8 +571,8 @@ def main():
     #prop_file = open(args.outfile.split('.sscs')[0] + '.prop_scores.txt', 'ab+')
     #pickle.dump(prop_dict, prop_file)
     #prop_file.close()            
-    #prop_dict = collections.defaultdict(list)    
-
+    prop_dict = collections.defaultdict(list)
+    
     # (key = tags, value = int [number of reads in that family]) 
     tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     pickle.dump(tag_dict, tag_file)
@@ -551,15 +596,23 @@ Doubleton consensus: {} \n
     SSCS_bam.close()
     doubleton_bam.close()
     badRead_bam.close()
-    tag_bam.close()
     fastqFile1.close()
     fastqFile2.close()
     doubleton_fastqFile1.close()
     doubleton_fastqFile2.close()      
     
+    # === Create quality plot ===
+    from itertools import chain
+    x = list(chain(*qual_lst))
+    y = list(chain(*second_qual))
+    plt.scatter(x, y, alpha = 0.05)
+    plt.xlabel('Max phred quality score')
+    plt.ylabel('Second highest phred quality score')    
+    plt.savefig(args.outfile.split('.sscs')[0]+'_qual_comp.png')  
+    plt.clf()
+    
     # ===== Create tag family size plot =====
     # Count number of families containing each number of read (e.g. Counter({1: 3737, 32: 660... -> 3737 families are singletons)
-    
     fam_per_read_group = collections.Counter([i for i in tag_dict.values()])
     lst_fam_per_read = list(fam_per_read_group.items()) # conver to list
     
@@ -570,7 +623,7 @@ Doubleton consensus: {} \n
     plt.bar(list(fam_per_read_group), read_fraction)
     
     # == Determine read family size range to standardize plot axis ==
-    plt.xlim([0, math.ceil(lst_fam_per_read[-1][0]/10) * 10])
+    plt.xlim([0, math.ceil(lst_fam_per_read[-1][0]/10) * 10])    
     
     #plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
     plt.xlabel('Tag family size (# of reads per family)')
@@ -578,9 +631,8 @@ Doubleton consensus: {} \n
     
     plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')      
     
-    # ===== Create prop plot =====
-        
-    
+
+
 
 ###############################
 ##           Main            ##
