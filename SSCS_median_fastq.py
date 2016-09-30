@@ -219,7 +219,7 @@ def consensus_maker(readList, readLength, cutoff):
     for i in range(readLength):
         position_score = [0, 0 ,0, 0, 0] # A, C, G, T, N 
         #quality_score = [[], [], [], [], []] 
-	#quality_score = [0, 0, 0, 0, 0]
+	quality_score = [0, 0, 0, 0, 0]
         phred_fail = 0
         
         ### HOW MANY Ns ARE IN THE FINAL CONSENSUS AND HOW MANY TIE BREAKING EVENTS? ###

@@ -471,7 +471,11 @@ def main():
                         prop_dict[query_name] += [SSCS[3]] #### SAVE BY QUERY NAME OR TAG NAME?
                         #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]    
                         
-                        SSCS_read.set_tag('PR', SSCS[3])                        
+                        #try:
+                            #SSCS_read.set_tag('PR', SSCS[3])
+                        #except:
+                            #print(tag)
+                            #print(SSCS)                    
                         
                         qual_lst += [SSCS[1]]
                         second_qual += [SSCS[2]]

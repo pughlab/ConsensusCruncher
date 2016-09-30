@@ -432,11 +432,12 @@ def main():
                         #prop_dict[query_name] += [SSCS[2]] #### SAVE BY QUERY NAME OR TAG NAME?
                         #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]                        
                         
-                        try:
-                            SSCS_read.set_tag('PR', SSCS[2])
-                        except:
-                            print(tag)
-                            print(SSCS)
+                        #try:
+                        #SSCS_read.set_tag('PR', SSCS[2])
+                        #except:
+                            #print(tag)
+                            #print(SSCS)
+                            #print(SSCS[2])
                         
                         #aligned_seq = SSCS_read.query_alignment_sequence
                         #if aligned_seq.count('N')/len(aligned_seq) > float(args.Ncutoff):

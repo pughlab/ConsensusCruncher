@@ -756,3 +756,45 @@ if __name__ == "__main__":
         
         #readList = readList[14:16]
         #print(consensus_maker(readList, readLength, 0.7))
+        
+        
+        
+        
+        # =============
+        
+        # consensus_maker fx
+        
+        
+        #max_nuc_index = [f for f, k in enumerate(position_score) if k == max(position_score)]
+        ## If there's more than one max, randomly select nuc
+        #max_nuc = max_nuc_index[randint(0, len(max_nuc_index)-1)]
+        ## Median quality score (round to larger value if qual score is a decimal)
+        #import statistics
+        #import math
+        #try:
+            #med_qual = math.ceil(statistics.median(quality_score[max_nuc]))
+        #except:
+            #print(position_score)
+            #print(quality_score)
+            #print(quality_score[max_nuc])
+            #print(phred_fail)
+            #print(i)
+            #print(readList[0])
+            #print(readList[1])
+            #return 'hi'
+        
+        ## frequency of nuc at position > cutoff
+        ##if len(readList) != phred_fail:
+        #try:
+            ##print(position_score[max_nuc])
+            ##print((len(readList) - phred_fail))
+            #if position_score[max_nuc]/(len(readList) - phred_fail) > cutoff:
+                #consensus_read += nuc_lst[max_nuc]
+                #quality_consensus.append(med_qual)
+            #else:
+                #raise ValueError
+        #except ValueError:
+            #consensus_read += 'N'
+            #quality_consensus.append(0)
+        #print(i)
+        #print(consensus_read)        
