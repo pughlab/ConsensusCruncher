@@ -28,6 +28,8 @@ import collections
 from argparse import ArgumentParser
 import time
 import math
+import os
+import inspect
 
 from consensus_helper_sc import *
 #  from SSCS_maker import consensus_maker
@@ -128,7 +130,7 @@ def cytoband_pos(chr_lst, chr_len, bedfile = None):
     cytoband_coor = collections.OrderedDict()
 
     if 'chrM' in chr_lst:
-        chr_arm_coor['chrM'] = (0, chr_len[chr_lst.index('chrM')])
+        cytoband_coor['chrM'] = (0, chr_len[chr_lst.index('chrM')])
 
     if bedfile == None:
         filepath = os.path.abspath(inspect.getfile(inspect.currentframe())).rsplit('/', 1)[0]
@@ -171,10 +173,9 @@ def main():
     ######################
     ##      SETUP       ##
     ######################
-
     # Read input bams as pysam objects
     singleton_bam = pysam.AlignmentFile(args.singleton, "rb")
-    sscs_bam = pysam.AlignmentFile('{}.gthan2.sscs.sort.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), "rb")
+    sscs_bam = pysam.AlignmentFile('{}.sscs.sort.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), "rb")
 
     # Setup output bams
     sscs_rescue_bam = pysam.AlignmentFile('{}.sscs.rescue.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), 'wb',
@@ -214,8 +215,8 @@ def main():
     ##  SPLIT BY REGION  ##
     #######################
 
-    chrm = [x['SN'] for x in bamfile.header['SQ']]
-    chr_len = [x['LN'] for x in bamfile.header['SQ']]
+    chrm = [x['SN'] for x in singleton_bam.header['SQ']]
+    chr_len = [x['LN'] for x in singleton_bam.header['SQ']]
 
     if 'args.bedfile' in locals():
         cytoband_coor = cytoband_pos(chrm, chr_len, args.bedfile)
@@ -230,11 +231,10 @@ def main():
                              tag_dict = tag_dict,
                              read_pair_dict = read_pair_dict, # keep track of paired reads (using query name),
                              #  reads removed from dict as they are added to pair_dict
-                             badRead_bam= badRead_bam, # Don't really care about badReads so write to same file
-                             # for sscs and singleton
+                             badRead_bam= badRead_bam,
                              read_chr=x.rsplit('_', 1)[0],
-                             read_start=chr_arm_coor[x][0],
-                             read_end=chr_arm_coor[x][1]
+                             read_start=cytoband_coor[x][0],
+                             read_end=cytoband_coor[x][1]
                              )
 
         singleton_dict = singleton[0]
@@ -262,8 +262,8 @@ def main():
                         badRead_bam = badRead_bam,
                         duplex = True,
                         read_chr=x.rsplit('_', 1)[0],
-                        read_start=chr_arm_coor[x][0],
-                        read_end=chr_arm_coor[x][1]
+                        read_start=cytoband_coor[x][0],
+                        read_end=cytoband_coor[x][1]
                         )
 
         sscs_dict = sscs[0]
