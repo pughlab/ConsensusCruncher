@@ -230,7 +230,8 @@ def main():
                              tag_dict = tag_dict,
                              read_pair_dict = read_pair_dict, # keep track of paired reads (using query name),
                              #  reads removed from dict as they are added to pair_dict
-                             badRead_bam= badRead_bam,
+                             badRead_bam= badRead_bam, # Don't really care about badReads so write to same file
+                             # for sscs and singleton
                              read_chr=x.rsplit('_', 1)[0],
                              read_start=chr_arm_coor[x][0],
                              read_end=chr_arm_coor[x][1]
