@@ -162,7 +162,7 @@ def main():
     '''
     # Command-line parameters
     parser = ArgumentParser()
-    parser.add_argument("--singleton", action = "store", dest="singleton", help="input singleton BAM file", required = True)
+    parser.add_argument("--singleton", action = "store", dest="singleton", help="input singleton BAM file", required = True, type = str)
     # parser.add_argument("--sscs", action = "store", dest="sscs", help="input singleton BAM file", required = False)
     #parser.add_argument("--rescue_outfile", action = "store", dest="rescue_outfile", help="output BAM file", required = True)
     parser.add_argument("--bedfile", action = "store", dest="bedfile", help="input bedfile", required = False)
@@ -189,10 +189,15 @@ def main():
     stats = open('{}.rescue_stats.txt'.format(args.singleton.split('.singleton.sort.bam')[0]), 'a')
 
     # Initialize dictionaries
-    read_dict = collections.OrderedDict() # dict that remembers order of entries
-    pair_dict = collections.OrderedDict()
-    tag_dict = collections.defaultdict(int)
-    read_pair_dict = collections.defaultdict(list)
+    singleton_dict = collections.OrderedDict() # dict that remembers order of entries
+    singleton_tag = collections.defaultdict(int)
+    singleton_pair = collections.OrderedDict()
+    singleton_read_pair = collections.defaultdict(list)
+
+    sscs_dict = collections.OrderedDict() # dict that remembers order of entries
+    sscs_tag = collections.defaultdict(int)
+    sscs_pair = collections.OrderedDict()
+    sscs_read_pair = collections.defaultdict(list)
 
     rescue_dict = collections.OrderedDict()
 
@@ -226,10 +231,10 @@ def main():
     for x in cytoband_coor.keys():
         # Create dictionaries from bamfiles
         singleton = read_bam(singleton_bam,
-                             pair_dict = pair_dict,
-                             read_dict = read_dict, # keeps track of paired tags
-                             tag_dict = tag_dict,
-                             read_pair_dict = read_pair_dict, # keep track of paired reads (using query name),
+                             pair_dict = singleton_pair,
+                             read_dict = singleton_dict, # keeps track of paired tags
+                             tag_dict = singleton_tag,
+                             read_pair_dict = singleton_read_pair, # keep track of paired reads (using query name),
                              #  reads removed from dict as they are added to pair_dict
                              badRead_bam= badRead_bam,
                              read_chr=x.rsplit('_', 1)[0],
@@ -247,17 +252,11 @@ def main():
         singleton_unmapped_flag += singleton[6]
         singleton_bad_reads += singleton[7]
 
-
-        read_dict = collections.OrderedDict()  # dict that remembers order of entries
-        pair_dict = collections.OrderedDict()
-        tag_dict = collections.defaultdict(int)
-        read_pair_dict = collections.defaultdict(list)
-
         sscs = read_bam(sscs_bam,
-                        pair_dict = pair_dict,
-                        read_dict = read_dict,  # keeps track of paired tags
-                        tag_dict = tag_dict,
-                        read_pair_dict = read_pair_dict,  # keep track of paired reads (using query name),
+                        pair_dict = sscs_pair,
+                        read_dict = sscs_dict,  # keeps track of paired tags
+                        tag_dict = sscs_tag,
+                        read_pair_dict = sscs_read_pair,  # keep track of paired reads (using query name),
                         # reads removed from dict as they are added to pair_dict
                         badRead_bam = badRead_bam,
                         duplex = True,
@@ -284,16 +283,6 @@ def main():
         for tag in singleton_dict.keys():
             # Check to see if singleton can be rescued by SSCS, then by singletons. If not, add to 'remaining' rescue bamfile
             duplex = duplex_tag(tag)
-            # print(tag)
-            # print(duplex)
-            #
-            # print(duplex in sscs_dict.keys())
-            # print(duplex in singleton_dict.keys())
-            #
-            # # print(sscs_dict.keys())
-            # # print(singleton_dict.keys())
-            # print(sscs_dict.keys() == singleton_dict.keys())
-            # break
 
             # 1) SSCS duplex strand rescue -> check for duplex sequence matching singleton in SSCS bam
             if duplex in sscs_dict.keys():
@@ -322,8 +311,8 @@ def main():
     ######################
     ##      SUMMARY     ##
     ######################
-    sscs_rescue_frac = sscs_dup_rescue/singleton_counter
-    singleton_rescue_frac = singleton_dup_rescue/singleton_counter
+    sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
+    singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
 
     summary_stats = '''Total singletons: {} \n
 SSCS strand rescued singletons: {} \n
@@ -336,6 +325,7 @@ Singletons remaining (not rescued): {} \n
     print(singleton_counter)
     print(sscs_dup_rescue)
     print(singleton_dup_rescue)
+    print(singleton_remaining)
 
     stats.write(summary_stats)
 
