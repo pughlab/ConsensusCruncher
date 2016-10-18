@@ -80,12 +80,20 @@ def duplex_tag(tag):
     else:
         read_num = 'R1'
 
-    duplex = pair_barcode + '_' + tag.split('_', 1)[1][
-                                  :-2] + read_num  # pair read is other read on opposite strand (e.g. read = ACGT_fwd_R1, duplex = GTAC_fwd_R2)
+    strand_ori = tag.split('_')[7]
+    if strand_ori == 'pos':
+        duplex_ori = 'neg'
+    else:
+        duplex_ori = 'pos'
+
+    # pair read is other read on opposite strand (e.g. read = ACGT_fwd_R1, duplex = GTAC_fwd_R2)
+    duplex = pair_barcode + '_' + tag.split('_', 1)[1][:-2] + read_num
+    duplex = duplex.replace(strand_ori, duplex_ori)
+
     return duplex
 
 
-def strand_rescue(read_tag, duplex_tag, singleton_dict, sscs_dict=None):
+def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
     """(str, str, dict, dict) -> Pysam.AlignedSegment
 
     Return 'rescued' singleton read using compliment read from opposite strand (either found in SSCS or singleton).
@@ -95,18 +103,19 @@ def strand_rescue(read_tag, duplex_tag, singleton_dict, sscs_dict=None):
     read = singleton_dict[read_tag][0]
 
     # If SSCS bamfile provided, rescue with SSCS
-    try:
-        if sscs_dict == None:
-            compliment_read = singleton_dict[duplex_tag][0]
-        else:
-            compliment_read = sscs_dict[duplex_tag][0]
-    except KeyError:
+    # try:
+    if sscs_dict == None:
+        compliment_read = singleton_dict[duplex_tag][0]
+    else:
+        compliment_read = sscs_dict[duplex_tag][0]
+    # except KeyError:
         # If duplex not found in dictionary, output None
-        return None
+        # return None
 
     dcs = duplex_consensus(read, compliment_read)
 
     dcs_read = create_aligned_segment([read], dcs[0], dcs[1])
+    dcs_read.query_name = query_name
 
     return dcs_read
 
@@ -121,10 +130,13 @@ def cytoband_pos(chr_lst, chr_len, bedfile = None):
 
     Input:
     - chr_lst
-    ['chrM', 'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX', 'chrY']
+    ['chrM', 'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
+     'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX', 'chrY']
 
     - chr_len
-    [16571, 249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566]
+    [16571, 249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431,
+    135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520,
+    48129895, 51304566, 155270560, 59373566]
 
     '''
     cytoband_coor = collections.OrderedDict()
@@ -162,7 +174,8 @@ def main():
     '''
     # Command-line parameters
     parser = ArgumentParser()
-    parser.add_argument("--singleton", action = "store", dest="singleton", help="input singleton BAM file", required = True, type = str)
+    parser.add_argument("--singleton", action = "store", dest="singleton", help="input singleton BAM file",
+                        required = True, type = str)
     # parser.add_argument("--sscs", action = "store", dest="sscs", help="input singleton BAM file", required = False)
     #parser.add_argument("--rescue_outfile", action = "store", dest="rescue_outfile", help="output BAM file", required = True)
     parser.add_argument("--bedfile", action = "store", dest="bedfile", help="input bedfile", required = False)
@@ -178,15 +191,21 @@ def main():
     sscs_bam = pysam.AlignmentFile('{}.sscs.sort.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), "rb")
 
     # Setup output bams
-    sscs_rescue_bam = pysam.AlignmentFile('{}.sscs.rescue.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), 'wb',
-                                     template = singleton_bam)
+    sscs_rescue_bam = pysam.AlignmentFile('{}.sscs.rescue.bam'.format(args.singleton.split('.singleton.sort.bam')[0]),
+                                          'wb',
+                                          template = singleton_bam)
     singleton_rescue_bam = pysam.AlignmentFile('{}.singleton.rescue.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), 'wb',
                                           template=singleton_bam)
     remaining_rescue_bam = pysam.AlignmentFile(
         '{}.rescue.remaining.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), 'wb',
         template=singleton_bam)
-    badRead_bam = pysam.AlignmentFile('{}.singleton.badReads.bam'.format(args.singleton.split('.singleton.sort.bam')[0]), "wb", template = singleton_bam)
-    stats = open('{}.rescue_stats.txt'.format(args.singleton.split('.singleton.sort.bam')[0]), 'a')
+
+    badRead_bam = pysam.AlignmentFile('{}.singleton.badReads.bam'.format(args.singleton.split('.singleton.sort.bam')[0]),
+                                      "wb", template = singleton_bam)
+    stats = open('{}.rescue_stats.txt'.format(args.singleton.split('.singleton.sort.bam')[0]), 'w')
+
+    # set up time tracker
+    time_tracker = open('{}.time.tracker.txt'.format(args.singleton.split('.singleton.sort.bam')[0]), 'a')
 
     # Initialize dictionaries
     singleton_dict = collections.OrderedDict() # dict that remembers order of entries
@@ -202,7 +221,8 @@ def main():
     rescue_dict = collections.OrderedDict()
 
     # Initialize counters
-    singleton_counter = 0
+    singleton_counter = 0 # this differs from 'counter' (which represents number of reads in dict as we're using
+    # pair_dict, meaning only pairs are retained) => consensus_helper script may not be sufficient at making read pairs?
     singleton_unmapped = 0
     singleton_unmapped_flag = 0
     singleton_bad_reads = 0
@@ -215,6 +235,8 @@ def main():
     sscs_dup_rescue = 0
     singleton_dup_rescue = 0
     singleton_remaining = 0
+
+    counter = 0
 
     #######################
     ##  SPLIT BY REGION  ##
@@ -279,40 +301,78 @@ def main():
         ######################
         ##      RESCUE      ##
         ######################
+        for readPair in list(singleton_pair.keys()):
+            # print(readPair)
+            # print(singleton_pair[readPair])
+            # return(readPair)
 
-        for tag in singleton_dict.keys():
-            # Check to see if singleton can be rescued by SSCS, then by singletons. If not, add to 'remaining' rescue bamfile
-            duplex = duplex_tag(tag)
+            for tag in singleton_pair[readPair]:
+                counter += 1
+                # print(readPair)
+                # print(tag)
+                # Check to see if singleton can be rescued by SSCS, then by singletons. If not, add to 'remaining' rescue bamfile
+                duplex = duplex_tag(tag)
+                query_name = readPair + ':' + str(singleton_tag[tag])
 
-            # 1) SSCS duplex strand rescue -> check for duplex sequence matching singleton in SSCS bam
-            if duplex in sscs_dict.keys():
-                rescue_read = strand_rescue(tag, duplex, singleton_dict, sscs_dict = sscs_dict)
-                if rescue_read != None:
+                # print(duplex)
+                # return 'hi'
+
+                # if 'CTCT_11_108143378_11_108143521_147M_147M_fwd_R2' in singleton_dict:
+                #     print(duplex in sscs_dict)
+                #     print(duplex in singleton_dict)
+
+                # 1) SSCS duplex strand rescue -> check for duplex sequence matching singleton in SSCS bam
+                if duplex in sscs_dict.keys():
+                    rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
                     sscs_dup_rescue += 1
                     sscs_rescue_bam.write(rescue_read)
-                else:
-                    singleton_remaining += 1
-                    remaining_rescue_bam.write(singleton_dict[tag][0])
-            # 2) Singleton duplex strand rescue -> check for duplex sequence matching singleton in singletons bam
-            elif duplex in singleton_dict.keys():
-                rescue_read = strand_rescue(tag, duplex, singleton_dict)
-                if rescue_read != None:
+
+                    rescue_dict[tag] = duplex
+
+                    del sscs_dict[duplex]
+                    del singleton_dict[tag]
+
+                # 2) Singleton duplex strand rescue -> check for duplex sequence matching singleton in singletons bam
+                elif duplex in singleton_dict.keys():
+                    rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict)
                     singleton_dup_rescue += 1
                     singleton_rescue_bam.write(rescue_read)
-                else:
-                    singleton_remaining += 1
-                    remaining_rescue_bam.write(singleton_dict[tag][0])
-            # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex rescue was possible
-            else:
-                singleton_remaining += 1
-                remaining_rescue_bam.write(singleton_dict[tag][0])
+                    rescue_dict[tag] = duplex
 
+                    if duplex in rescue_dict.keys():
+                        # print(tag)
+                        # print(duplex)
+                        # print(rescue_dict)
+                        # print(tag in singleton_dict)
+                        # print(duplex in singleton_dict)
+                        # return 'hi'
+                        # delete tags from dict if both singletons are rescued in singleton-singleton
+                        # (aka duplex strand is already in dict)
+                        del singleton_dict[tag]
+                        del singleton_dict[duplex]
+
+                # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex rescue was possible
+                else:
+                    remaining_rescue_bam.write(singleton_dict[tag][0])
+                    singleton_remaining += 1
+                    del singleton_dict[tag]
+
+            del singleton_pair[readPair]
+
+        # Update time tracker
+        time_diff = str((time.time() - start_time)/60)
+        print(time_diff)
+        try:
+            time_tracker.write(x + ': ')
+            # time_tracker.write(time_diff + '\n')
+        except:
+            continue
 
     ######################
     ##      SUMMARY     ##
     ######################
-    sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
-    singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
+    sscs_rescue_frac = (sscs_dup_rescue/counter) * 100
+    singleton_rescue_frac = (singleton_dup_rescue/counter) * 100
 
     summary_stats = '''Total singletons: {} \n
 SSCS strand rescued singletons: {} \n
@@ -320,12 +380,13 @@ SSCS strand rescued singletons: {} \n
 Singleton strand rescued singletons: {} \n
 % singleton rescue: {} \n
 Singletons remaining (not rescued): {} \n
-'''.format(singleton_counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
+'''.format(counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
 
     print(singleton_counter)
     print(sscs_dup_rescue)
     print(singleton_dup_rescue)
     print(singleton_remaining)
+    print(counter)
 
     stats.write(summary_stats)
 
