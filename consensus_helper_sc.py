@@ -38,7 +38,7 @@ from argparse import ArgumentParser
 
 def which_read(flag):
     '''(int) -> str
-    Returns str indicating read 1 or 2 based on flag.
+    Returns read 1 or 2 based on flag.
 
     Test cases:
     >>> which_read(83)
@@ -65,8 +65,7 @@ def which_read(flag):
 
 def which_strand(flag):
     '''(int) -> str
-    Return str indicating direction of DNA strand based on flags.
-    Note: Some flags indicate R1 and R2 have the same orientation (e.g. 67/131 +/+)
+    Return DNA strand based on flags.
 
     Test cases:
     >>> which_strand(147)
