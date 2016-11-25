@@ -5,7 +5,6 @@
 #                          Consensus Helper
 #
 # Author: Nina Wang
-# Last Modified: May 18, 2016
 # Date Created: Mar 24, 2016
 ###############################################################
 # Function:
@@ -32,7 +31,7 @@ from random import randint
 from argparse import ArgumentParser
 
 ###############################
-##         Functions         ##
+#          Functions          #
 ###############################
 
 
@@ -126,6 +125,8 @@ def unique_tag(read, cigar, barcode):
     '''(pysam.calignedsegment.AlignedSegment, str, str) -> str
     Return unique identifier tag for one read of a strand of an individual molecule.
 
+    Tag uses following characteristics to group reads belonging to the same strand of an individual molecule (PCR dupes):
+
     barcode_ReadChr_ReadStart_MateChr_MateStart_cigar_strand_orientation_readNum
     TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1
 
@@ -179,16 +180,20 @@ def unique_tag(read, cigar, barcode):
 
 def sscs_qname(tag, flag):
     '''(str, int) -> str
-    Return new queryname for consensus sequence: barcode_chr_start_chr_end_strand_flags
+    Return new query name for consensus sequence: barcode_chr_start_chr_end_strand_flags
 
-    * Since multiple reads go into making a consensus, a new unique identifier
-    is required to match up the read with its pair *
+    * Since multiple reads go into making a consensus, a new query name is needed as an identifier for consensus read
+    pairs. *
+    - Read pairs share the same query name to indicate they're mates
+
+    original query name (H1080:278:C8RE3ACXX:6:1308:18882:18072) ->
+    new query name (TTTG_24_58847448_24_58847416_137M10S_147M_pos_99_147)
 
     Reason why we want both the flag and strand:
     - flag: to differentiate between reads with complimentary read in same orientation (e.g. 65 / 129)
     - strand: needed to make duplex consensus sequences as reads are grouped based on strand and not specific flags
 
-    Note: coordinates are ordered from low -> high
+    Note: coordinates are ordered from low -> high, so read pairs share the same coordinate
 
     Examples:
     (+)                                                 [Flag]
@@ -264,11 +269,12 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
 
     - pair_dict: dictionary of paired tags (retains data from translocations or reads crossing cytobands to preserve
                  pairing as bamfiles are divided into sections)
-                 {query name: [read 1, read 2]}
+                 {query name: [read 1, read 2]} -> {consensus_tag: [R1_tag, R2_tag]}
+                 Reads are removed from pair_dict once they're added to read_dict, but we still want to track pair info.
+                 Thus, add consensus tag and read tags to pair_dict
 
     - read_dict: dictionary of reads sharing a common tag (aka from the same unique molecule)
-                 {read_tag: [<pysam.calignedsegment.AlignedSegment>,
-                  <pysam.calignedsegment.AlignedSegment>, ..etc.]}
+                 {read_tag: [<pysam.calignedsegment.AlignedSegment>, <pysam.calignedsegment.AlignedSegment>, ..etc.]}
 
     - tag_dict: integer dictionary indicating number of reads in each read family
                  {read_tag: 2, ..etc}
@@ -310,25 +316,27 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
                                          multiple locations
     8) poor_mapq: number of poorly mapped reads (mapping quality < 5)
     '''
+    # ===== Fetch data given coordinates =====
     if read_chr == None:
         bamLines = bamfile.fetch(until_eof = True)
     else:
         bamLines = bamfile.fetch(read_chr, read_start, read_end)
 
+    # ===== Initialize counters =====
     unmapped = 0
     unmapped_flag = 0
-    bad_reads = 0 # secondary/supplementary reads
+    bad_reads = 0  # secondary/supplementary reads
     poor_mapq = 0
     counter = 0
 
     for line in bamLines:
         counter += 1
 
-        # === Filter out 'bad' reads ====
-        # Unmapped flags
-        bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]
+        # ===== Filter out 'bad' reads =====
+        bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]  # Unmapped flags
         badRead = True
-        if line.is_unmapped:  # flag != 0
+
+        if line.is_unmapped:
             unmapped += 1
         elif line.is_secondary:
             bad_reads += 1
@@ -345,7 +353,7 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
         if badRead:
             badRead_bam.write(line)
         else:
-            # === Add reads to dictionary as pairs ===
+            # ===== Add reads to dictionary as pairs =====
             if line.qname in line.qname and line in pair_dict[line.qname]:
                 print('Read already read once!')
                 print(read_chr, read_start, read_end)
@@ -356,12 +364,14 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
             else:
                 pair_dict[line.qname].append(line)
 
-                # Create tag once reads are paired
+                # ===== Create tag once reads are paired =====
                 if len(pair_dict[line.qname]) == 2:
                     cigar = cigar_order(pair_dict[line.qname][0], pair_dict[line.qname][1])
 
                     for read in pair_dict[line.qname]:
-                        # Barcodes extracted from diff position for duplex consensus formation
+
+                        # ===== Extract molecular barcode =====
+                        # Barcodes in diff position for duplex consensus formation
                         if duplex == None or duplex == False:
                             # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
                             barcode = read.qname.split("|")[1]
@@ -369,21 +379,34 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
                             # DCS query name: CCTG_12_25398000_12_25398118_neg_83_163:5
                             barcode = read.qname.split("_")[0]
 
-                        # Unique identifier for strand of individual molecules
+                        # Unique identifier for grouping reads belonging to the same strand of an individual molecule
                         tag = unique_tag(read, cigar, barcode)
 
-                        # Create consensus tag to be used as new query name (same query name between 2 reads indicate
-                        # they're mate pairs)
+                        # Create consensus tag to be used as new query name for consensus reads
                         consensus_tag = sscs_qname(tag, int(read.flag))
 
+                        # ===== Add read pair to dictionary =====
                         if tag not in read_dict and tag not in tag_dict:
+                            # New read family
                             read_dict[tag] = [read]
+
+                            # === Add tag to replace reads in pair_dict ===
+                            # Reads are removed once they're added to read_dict, but we still want to track pair info
+                            # {qname: [read1, read2]} -> {consensus_tag: [R1_tag, R2_tag]}
+                            if consensus_tag not in pair_dict:
+                                pair_dict[consensus_tag] = [tag]
+                            else:
+                                pair_dict[consensus_tag].append(tag)
+
                         elif tag in tag_dict and read not in read_dict[tag]:
+                            # Reads belonging to the same family as another read (PCR dupes)
                             read_dict[tag].append(read)
                         else:
-                            # If tag found in tag_dict, but not read_dict means line was previously read and written
-                            # to file (hence removal from read_dict but presence in tag_dict)
+                            # === Data fetch error ===
+                            # If tag found in tag_dict, but not in read_dict means line was previously read and written
+                            # to file (tag removed from read_dict once written)
                             print('Pair already written: line read twice - double check to see if its overlapping / near cytoband region (point of data division)')
+                            # fetched data region - pysam fetch fx will get read twice if it overlaps fetch coordinates
                             print(read_chr, read_start, read_end)
                             print(tag)
                             print(read)
@@ -397,15 +420,10 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
 
                         tag_dict[tag] += 1
 
-                elif len(pair_dict[line.qname]) == 3:
-                    print('ERROR: triplet reads with same qname????')
-                    print(line)
-
                     # remove read pair qname from pair_dict once reads added to read_dict as pairs
                     pair_dict.pop(line.qname)
 
-    return read_dict, tag_dict, pair_dict, counter, unmapped, unmapped_flag, \
-           bad_reads, poor_mapq
+    return read_dict, tag_dict, pair_dict, counter, unmapped, unmapped_flag, bad_reads, poor_mapq
 
 
 def read_mode(field, bam_reads):
@@ -435,7 +453,6 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual):
     # Find first read with most common cigar and set as template read for SSCS
     template_index = [i.cigarstring for i in bam_reads].index(common_cigar)
     template_read = bam_reads[template_index]
-    #print(template_read)
 
     # Create bam read based on template read
     SSCS_read = pysam.AlignedSegment()
@@ -452,15 +469,13 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual):
     SSCS_read.query_qualities = sscs_qual
 
     SSCS_read.set_tag('RG', read_mode("get_tag('RG')", bam_reads))
-    #SSCS_read.set_tag('MD', )
-
 
     # --NOTE: Tags currently disabled as it gives errors when bams are loaded into IGV
-    #print(read_mode("get_tag('RG')", bam_reads))
-    #SSCS_read.tags = read_mode("get_tag('RG')", bam_reads)
-    #tag_index = [x for x, y in enumerate(SSCS_read.tags) if y[0] == 'MD'][0]
-    #SSCS_read.tags[tag_index] = read_mode("get_tag('MD')", bam_reads)
-    #SSCS_read.tags[tag_index] = read_mode("get_tag('RG')", bam_reads)
+    # print(read_mode("get_tag('RG')", bam_reads))
+    # SSCS_read.tags = read_mode("get_tag('RG')", bam_reads)
+    # tag_index = [x for x, y in enumerate(SSCS_read.tags) if y[0] == 'MD'][0]
+    # SSCS_read.tags[tag_index] = read_mode("get_tag('MD')", bam_reads)
+    # SSCS_read.tags[tag_index] = read_mode("get_tag('RG')", bam_reads)
 
     return SSCS_read
 
