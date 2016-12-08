@@ -259,7 +259,7 @@ def sscs_qname(tag, flag):
     return new_tag
 
 
-def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = None,
+def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, read_chr = None,
              read_start = None, read_end = None, duplex = None):
     '''(bamfile object, dict, dict, dict, str, int, int, str) ->
     dict, dict, dict, dict, dict, int, int, int, int
@@ -267,14 +267,18 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
     === Input ===
     - bamfile: pysam.AlignmentFile object of bamfile
 
-    - pair_dict: dictionary of paired tags (retains data from translocations or reads crossing cytobands to preserve
-                 pairing as bamfiles are divided into sections)
-                 {query name: [read 1, read 2]} -> {consensus_tag: [R1_tag, R2_tag]}
-                 Reads are removed from pair_dict once they're added to read_dict, but we still want to track pair info.
-                 Thus, add consensus tag and read tags to pair_dict
+    - pair_dict: dictionary of paired reads based on query name to process data in pairs (note: values are removed once
+                 pair assigned to corresponding dict)
+                 -> retains data from translocations or reads crossing bam division regions (e.g. cytobands) to preserve
+                    pairing as file is divided into sections
+                {query name: [read 1, read 2]}
 
     - read_dict: dictionary of reads sharing a common tag (aka from the same unique molecule)
                  {read_tag: [<pysam.calignedsegment.AlignedSegment>, <pysam.calignedsegment.AlignedSegment>, ..etc.]}
+
+    - csn_pair_dict: dictionary of paired tags based on consensus tag
+                     -> reads are removed from pair_dict and added to read_dict & csn_pair_dict to track pairs
+                     {consensus_tag: [R1_tag, R2_tag]}
 
     - tag_dict: integer dictionary indicating number of reads in each read family
                  {read_tag: 2, ..etc}
@@ -330,6 +334,12 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
     counter = 0
 
     for line in bamLines:
+        # Parse out reads that don't fall within region
+        if read_chr is not None:
+            # this excludes certain reads that were previously seen
+            if line.reference_start < read_start or line.reference_start > read_end:
+                continue
+
         counter += 1
 
         # ===== Filter out 'bad' reads =====
@@ -342,7 +352,7 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
             bad_reads += 1
         elif line.is_supplementary:
             bad_reads += 1
-        elif line.flag in bad_flags:
+        elif line.flag in bad_flags:  # is the mate unmapped?
             unmapped_flag += 1
         elif line.mapping_quality <= 5:
             poor_mapq += 1
@@ -354,12 +364,12 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
             badRead_bam.write(line)
         else:
             # ===== Add reads to dictionary as pairs =====
-            if line.qname in line.qname and line in pair_dict[line.qname]:
+            if line.qname in pair_dict and line in pair_dict[line.qname]:
                 print('Read already read once!')
                 print(read_chr, read_start, read_end)
                 print(line.qname)
                 print(line)
-                print(pair_dict[line.qname])
+                print(pair_dict[line.qname][0])
                 counter -= 1
             else:
                 pair_dict[line.qname].append(line)
@@ -369,7 +379,6 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
                     cigar = cigar_order(pair_dict[line.qname][0], pair_dict[line.qname][1])
 
                     for read in pair_dict[line.qname]:
-
                         # ===== Extract molecular barcode =====
                         # Barcodes in diff position for duplex consensus formation
                         if duplex == None or duplex == False:
@@ -389,18 +398,35 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
                         if tag not in read_dict and tag not in tag_dict:
                             # New read family
                             read_dict[tag] = [read]
-
-                            # === Add tag to replace reads in pair_dict ===
-                            # Reads are removed once they're added to read_dict, but we still want to track pair info
+                            tag_dict[tag] += 1
+                            # === Track read pair by tag instead of query name in pair_dict ===
+                            # Reads grouped by query name are removed from pair_dict once they're added to read_dict,
+                            # but we still want to track pair info
+                            # Since we're tracking by consensus 'tags' now, we only need to add once to dict
+                            # (PCR dupes share same tag)
                             # {qname: [read1, read2]} -> {consensus_tag: [R1_tag, R2_tag]}
                             if consensus_tag not in pair_dict:
-                                pair_dict[consensus_tag] = [tag]
+                                csn_pair_dict[consensus_tag] = [tag]
                             else:
-                                pair_dict[consensus_tag].append(tag)
+                                csn_pair_dict[consensus_tag].append(tag)
+                        elif tag in tag_dict and tag not in read_dict:
+                            print('Read seen previously - in tag_dict, but not read_dict')
+                            print(read_chr, read_start, read_end)
+                            print(tag)
+                            print(read)
+                            print(tag_dict[tag])
+                            print(consensus_tag)
+                            print(tag in read_dict)
+                            print(csn_pair_dict[consensus_tag])  # why is it that these reads are already read, but there's
+                            # no consensus tag in the pair_dict?????
 
+                            print(pair_dict[line.qname][0])
+                            print(pair_dict[line.qname][1])
+                            counter -= 1
                         elif tag in tag_dict and read not in read_dict[tag]:
                             # Reads belonging to the same family as another read (PCR dupes)
                             read_dict[tag].append(read)
+                            tag_dict[tag] += 1
                         else:
                             # === Data fetch error ===
                             # If tag found in tag_dict, but not in read_dict means line was previously read and written
@@ -414,16 +440,13 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, badRead_bam, read_chr = No
                             print(read_dict[tag][0])
                             print(consensus_tag)
                             print(tag in tag_dict)
-                            print(pair_dict[consensus_tag])
+                            print(csn_pair_dict[consensus_tag])
                             counter -= 1
-                            continue
-
-                        tag_dict[tag] += 1
 
                     # remove read pair qname from pair_dict once reads added to read_dict as pairs
                     pair_dict.pop(line.qname)
 
-    return read_dict, tag_dict, pair_dict, counter, unmapped, unmapped_flag, bad_reads, poor_mapq
+    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped, unmapped_flag, bad_reads, poor_mapq
 
 
 def read_mode(field, bam_reads):
@@ -442,13 +465,28 @@ def read_mode(field, bam_reads):
     return common_field
 
 
-def create_aligned_segment(bam_reads, sscs, sscs_qual):
+def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
     '''(list, str, list) -> pysam object
     Return pysam object with new consensus seq given list of bam reads.
 
+    Bam file characteristics:
+    1) Query name -> new 'consensus' query name (e.g. TTTG_24_58847448_24_58847416_137M10S_147M_pos_99_147)
+    2) Flag -> take most common flag
+    3) Reference sequence chr
+    4) Position
+    5) Mapping quality -> most common mapping quality
+    6) Cigar string
+    7) Reference sequence of mate/next read
+    8) Position of mate/next read
+    9) Observed template length (excluding softclips and deletions)
+    10) Sequence -> consensus sequence
+    11) Quality Score -> molecular consensus phred quality
+    12) Additional parameters:
+        - Read Group (RG) -> comb of unique read groups
+        - Combination of all the reads that went into making the consensus
     '''
-    # Find most common cigar seq
-    common_cigar = read_mode('cigarstring', bam_reads)
+    # Cigar should be same across all reads
+    common_cigar = bam_reads[0].cigarstring
 
     # Find first read with most common cigar and set as template read for SSCS
     template_index = [i.cigarstring for i in bam_reads].index(common_cigar)
@@ -456,7 +494,7 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual):
 
     # Create bam read based on template read
     SSCS_read = pysam.AlignedSegment()
-    SSCS_read.query_name = template_read.query_name
+    SSCS_read.query_name = query_name
     SSCS_read.flag = read_mode('flag', bam_reads) # Take most common flag
     SSCS_read.query_sequence = sscs
     SSCS_read.reference_id = template_read.reference_id
