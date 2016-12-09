@@ -129,9 +129,6 @@ def main():
     SSCS_singletons = 0
     multiple_mappings = 0
     
-    read1=0
-    read2=0
-    
     duplex_count = 0
     duplex_dict = collections.OrderedDict()    
     duplex_pair = collections.defaultdict(int)   
@@ -163,84 +160,33 @@ def main():
             print(readPair)
             print(csn_pair_dict[readPair])
         else:
-            duplex_tags = []
-            read_lst = []
             for tag in csn_pair_dict[readPair]:
+                # === Determine tag of duplex pair read ===
                 barcode = tag.split('_')[0]
                 barcode_bases = int(len(barcode)/2)  # number of barcode bases, avoids complications if num bases change
+                # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
                 duplex_barcode = barcode[barcode_bases:] + barcode[:barcode_bases]
-                # duplex barcode is opposite (e.g. ATGC -> GCAT [dup])
-                
+
                 read_num = tag[-2:]
-                read_lst += [read_num]
                 if read_num == 'R1':
                     dup_read_num = 'R2'
                 else:
                     dup_read_num = 'R1'
 
-                # duplex tag
-                ds = duplex_barcode + '_' + tag.split('_', 1)[1][:-2] + dup_read_num
+                ds = duplex_barcode + '_' + tag.split('_', 1)[1][:-2] + dup_read_num  # duplex tag
 
-                if tag_dict[tag] == 1 or tag_dict[ds] == 1:
-                    duplex_tags += [tag]
-                    if ds in read_dict.keys() and ds not in duplex_dict.keys():
-                        duplex_tags += [ds]
-                        read_lst += [read_num]
-                else:
-                    multiple_mappings += 1
-                    print('Error: Multiple occurrences of the same SSCS (consensus made incorrectly, same reads made into SSCS twice)')
-                    print(tag)
-                    print(tag_dict[tag])
-                    print(ds)
-                    print(tag_dict[ds])
-            
-            if len(duplex_tags) != 4:
-                # Assumes duplex reads should be paired [R1, R1_pair, R2, R2_pair]
-                for tag in duplex_tags:
-                    SSCS_singleton.write(read_dict[tag][0])
-                    SSCS_singletons += 1                 
-            else:
-                # Check to see if there's equal R1 and R2s
-                if read_lst.count('R1') != 2:
-                    print(duplex_tags)
-                else:
-                    for i in [0, 2]:
-                        read = read_dict[duplex_tags[0+i]][0]
-                        duplex = read_dict[duplex_tags[1+i]][0]
-
-                        if read_lst[0+i] == 'R1':
-                            read1+=1
-                        else:
-                            read2+=1
-                        if read_lst[1+i] == 'R1':
-                            read1 += 1
-                        else:
-                            read2+=1
-
-                        ## DO I NEED A NEW IDENTIFIER FOR DCSs? how are reads made?
-
-                        # Check to see if multiple reads map to region
-                        #if tag_dict[tag] != 1 or tag_dict[ds] != 1:
-                            ### Should we implement something to check if there's a mismatch in the sequence and attempt to rescue reads?
-                            ##for i in read_dict[tag]:
-                                ##if i.get_tag('NM') != 0:
-                                    ##print()
-                            ##for i in read_dict[ds]:
-                                ##if i.get_tag('NM') != 0:
-                                    ##print()
-
-                            ##if read.get_tag('NM') == 0 or duplex.get_tag('MD') == 0:
-                            #multiple_mappings += 1
-                            #print(tag)
-                            #print(ds)
-                            #continue
-
-
+                # === Group duplex read pairs and create consensus ===
+                # Check presence of duplex pair
+                if ds not in duplex_dict.keys():
+                    if tag_dict[tag] == 1 and tag_dict[ds] == 1:
+                        print('ds')
+                        print(tag)
+                        print(ds)
                         duplex_count += 1
                         duplex_dict[ds] = tag
 
                         # consensus seq
-                        consensus_seq, qual_consensus = duplex_consensus(read, duplex)
+                        consensus_seq, qual_consensus = duplex_consensus(read_dict[tag][0], read_tag[ds][0])
 
                         try:
                             dcs_read = create_aligned_segment([read], consensus_seq, qual_consensus)
@@ -249,31 +195,20 @@ def main():
                             print(duplex.query_qualities)
                             print(consensus_seq, qual_consensus)
 
-                        dcs_read.query_name = "{}_{}_{}".format(min(barcode, pair_barcode), max(barcode, pair_barcode), dcs_read.query_name.split('_', 1)[1].rsplit('_', 3)[0])
+                        dcs_read.query_name = "{}_{}_{}".format(min(barcode, pair_barcode), max(barcode, pair_barcode),
+                                                                dcs_read.query_name.split('_', 1)[1].rsplit('_', 3)[0])
 
-                        duplex_dict[tag] = dcs_read # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
+                        duplex_dict[tag] = dcs_read  # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
                         duplex_pair[readPair] += 1
 
                         DCS_bam.write(dcs_read)
 
-                        # ===== write as fastq file =====
-                        # bam file seq are always in fwd direction, need to write rev comp for fastq
-                        # fastq_seq = consensus_seq
-                        #
-                        # if 'rev' in tag:
-                        #     fastq_seq = reverse_seq(fastq_seq)
-                        #     fastq_qual = pysam.qualities_to_qualitystring(reversed(qual_consensus))
-                        # else:
-                        #     fastq_qual = pysam.qualities_to_qualitystring(qual_consensus)
-                        #
-                        # if 'R1' in tag:
-                        #     fastqFile1.write('@{}\n{}\n+\n{}\n'.format(dcs_read.query_name, fastq_seq, fastq_qual))
-                        # else:
-                        #     fastqFile2.write('@{}\n{}\n+\n{}\n'.format(dcs_read.query_name, fastq_seq, fastq_qual))
+                    else:
+                        SSCS_singleton.write(read_dict[tag][0])
+                        SSCS_singletons += 1
 
-    print(read1)
-    print(read2)
-    print(collections.Counter([i for i in tag_dict.values()]))
+    print(tag_dict)
+    print(collections.Counter([i for i in tag_dict.values()]))  ## WHY ARE SOME VALUES 0 IN THE COUNTER?
     time_tracker.write('DCS: ')
     time_tracker.write(str((time.time() - start_time)/60) + '\n') 
     
@@ -288,13 +223,13 @@ DCS reads: {} \n
 SSCS singletons: {} \n
     '''.format(counter, unmapped, unmapped_flag, bad_reads, multiple_mappings, duplex_count, SSCS_singletons)   
     stats.write(summary_stats)
+
+    print(summary_stats)
     
     time_tracker.close()    
     stats.close()
     DCS_bam.close()
     SSCS_singleton.close()
-    # fastqFile1.close()
-    # fastqFile2.close()
     
     return duplex_dict
 
