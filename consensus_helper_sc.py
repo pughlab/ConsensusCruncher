@@ -363,88 +363,68 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         if badRead:
             badRead_bam.write(line)
         else:
-            # ===== Add reads to dictionary as pairs =====
-            if line.qname in pair_dict and line in pair_dict[line.qname]:
-                print('Read already read once!')
-                print(read_chr, read_start, read_end)
-                print(line.qname)
-                print(line)
-                print(pair_dict[line.qname][0])
-                counter -= 1
-            else:
-                pair_dict[line.qname].append(line)
+            pair_dict[line.qname].append(line)
 
-                # ===== Create tag once reads are paired =====
-                if len(pair_dict[line.qname]) == 2:
-                    cigar = cigar_order(pair_dict[line.qname][0], pair_dict[line.qname][1])
+            # ===== Create tag once reads are paired =====
+            if len(pair_dict[line.qname]) == 2:
+                cigar = cigar_order(pair_dict[line.qname][0], pair_dict[line.qname][1])
 
-                    for read in pair_dict[line.qname]:
-                        # ===== Extract molecular barcode =====
-                        # Barcodes in diff position for duplex consensus formation
-                        if duplex == None or duplex == False:
-                            # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
-                            barcode = read.qname.split("|")[1]
+                for read in pair_dict[line.qname]:
+                    # ===== Extract molecular barcode =====
+                    # Barcodes in diff position for duplex consensus formation
+                    if duplex == None or duplex == False:
+                        # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
+                        barcode = read.qname.split("|")[1]
+                    else:
+                        # DCS query name: CCTG_12_25398000_12_25398118_neg_83_163:5
+                        barcode = read.qname.split("_")[0]
+
+                    # Unique identifier for grouping reads belonging to the same strand of an individual molecule
+                    tag = unique_tag(read, cigar, barcode)
+
+                    # Create consensus tag to be used as new query name for consensus reads
+                    consensus_tag = sscs_qname(tag, int(read.flag))
+
+                    # ===== Add read pair to dictionary =====
+                    if tag not in read_dict and tag not in tag_dict:
+                        # New read family
+                        read_dict[tag] = [read]
+                        tag_dict[tag] += 1
+                        # === Track read pair by tag instead of query name in pair_dict ===
+                        # Reads grouped by query name are removed from pair_dict once they're added to read_dict,
+                        # but we still want to track pair info
+                        # Since we're tracking by consensus 'tags' now, we only need to add once to dict
+                        # (PCR dupes share same tag)
+                        # {qname: [read1, read2]} -> {consensus_tag: [R1_tag, R2_tag]}
+                        if consensus_tag not in csn_pair_dict:
+                            csn_pair_dict[consensus_tag] = [tag]
                         else:
-                            # DCS query name: CCTG_12_25398000_12_25398118_neg_83_163:5
-                            barcode = read.qname.split("_")[0]
+                            csn_pair_dict[consensus_tag].append(tag)
+                    elif tag in tag_dict and read not in read_dict[tag]:
+                        # Reads belonging to the same family as another read (PCR dupes)
+                        read_dict[tag].append(read)
+                        tag_dict[tag] += 1
+                    else:
+                        # === Data fetch error ===
+                        # If tag found in tag_dict, but not in read_dict means line was previously read and written
+                        # to file (tag removed from read_dict once written)
+                        print('Pair already written: line read twice - double check to see if its overlapping / near cytoband region (point of data division)')
+                        # fetched data region - pysam fetch fx will get read twice if it overlaps fetch coordinates
+                        print(read_chr, read_start, read_end)
+                        print(tag)
+                        print(read)
+                        print(tag_dict[tag])
+                        print(read_dict[tag][0])
+                        print(consensus_tag)
+                        print(tag in tag_dict)
+                        print(csn_pair_dict[consensus_tag])
 
-                        # Unique identifier for grouping reads belonging to the same strand of an individual molecule
-                        tag = unique_tag(read, cigar, barcode)
+                        print(pair_dict[line.qname][0])
+                        print(pair_dict[line.qname][1])
+                        counter -= 1
 
-                        # Create consensus tag to be used as new query name for consensus reads
-                        consensus_tag = sscs_qname(tag, int(read.flag))
-
-                        # ===== Add read pair to dictionary =====
-                        if tag not in read_dict and tag not in tag_dict:
-                            # New read family
-                            read_dict[tag] = [read]
-                            tag_dict[tag] += 1
-                            # === Track read pair by tag instead of query name in pair_dict ===
-                            # Reads grouped by query name are removed from pair_dict once they're added to read_dict,
-                            # but we still want to track pair info
-                            # Since we're tracking by consensus 'tags' now, we only need to add once to dict
-                            # (PCR dupes share same tag)
-                            # {qname: [read1, read2]} -> {consensus_tag: [R1_tag, R2_tag]}
-                            if consensus_tag not in pair_dict:
-                                csn_pair_dict[consensus_tag] = [tag]
-                            else:
-                                csn_pair_dict[consensus_tag].append(tag)
-                        elif tag in tag_dict and tag not in read_dict:
-                            print('Read seen previously - in tag_dict, but not read_dict')
-                            print(read_chr, read_start, read_end)
-                            print(tag)
-                            print(read)
-                            print(tag_dict[tag])
-                            print(consensus_tag)
-                            print(tag in read_dict)
-                            print(csn_pair_dict[consensus_tag])  # why is it that these reads are already read, but there's
-                            # no consensus tag in the pair_dict?????
-
-                            print(pair_dict[line.qname][0])
-                            print(pair_dict[line.qname][1])
-                            counter -= 1
-                        elif tag in tag_dict and read not in read_dict[tag]:
-                            # Reads belonging to the same family as another read (PCR dupes)
-                            read_dict[tag].append(read)
-                            tag_dict[tag] += 1
-                        else:
-                            # === Data fetch error ===
-                            # If tag found in tag_dict, but not in read_dict means line was previously read and written
-                            # to file (tag removed from read_dict once written)
-                            print('Pair already written: line read twice - double check to see if its overlapping / near cytoband region (point of data division)')
-                            # fetched data region - pysam fetch fx will get read twice if it overlaps fetch coordinates
-                            print(read_chr, read_start, read_end)
-                            print(tag)
-                            print(read)
-                            print(tag_dict[tag])
-                            print(read_dict[tag][0])
-                            print(consensus_tag)
-                            print(tag in tag_dict)
-                            print(csn_pair_dict[consensus_tag])
-                            counter -= 1
-
-                    # remove read pair qname from pair_dict once reads added to read_dict as pairs
-                    pair_dict.pop(line.qname)
+                # remove read pair qname from pair_dict once reads added to read_dict as pairs
+                pair_dict.pop(line.qname)
 
     return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped, unmapped_flag, bad_reads, poor_mapq
 
@@ -533,3 +513,50 @@ def reverse_seq(seq):
         rev_comp = nuc[base] + rev_comp
 
     return rev_comp
+
+
+###############################
+##           Main            ##
+###############################
+# if __name__ == "__main__":
+#     bamfile = pysam.AlignmentFile(
+#     '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/CAP-001-p0078125.sort.bam',
+#     "rb")
+#
+#     badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majorityq4/CAP-001-p0078125.badReads.bam', "wb", template = bamfile)
+#
+#     # ===== Initialize dictionaries =====
+#     read_dict = collections.OrderedDict()
+#     tag_dict = collections.defaultdict(int)
+#     pair_dict = collections.defaultdict(list)
+#     csn_pair_dict = collections.defaultdict(list)
+#
+#     quality_dict = collections.defaultdict(list)
+#     prop_dict = collections.defaultdict(list)
+#
+#     # ===== Initialize counters =====
+#     unmapped = 0
+#     unmapped_flag = 0
+#     bad_reads = 0  # secondary/supplementary reads
+#     poor_mapq = 0
+#     counter = 0
+#     singletons = 0
+#     SSCS_reads = 0
+#
+#     chr_data = read_bam(bamfile,
+#                         pair_dict=pair_dict,
+#                         read_dict=read_dict,
+#                         tag_dict=tag_dict,
+#                         csn_pair_dict=csn_pair_dict,
+#                         badRead_bam=badRead_bam)
+#
+#     read_dict = chr_data[0]
+#     tag_dict = chr_data[1]
+#     pair_dict = chr_data[2]
+#     csn_pair_dict = chr_data[3]
+#
+#     counter += chr_data[4]
+#     unmapped += chr_data[5]
+#     unmapped_flag += chr_data[6]
+#     bad_reads += chr_data[7]
+#     poor_mapq += chr_data[8]
