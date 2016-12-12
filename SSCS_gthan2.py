@@ -233,8 +233,8 @@ def main():
     pair_dict = collections.defaultdict(list)
     csn_pair_dict = collections.defaultdict(list)
 
-    quality_dict = collections.defaultdict(list)
-    prop_dict = collections.defaultdict(list)
+    # quality_dict = collections.defaultdict(list)
+    # prop_dict = collections.defaultdict(list)
 
     # ===== Initialize counters =====
     unmapped = 0
@@ -305,8 +305,8 @@ def main():
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
 
-                        quality_dict[query_name] += [SSCS[1]]
-                        prop_dict[query_name] += [SSCS[2]] #### SAVE BY QUERY NAME OR TAG NAME?
+                        # quality_dict[query_name] += [SSCS[1]]
+                        # prop_dict[query_name] += [SSCS[2]] #### SAVE BY QUERY NAME OR TAG NAME?
                         #tag_quality_dict[tag_dict[tag]] += [round(np.mean(SSCS[1]))]
 
                         # === Write new bamfile with consensus query name in read group ===
@@ -386,21 +386,20 @@ def main():
 
     # ===== write tag family size dictionary to file =====
     import pickle
-    qual_file = open(args.outfile.split('.sscs')[0] + '.q_scores.txt', 'ab+')
-    pickle.dump(quality_dict, qual_file)
-    qual_file.close()
-    # quality_dict = collections.defaultdict(list)
-
-    prop_file = open(args.outfile.split('.sscs')[0] + '.prop_scores.txt', 'ab+')
-    pickle.dump(prop_dict, prop_file)
-    prop_file.close()
+    # qual_file = open(args.outfile.split('.sscs')[0] + '.q_scores.txt', 'ab+')
+    # pickle.dump(quality_dict, qual_file)
+    # qual_file.close()
+    # # quality_dict = collections.defaultdict(list)
+    #
+    # prop_file = open(args.outfile.split('.sscs')[0] + '.prop_scores.txt', 'ab+')
+    # pickle.dump(prop_dict, prop_file)
+    # prop_file.close()
     # prop_dict = collections.defaultdict(list)
 
     # (key = tags, value = int [number of reads in that family])
     tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     pickle.dump(tag_dict, tag_file)
     tag_file.close()
-
 
     summary_stats = '''Total reads: {} \n
 Unmapped reads: {} \n
