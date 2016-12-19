@@ -109,7 +109,7 @@ def dcs_consensus_tag(tag, ds):
     '''
     barcode = tag.split('_')[0]
     duplex_barcode = ds.split('_')[0]
-    tag_coor = tag.split('_', 1)[1].rsplit('_', 3)[0]
+    tag_coor = tag.split('_', 1)[1].rsplit('_', 1)[0]
 
     dcs_query_name = "{}_{}_{}".format(min(barcode, duplex_barcode),
                                        max(barcode, duplex_barcode),
