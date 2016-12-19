@@ -37,7 +37,6 @@ def bed_separator(bedfile):
     coor = collections.OrderedDict()
 
     with open(bedfile) as f:
-        next(f)  # Skip header
         for line in f:
             chr_arm = line.split('\t')
             chr_key = '{}_{}'.format(chr_arm[0], chr_arm[3])
@@ -48,51 +47,6 @@ def bed_separator(bedfile):
             coor[chr_key] = chr_val
 
     return coor
-
-
-def coor_separator(chr_lst, chr_len, bedfile):
-    '''(list, list, str) -> list
-    Return list of coordinates based on bed file.
-
-    - ChrM not divided by arms
-    - Chr arm positions are used to separate bam file into more manageable chunks to avoid running out of memory
-
-    Input:
-    - chr_lst
-    ['chrM', 'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
-     'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX', 'chrY']
-
-    - chr_len
-    [16571, 249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431,
-    135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520,
-    48129895, 51304566, 155270560, 59373566]
-    '''
-    cytoband_coor = collections.OrderedDict()
-
-    if bedfile == None:
-        # if no bed file provided, use cytoband file instead and separate by chr arm
-        filepath = os.path.abspath(inspect.getfile(inspect.currentframe())).rsplit('/', 1)[0]
-        bedfile = filepath + '/cytoBand.txt'
-
-    if 'chrM' in chr_lst:
-        cytoband_coor['chrM'] = (0, chr_len[chr_lst.index('chrM')])
-
-    with open(bedfile) as f:
-        next(f)  # Skip header
-        for line in f:
-            chr_arm = line.split('\t')
-            chr_key = '{}_{}'.format(chr_arm[0], chr_arm[3])
-            start = int(chr_arm[1])
-            end = int(chr_arm[2])
-            chr_val = (start, end)
-
-            cytoband_coor[chr_key] = chr_val
-
-            # === Other Genomes === -> e.g. HPV16
-            # if 'chrHPV16_gi_333031' in chr_lst:
-            # chr_arm_coor['chrHPV16_gi_333031'] = (0, chr_len[chr_lst.index('chrHPV16_gi_333031')])
-
-    return cytoband_coor
 
 
 def which_read(flag):
@@ -470,6 +424,13 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                         # {qname: [read1, read2]} -> {consensus_tag: [R1_tag, R2_tag]}
                         if consensus_tag not in csn_pair_dict:
                             csn_pair_dict[consensus_tag] = [tag]
+                        elif len(csn_pair_dict[consensus_tag]) == 2:
+                            # in case multiple reads share same consensus tag (e.g. overlapped reads different by 1 base)
+                            consensus_tag += '2'
+                            if consensus_tag not in csn_pair_dict:
+                                csn_pair_dict[consensus_tag] = [tag]
+                            else:
+                                csn_pair_dict[consensus_tag].append(tag)
                         else:
                             csn_pair_dict[consensus_tag].append(tag)
                     elif tag in tag_dict and read not in read_dict[tag]:
@@ -563,7 +524,7 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
     1) Query name -> new 'consensus' query name (e.g. TTTG_24_58847448_24_58847416_137M10S_147M_pos_99_147)
     2) Flag -> take most common flag
     3) Reference sequence chr
-    4) Position
+    4) 1-based leftmost mapping POSition
     5) Mapping quality -> most common mapping quality
     6) Cigar string
     7) Reference sequence of mate/next read
@@ -623,46 +584,52 @@ def reverse_seq(seq):
 ###############################
 ##           Main            ##
 ###############################
-if __name__ == "__main__":
-    # bamfile = pysam.AlignmentFile(
-    # '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majority6/MEM-001-p03125.sscs.sort.bam',
-    # "rb")
-    #
-    # badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majority6/MEM-001-p03125.sscs.badReads.bam', "wb", template = bamfile)
-
-    bamfile = pysam.AlignmentFile(
-    '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEMU/MEM-001-p03125.sort.bam',
-    "rb")
-
-    badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majorityq7//MEM-001-p03125.badReads.bam', "wb", template = bamfile)
-
-
-
-    # ===== Initialize dictionaries =====
-    read_dict = collections.OrderedDict()
-    tag_dict = collections.defaultdict(int)
-    pair_dict = collections.defaultdict(list)
-    csn_pair_dict = collections.defaultdict(list)
-
-    # ===== Initialize counters =====
-    unmapped = 0
-    bad_reads = 0  # secondary/supplementary reads
-    counter = 0
-    singletons = 0
-    SSCS_reads = 0
-
-    chr_data = read_bam(bamfile,
-                        pair_dict=pair_dict,
-                        read_dict=read_dict,
-                        tag_dict=tag_dict,
-                        csn_pair_dict=csn_pair_dict,
-                        badRead_bam=badRead_bam)
-
-    read_dict = chr_data[0]
-    tag_dict = chr_data[1]
-    pair_dict = chr_data[2]
-    csn_pair_dict = chr_data[3]
-
-    counter += chr_data[4]
-    unmapped += chr_data[5]
+# if __name__ == "__main__":
+#     # bamfile = pysam.AlignmentFile(
+#     # '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majority6/MEM-001-p03125.sscs.sort.bam',
+#     # "rb")
+#     #
+#     # badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majority6/MEM-001-p03125.sscs.badReads.bam', "wb", template = bamfile)
+#
+#     # bamfile = pysam.AlignmentFile(
+#     # '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEMU/MEM-001-p03125.sort.bam',
+#     # "rb")
+#     #
+#     # badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majorityq7//MEM-001-p03125.badReads.bam', "wb", template = bamfile)
+#
+#     bamfile = pysam.AlignmentFile(
+#         '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/EPIC_24norm/EPIC_edgecases.sort.bam',
+#         "rb")
+#
+#     badRead_bam = pysam.AlignmentFile(
+#         '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majorityq8/EPIC_edgecases.badReads.bam',
+#         "wb", template=bamfile)
+#
+#     # ===== Initialize dictionaries =====
+#     read_dict = collections.OrderedDict()
+#     tag_dict = collections.defaultdict(int)
+#     pair_dict = collections.defaultdict(list)
+#     csn_pair_dict = collections.defaultdict(list)
+#
+#     # ===== Initialize counters =====
+#     unmapped = 0
+#     bad_reads = 0  # secondary/supplementary reads
+#     counter = 0
+#     singletons = 0
+#     SSCS_reads = 0
+#
+#     chr_data = read_bam(bamfile,
+#                         pair_dict=pair_dict,
+#                         read_dict=read_dict,
+#                         tag_dict=tag_dict,
+#                         csn_pair_dict=csn_pair_dict,
+#                         badRead_bam=badRead_bam)
+#
+#     read_dict = chr_data[0]
+#     tag_dict = chr_data[1]
+#     pair_dict = chr_data[2]
+#     csn_pair_dict = chr_data[3]
+#
+#     counter += chr_data[4]
+#     unmapped += chr_data[5]
     bad_reads += chr_data[6]

@@ -187,26 +187,32 @@ def main():
 
     # ===== Determine data division coordinates =====
     # division by bed file if provided
-    # Remove cytobands, use bedfile instead
-    if 'args.bedfile' in locals():
-        division_coor = coor_separator(chrm, chr_len, args.bedfile)
+    if args.bedfile is not None:
+        division_coor = bed_separator(args.bedfile)
     else:
-        chrm = [x['SN'] for x in bamfile.header['SQ']]
-        chr_len = [x['LN'] for x in bamfile.header['SQ']]
-        division_coor = coor_separator(chrm, chr_len)
+        division_coor = [1]
 
     # ===== Process data in chunks =====
-    for x in division_coor.keys():
+    for x in division_coor:
+        if division_coor == [1]:
+            read_chr = None
+            read_start = None
+            read_end = None
+        else:
+            read_chr = x.rsplit('_', 1)[0]
+            read_start = division_coor[x][0]
+            read_end = division_coor[x][1]
+
         chr_data = read_bam(bamfile,
-                            pair_dict = pair_dict,
-                            read_dict = read_dict,
-                            csn_pair_dict = csn_pair_dict,
-                            tag_dict = tag_dict,
-                            badRead_bam = badRead_bam,
-                            read_chr = x.rsplit('_', 1)[0],
-                            read_start = division_coor[x][0],
-                            read_end = division_coor[x][1],
-                            duplex = None
+                            pair_dict=pair_dict,
+                            read_dict=read_dict,
+                            csn_pair_dict=csn_pair_dict,
+                            tag_dict=tag_dict,
+                            badRead_bam=badRead_bam,
+                            read_chr=read_chr,
+                            read_start=read_start,
+                            read_end=read_end,
+                            duplex=None
                             )
 
         read_dict = chr_data[0]
@@ -291,10 +297,11 @@ def main():
     if bool(csn_pair_dict):
         for i in csn_pair_dict:
             print(i)
-            print('read remaining:')
-            print(csn_pair_dict[i][0])
-            print('mate:')
-            print(bamfile.mate(csn_pair_dict[i][0]))
+            print(csn_pair_dict[i])
+            # print('read remaining:')
+            # print(csn_pair_dict[i][0])
+            # print('mate:')
+            # print(bamfile.mate(csn_pair_dict[i][0]))
 
     # ===== write tag family size dictionary to file =====
     import pickle

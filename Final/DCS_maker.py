@@ -94,15 +94,28 @@ def duplex_tag(tag):
     return '_'.join(split_tag)
 
 
-def duplex_consensus_tag(tag, ds):
+def dcs_consensus_tag(tag, ds):
     '''(str, str) -> str
     Return consensus tag for duplex reads.
+
+    >>> dcs_consensus_tag('TTCA_7_55259315_7_55259454_neg:3', 'CATT_7_55259315_7_55259454_pos:6')
+    'CATT_TTCA_7_55259315_7_55259454'
+
+    >>> dcs_consensus_tag('CTTC_23_74804535_23_74804611_98M_98M_neg:2', 'TCCT_23_74804535_23_74804611_98M_98M_pos:3')
+    'CTTC_TCCT_23_74804535_23_74804611'
+
+    >>> dcs_consensus_tag('TTTC_7_140477735_7_140477790_98M_98M_neg:3', 'TCTT_7_140477735_7_140477790_98M_98M_pos:2')
+    'TCTT_TTTC_7_140477735_7_140477790'
     '''
     barcode = tag.split('_')[0]
     duplex_barcode = ds.split('_')[0]
+    tag_coor = tag.split('_', 1)[1].rsplit('_', 3)[0]
 
+    dcs_query_name = "{}_{}_{}".format(min(barcode, duplex_barcode),
+                                       max(barcode, duplex_barcode),
+                                       tag_coor)
 
-    ds_query_name = '{}_{}_{}'.format(min(barcode, duplex_barcode), max(barcode, duplex_barcode), tag.split('_', 1)[1])
+    return dcs_query_name
 
 
 def duplex_consensus(read1, read2):
@@ -205,13 +218,7 @@ def main():
                         consensus_seq, qual_consensus = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
 
                         # consensus duplex tag
-                        barcode = tag.split('_')[0]
-                        duplex_barcode = ds.split('_')[0]
-                        tag_coor = tag.split('_', 1)[1].rsplit('_', 3)[0]
-
-                        dcs_query_name = "{}_{}_{}".format(min(barcode, duplex_barcode),
-                                                           max(barcode, duplex_barcode),
-                                                           tag_coor)
+                        dcs_query_name = dcs_consensus_tag(tag, ds)
 
                         dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
                                                           qual_consensus, dcs_query_name)
