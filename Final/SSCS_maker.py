@@ -319,6 +319,12 @@ Singletons: {} \n
     stats.write(summary_stats)
     print(summary_stats)
 
+    # === QC
+    print('Total mapped reads: {}'.format(bamfile.mapped))
+    print('Note number of reads differ from summary stats slightly as some mapped reads are also filtered out as their mate is unmapped.')
+    # print('Total unmapped reads: {}'.format(bamfile.unmapped))
+    # print('Total reads: {}'.format(bamfile.mapped + bamfile.unmapped))
+
     time_tracker.close()
     stats.close()
     bamfile.close()
