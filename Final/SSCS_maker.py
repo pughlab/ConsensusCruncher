@@ -63,7 +63,7 @@ from consensus_helper import *
 ###############################
 
 
-def consensus_maker(readList, readLength, cutoff):
+def consensus_maker(readList, cutoff):
     '''(list, int, int) -> str
     Return consensus sequence and quality score.
 
@@ -77,6 +77,12 @@ def consensus_maker(readList, readLength, cutoff):
     frequent base
     - If a majority can't be determined (i.e. a tie with 2 maximums)
     '''
+    # === Determine read length ===
+    cigar_mode = statistics.mode([r.cigarstring for r in readList])
+    cigar_mode_read = [r for r in readList if r.cigarstring == cigar_mode][0]
+    readLength = cigar_mode_read.infer_query_length()
+
+    # === Initialize counters ===
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
     consensus_read = ''
     quality_consensus = []
@@ -154,8 +160,6 @@ def main():
     parser.add_argument("--infile", action="store", dest="infile", help="input BAM file", required=True)
     parser.add_argument("--outfile", action="store", dest="outfile", help="output SSCS BAM file", required=True)
     parser.add_argument("--bedfile", action="store", dest="bedfile", help="input bedfile for data division", required=False)
-    parser.add_argument("--taginRGbam", action="store", dest="RGbam",
-                        help="output bamfile with consensus tag in read group", required=False)
     args = parser.parse_args()
 
     start_time = time.time()
@@ -224,18 +228,6 @@ def main():
         unmapped += chr_data[5]
         bad_reads += chr_data[6]
 
-        # ===== Determine read length =====
-        # Randomly picked family with largest family size (aka most PCR dupes)
-        if 'readLength' not in locals():
-            max_family_size = max(tag_dict.values())
-            family = [key for key in tag_dict.items() if key[1] == max_family_size]
-            rand_read = read_dict[choice(list(family))[0]]
-
-            # Infer length from most common cigar string
-            cigar_mode = statistics.mode([r.cigarstring for r in rand_read])
-            cigar_mode_read = [r for r in rand_read if r.cigarstring == cigar_mode][0]
-            readLength = cigar_mode_read.infer_query_length()
-
         # ===== Create consensus sequences as paired reads =====
         for readPair in list(csn_pair_dict.keys()):
             if len(csn_pair_dict[readPair]) == 2:
@@ -246,16 +238,10 @@ def main():
                         # print(read_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
-                        SSCS = consensus_maker(read_dict[tag], readLength, float(args.cutoff))
+                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff))
 
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
-
-                        # === Write new bamfile with consensus query name in read group ===
-                        if 'args.RGbam' in locals():
-                            for r in read_dict[tag]:
-                                r.set_tag('RG', query_name)
-                                tag_bam.write(r)
 
                         # ===== Write consensus bam =====
                         SSCS_bam.write(SSCS_read)
@@ -309,7 +295,7 @@ def main():
     pickle.dump(tag_dict, tag_file)
     tag_file.close()
 
-    summary_stats = '''Total reads: {} \n
+    summary_stats = '''Total reads overlapping bedfile: {} \n
 Unmapped reads: {} \n
 Secondary/Supplementary reads: {} \n
 SSCS reads: {} \n

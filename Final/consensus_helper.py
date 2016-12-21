@@ -31,7 +31,7 @@ import inspect
 
 
 def bed_separator(bedfile):
-    '''(str) -> list
+    '''(str) -> dict
     Return list of coordinates based on bedfile.
     '''
     coor = collections.OrderedDict()
@@ -114,7 +114,7 @@ def which_strand(read):
         # Only uniquely mapped reads (with flags indicated above) should be retained as 'bad reads' were filtered out at
         # a previous step
         print('STRAND ERROR')
-        print(flag)
+        print(read.flag)
         strand = None
 
     return strand
@@ -124,7 +124,11 @@ def cigar_order(read, read_pair):
     '''(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
     Return ordered cigar string from R1 and R2
 
-    ADD CIGAR STRING DESCRIPTION
+    0 = Match/mismatch
+    1 = Insertion
+    2 = Deletion
+    4 = Soft clip
+    5 = Hard clip
 
     Pos strand, R1 cigar first
     Neg strand, R2 cigar first
@@ -374,8 +378,9 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         counter += 1
 
         # ===== Filter out 'bad' reads =====
-        # filter out reads by pairs
-        bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]  # Unmapped flags
+        # filter out reads by pairs -> some mapped reads also filtered as their mate might be unmapped
+        bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]  # Unmapped reads with mapped mate
+        # add statement this does not count unmapped pairs
         badRead = True
 
         if line.flag in bad_flags:
