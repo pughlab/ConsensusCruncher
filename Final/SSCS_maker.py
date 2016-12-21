@@ -184,7 +184,8 @@ def main():
 
     # ===== Initialize counters =====
     unmapped = 0
-    bad_reads = 0  # secondary/supplementary reads
+    unmapped_mate = 0
+    multiple_mapping = 0  # secondary/supplementary reads
     counter = 0
     singletons = 0
     SSCS_reads = 0
@@ -226,7 +227,8 @@ def main():
 
         counter += chr_data[4]
         unmapped += chr_data[5]
-        bad_reads += chr_data[6]
+        unmapped_mate += chr_data[6]
+        multiple_mapping += chr_data[7]
 
         # ===== Create consensus sequences as paired reads =====
         for readPair in list(csn_pair_dict.keys()):
@@ -297,17 +299,19 @@ def main():
 
     summary_stats = '''Total reads overlapping bedfile: {} \n
 Unmapped reads: {} \n
+Reads with unmapped mate: {} \n
 Secondary/Supplementary reads: {} \n
 SSCS reads: {} \n
 Singletons: {} \n
-'''.format(counter, unmapped, bad_reads, SSCS_reads, singletons)
+'''.format(counter, unmapped, unmapped_mate, multiple_mapping, SSCS_reads, singletons)
 
     stats.write(summary_stats)
     print(summary_stats)
 
-    # === QC
-    print('Total mapped reads: {}'.format(bamfile.mapped))
-    print('Note number of reads differ from summary stats slightly as some mapped reads are also filtered out as their mate is unmapped.')
+    # === QC ===
+    print('===QC metric===')
+    print('Mapped reads overlapping bed file should be equivalent with mapped reads in bam file.')
+    print('Total mapped reads in bam file: {}'.format(bamfile.mapped))
     # print('Total unmapped reads: {}'.format(bamfile.unmapped))
     # print('Total reads: {}'.format(bamfile.mapped + bamfile.unmapped))
 

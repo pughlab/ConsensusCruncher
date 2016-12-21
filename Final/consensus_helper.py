@@ -365,7 +365,8 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
 
     # ===== Initialize counters =====
     unmapped = 0
-    bad_reads = 0  # secondary/supplementary reads
+    unmapped_mate = 0
+    multiple_mapping = 0  # secondary/supplementary reads
     counter = 0
 
     for line in bamLines:
@@ -378,17 +379,18 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         counter += 1
 
         # ===== Filter out 'bad' reads =====
-        # filter out reads by pairs -> some mapped reads also filtered as their mate might be unmapped
-        bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]  # Unmapped reads with mapped mate
-        # add statement this does not count unmapped pairs
+        mate_unmapped = [73, 89, 121, 153, 185, 137]
         badRead = True
 
-        if line.flag in bad_flags:
+        if line.is_unmapped:
             unmapped += 1
+            counter -= 1
+        elif line.flag in mate_unmapped:
+            unmapped_mate += 1
         elif line.is_secondary:
-            bad_reads += 1
+            multiple_mapping += 1
         elif line.is_supplementary:
-            bad_reads += 1
+            multiple_mapping += 1
         else:
             badRead = False
 
@@ -464,7 +466,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                 # remove read pair qname from pair_dict once reads added to read_dict as pairs
                 pair_dict.pop(line.qname)
 
-    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped, bad_reads
+    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped, unmapped_mate, multiple_mapping
 
 
 def read_mode(field, bam_reads):
