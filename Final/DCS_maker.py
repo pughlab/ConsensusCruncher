@@ -42,7 +42,7 @@ from random import randint
 from argparse import ArgumentParser
 import math 
 
-from consensus_helper_sc import *
+from consensus_helper import *
 
 ###############################
 ##         Functions         ##
@@ -98,14 +98,14 @@ def dcs_consensus_tag(tag, ds):
     '''(str, str) -> str
     Return consensus tag for duplex reads.
 
-    >>> dcs_consensus_tag('TTCA_7_55259315_7_55259454_neg:3', 'CATT_7_55259315_7_55259454_pos:6')
-    'CATT_TTCA_7_55259315_7_55259454'
+    >>> dcs_consensus_tag('TTCA_7_55259315_7_55259454_98M_98M_neg:3', 'CATT_7_55259315_7_55259454_98M_98M_pos:6')
+    'CATT_TTCA_7_55259315_7_55259454_98M_98M'
 
     >>> dcs_consensus_tag('CTTC_23_74804535_23_74804611_98M_98M_neg:2', 'TCCT_23_74804535_23_74804611_98M_98M_pos:3')
-    'CTTC_TCCT_23_74804535_23_74804611'
+    'CTTC_TCCT_23_74804535_23_74804611_98M_98M'
 
     >>> dcs_consensus_tag('TTTC_7_140477735_7_140477790_98M_98M_neg:3', 'TCTT_7_140477735_7_140477790_98M_98M_pos:2')
-    'TCTT_TTTC_7_140477735_7_140477790'
+    'TCTT_TTTC_7_140477735_7_140477790_98M_98M'
     '''
     barcode = tag.split('_')[0]
     duplex_barcode = ds.split('_')[0]
