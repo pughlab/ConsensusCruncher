@@ -49,51 +49,6 @@ from consensus_helper import *
 ###############################
 
 
-def duplex_tag(tag):
-    '''(str) -> str
-    Return tag for duplex read.
-
-    Things to be changed in tag:
-    1) barcode: molecular identifiers get swapped (e.g. 2 based identifiers on each side of DNA fragment)
-               (+) 5' AT-------GC  3' -> ATGC
-               (-)    AT-------GC     <- GCAT
-    2) strand: pos -> neg
-    3) read: R1 -> R2
-
-    Test cases:
-    >>> duplex_tag('GTCT_1_1507809_7_55224319_98M_98M_pos_fwd_R1')
-    'CTGT_1_1507809_7_55224319_98M_98M_neg_fwd_R2'
-    >>> duplex_tag('GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2')
-    'CTGT_7_55224319_1_1507809_98M_98M_neg_rev_R1'
-    >>> duplex_tag('CTGT_1_1507809_7_55224319_98M_98M_neg_fwd_R2')
-    'GTCT_1_1507809_7_55224319_98M_98M_pos_fwd_R1'
-    >>> duplex_tag('CTGT_7_55224319_1_1507809_98M_98M_neg_rev_R1')
-    'GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2'
-    '''
-    split_tag = tag.split('_')
-    # 1) Barcode needs to be swapped
-    barcode = split_tag[0]
-    barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
-    # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
-    split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
-
-    # 2) Opposite strand in duplex
-    strand = split_tag[7]
-    if strand == 'pos':
-        split_tag[7] = 'neg'
-    else:
-        split_tag[7] = 'pos'
-
-    # 3) Opposite read number in duplex
-    read_num = split_tag[9]
-    if read_num == 'R1':
-        split_tag[9] = 'R2'
-    else:
-        split_tag[9] = 'R1'
-
-    return '_'.join(split_tag)
-
-
 def dcs_consensus_tag(tag, ds):
     '''(str, str) -> str
     Return consensus tag for duplex reads.
@@ -179,12 +134,12 @@ def main():
 
     # ===== Read data and create dictionaries =====
     chr_data = read_bam(SSCS_bam, 
-                        pair_dict = pair_dict,
-                        read_dict = read_dict,
-                        tag_dict = tag_dict,
+                        pair_dict=pair_dict,
+                        read_dict=read_dict,
+                        tag_dict=tag_dict,
                         csn_pair_dict=csn_pair_dict,
-                        badRead_bam = badRead_bam,
-                        duplex = True)
+                        badRead_bam=badRead_bam,
+                        duplex=True)
 
     read_dict = chr_data[0]
     tag_dict = chr_data[1]

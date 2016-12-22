@@ -10,14 +10,6 @@
 # Function:
 # Written for Python 3.5.1
 #
-# uid_dict(bamfile): create bam_read dictionaries and counts number of reads
-# read_mode(field, bam_reads): return most common occurrence in a specified field of read (e.g. cigar, etc)
-# create_aligned_segment(bam_reads, sscs, sscs_qual): Create consensus bam read
-#
-# Inputs:
-# 1. A position-sorted paired-end BAM file containing reads with a duplex tag
-#    in the header.
-#
 # Description:
 # Helper functions for single strand and duplex consensus making
 #
@@ -62,29 +54,43 @@ def which_read(flag):
     return read
 
 
-def which_strand(flag):
-    '''(int) -> str
+def which_strand(read):
+    '''(pysam.calignedsegment.AlignedSegment) -> str
     Return DNA strand based on flags.
 
-    Test cases:
-    >>> which_strand(147)
-    'pos'
-    >>> which_strand(67)
-    'pos'
-    >>> which_strand(131)
-    'pos'
-    >>> which_strand(81)
-    'neg'
-    '''
-    pos = [99, 147, 67, 131, 97, 145, 65, 129]  # note 65/129 direction not defined
-    neg = [83, 163, 115, 179, 81, 161, 113, 177]
+    Notes: Need to determine orientation for translocations (flags 65, 129, 113, 177) where pair occurs in same direction
+    - pos: read is first in pair (R1) and has lower chr number than mate with higher chr number (read_chr < mate_chr) OR
+           read is second in pair (R2) and has higher chr number than mate with lower chr number (read_chr > mate_chr)
+           e.g. H1080:278:C8RE3ACXX:6:1209:19123:36119|CTCT	113	12	25398309	60	98M	16	7320258	98 -> (chr12_chr16_R1) 'pos'
+                H1080:278:C8RE3ACXX:6:1209:19123:36119|CTCT	177	16	7320258	60	98M	12	25398309	98 -> (chr16_chr12_R2) 'pos'
+    - neg: Opposite cases of pos
+           e.g. H1080:278:C8RE3ACXX:6:1307:20616:55254|CTCT	177	12	25398309	60	98M	16	7320258	98 -> (chr16_chr12_R1) 'neg'
+                H1080:278:C8RE3ACXX:6:1307:20616:55254|CTCT	113	16	7320258	60	98M	12	25398309	98 -> (chr12_chr16_R2) 'neg'
 
-    if flag in pos:
+    Test cases:
+    Flag = 147 -> 'pos'
+    Flag = 67 -> 'pos'
+    Flag = 131 -> 'pos'
+    Flag = 81 -> 'neg'
+    '''
+    # Flags indicating strand direction
+    pos = [99, 147, 67, 131, 97, 145]  # note 65/129 direction not defined
+    neg = [83, 163, 115, 179, 81, 161]  # note 113/177 direction not defined
+    no_ori = [65, 129, 113, 177]
+
+    if read.flag in pos:
         strand = 'pos'
-    elif flag in neg:
+    elif read.flag in neg:
         strand = 'neg'
+    elif read.flag in no_ori:
+        if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or \
+                (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2'):
+            strand = 'pos'
+        else:
+            strand = 'neg'
     else:
-        # Only uniquely mapped reads (with flags indicated above) should be retained as 'bad reads' are filtered out
+        # Only uniquely mapped reads (with flags indicated above) should be retained as 'bad reads' were filtered out at
+        # a previous step
         print('STRAND ERROR')
         print(flag)
         strand = None
@@ -95,6 +101,8 @@ def which_strand(flag):
 def cigar_order(read, read_pair):
     '''(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
     Return ordered cigar string from R1 and R2
+
+    ADD CIGAR STRING DESCRIPTION
 
     Pos strand, R1 cigar first
     Neg strand, R2 cigar first
@@ -107,7 +115,7 @@ def cigar_order(read, read_pair):
         (-) [83]  147M   => 137M10S_147M
             [163] 137M10S
     '''
-    ori_strand = which_strand(read.flag)
+    ori_strand = which_strand(read)
     read_num = which_read(read.flag)
 
     if (ori_strand == 'pos' and read_num == 'R1') or \
@@ -156,7 +164,7 @@ def unique_tag(read, cigar, barcode):
     R2 of (-) -> TGTT_24_58847416_24_58847448_137M10S_147M_neg_fwd_R2
     '''
 
-    strand = which_strand(read.flag)
+    strand = which_strand(read)
 
     orientation = 'fwd'
     if read.is_reverse:
@@ -194,6 +202,8 @@ def sscs_qname(tag, flag):
     - strand: needed to make duplex consensus sequences as reads are grouped based on strand and not specific flags
 
     Note: coordinates are ordered from low -> high, so read pairs share the same coordinate
+
+    ISSUE -> pysam converts coordinates to be 0-based, query name coordinates don't match coordinate seen in read
 
     Examples:
     (+)                                                 [Flag]
@@ -247,10 +257,9 @@ def sscs_qname(tag, flag):
         new_tag = tag[:-7]
 
     # === Add flag information to query name ===
-    # Need pos/neg to differentiate between reads with same flag from diff strands (e.g. 113, 177)
-    # with smaller flag ordered first, to help differentiate between reads
-    # (e.g. read and its duplex might have same coordinate and strand direction,
-    # after ordering coordinates from smallest -> biggest)
+    # Flags allows further differentiation as read and its duplex might have same coordinate and strand direction
+    # smaller flag ordered first
+
     if flag < flag_pairings[flag]:
         new_tag = '{}_{}_{}'.format(new_tag, flag, flag_pairings[flag])
     else:
@@ -328,9 +337,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
 
     # ===== Initialize counters =====
     unmapped = 0
-    unmapped_flag = 0
     bad_reads = 0  # secondary/supplementary reads
-    poor_mapq = 0
     counter = 0
 
     for line in bamLines:
@@ -346,16 +353,12 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         bad_flags = [73, 133, 89, 121, 165, 181, 101, 117, 153, 185, 69, 137, 77, 141]  # Unmapped flags
         badRead = True
 
-        if line.is_unmapped:
+        if line.flag in bad_flags:
             unmapped += 1
         elif line.is_secondary:
             bad_reads += 1
         elif line.is_supplementary:
             bad_reads += 1
-        elif line.flag in bad_flags:  # is the mate unmapped?
-            unmapped_flag += 1
-        elif line.mapping_quality <= 5:
-            poor_mapq += 1
         else:
             badRead = False
 
@@ -392,9 +395,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                         tag_dict[tag] += 1
                         # === Track read pair by tag instead of query name in pair_dict ===
                         # Reads grouped by query name are removed from pair_dict once they're added to read_dict,
-                        # but we still want to track pair info
-                        # Since we're tracking by consensus 'tags' now, we only need to add once to dict
-                        # (PCR dupes share same tag)
+                        # track paired tags using 'consensus' tags (PCR dupes share same tag)
                         # {qname: [read1, read2]} -> {consensus_tag: [R1_tag, R2_tag]}
                         if consensus_tag not in csn_pair_dict:
                             csn_pair_dict[consensus_tag] = [tag]
@@ -426,7 +427,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                 # remove read pair qname from pair_dict once reads added to read_dict as pairs
                 pair_dict.pop(line.qname)
 
-    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped, unmapped_flag, bad_reads, poor_mapq
+    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped, bad_reads
 
 
 def read_mode(field, bam_reads):
@@ -463,7 +464,6 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
     11) Quality Score -> molecular consensus phred quality
     12) Additional parameters:
         - Read Group (RG) -> comb of unique read groups
-        - Combination of all the reads that went into making the consensus
     '''
     # Cigar should be same across all reads
     common_cigar = bam_reads[0].cigarstring
@@ -520,10 +520,10 @@ def reverse_seq(seq):
 ###############################
 # if __name__ == "__main__":
 #     bamfile = pysam.AlignmentFile(
-#     '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/CAP-001-p0078125.sort.bam',
+#     '/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEMU/MEM-001-p015625.sort.bam',
 #     "rb")
 #
-#     badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majorityq4/CAP-001-p0078125.badReads.bam', "wb", template = bamfile)
+#     badRead_bam = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/test25/majorityq5//MEM-001-p015625.badReads.bam', "wb", template = bamfile)
 #
 #     # ===== Initialize dictionaries =====
 #     read_dict = collections.OrderedDict()
@@ -531,14 +531,9 @@ def reverse_seq(seq):
 #     pair_dict = collections.defaultdict(list)
 #     csn_pair_dict = collections.defaultdict(list)
 #
-#     quality_dict = collections.defaultdict(list)
-#     prop_dict = collections.defaultdict(list)
-#
 #     # ===== Initialize counters =====
 #     unmapped = 0
-#     unmapped_flag = 0
 #     bad_reads = 0  # secondary/supplementary reads
-#     poor_mapq = 0
 #     counter = 0
 #     singletons = 0
 #     SSCS_reads = 0
@@ -548,7 +543,8 @@ def reverse_seq(seq):
 #                         read_dict=read_dict,
 #                         tag_dict=tag_dict,
 #                         csn_pair_dict=csn_pair_dict,
-#                         badRead_bam=badRead_bam)
+#                         badRead_bam=badRead_bam,
+#                         duplex=True)
 #
 #     read_dict = chr_data[0]
 #     tag_dict = chr_data[1]
@@ -557,6 +553,4 @@ def reverse_seq(seq):
 #
 #     counter += chr_data[4]
 #     unmapped += chr_data[5]
-#     unmapped_flag += chr_data[6]
-#     bad_reads += chr_data[7]
-#     poor_mapq += chr_data[8]
+#     bad_reads += chr_data[6]

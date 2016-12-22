@@ -48,24 +48,6 @@ from consensus_helper_sc import *
 ##         Functions         ##
 ###############################
 
-#def duplex_consensus(seq1, seq2, readlength):
-    #'''(str, str, int) -> str
-    #Return consensus of 2 sequences with N for variant bases.
-    #'''    
-    #consensus = ''
-    #if seq1 == seq2:
-        #consensus = seq1
-    #else:
-        #for i in range(readlength):
-            #try:
-                #if seq1[i] == seq2[i]:
-                    #consensus += seq1[i]
-                #else:
-                    #consensus += 'N'
-            #except:
-                #consensus += 'N'
-    
-    #return consensus
 
 def duplex_consensus(read1, read2):
     '''(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> pysam.calignedsegment.AlignedSegment
@@ -131,8 +113,7 @@ def main():
     
     duplex_count = 0
     duplex_dict = collections.OrderedDict()    
-    duplex_pair = collections.defaultdict(int)   
-    
+
     # ===== Read data and create dictionaries =====
     chr_data = read_bam(SSCS_bam, 
                         pair_dict = pair_dict,
@@ -152,7 +133,7 @@ def main():
     unmapped_flag += chr_data[6]
     bad_reads += chr_data[7]
     poor_mapq += chr_data[8]
-    
+
     # ===== Create consenus seq for reads =====
     for readPair in list(csn_pair_dict.keys()):
         if len(csn_pair_dict[readPair]) != 2:
@@ -178,36 +159,31 @@ def main():
                 # === Group duplex read pairs and create consensus ===
                 # Check presence of duplex pair
                 if ds not in duplex_dict.keys():
-                    if tag_dict[tag] == 1 and tag_dict[ds] == 1:
+                    if tag in tag_dict and ds in tag_dict:
                         print('ds')
                         print(tag)
                         print(ds)
                         duplex_count += 1
-                        duplex_dict[ds] = tag
 
                         # consensus seq
-                        consensus_seq, qual_consensus = duplex_consensus(read_dict[tag][0], read_tag[ds][0])
+                        consensus_seq, qual_consensus = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
 
-                        try:
-                            dcs_read = create_aligned_segment([read], consensus_seq, qual_consensus)
-                        except:
-                            print(read.query_qualities)
-                            print(duplex.query_qualities)
-                            print(consensus_seq, qual_consensus)
+                        dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq, qual_consensus)
 
-                        dcs_read.query_name = "{}_{}_{}".format(min(barcode, pair_barcode), max(barcode, pair_barcode),
+                        dcs_read.query_name = "{}_{}_{}".format(min(barcode, duplex_barcode), max(barcode, duplex_barcode),
                                                                 dcs_read.query_name.split('_', 1)[1].rsplit('_', 3)[0])
 
                         duplex_dict[tag] = dcs_read  # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
-                        duplex_pair[readPair] += 1
 
                         DCS_bam.write(dcs_read)
 
                     else:
+                        # print(tag)
+                        # print(ds)
                         SSCS_singleton.write(read_dict[tag][0])
                         SSCS_singletons += 1
 
-    print(tag_dict)
+    # print(tag_dict)
     print(collections.Counter([i for i in tag_dict.values()]))  ## WHY ARE SOME VALUES 0 IN THE COUNTER?
     time_tracker.write('DCS: ')
     time_tracker.write(str((time.time() - start_time)/60) + '\n') 

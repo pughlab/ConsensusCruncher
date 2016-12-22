@@ -214,10 +214,10 @@ def main():
                             csn_pair_dict=csn_pair_dict,
                             tag_dict=tag_dict,
                             badRead_bam=badRead_bam,
+                            duplex=None,
                             read_chr=read_chr,
                             read_start=read_start,
-                            read_end=read_end,
-                            duplex=None
+                            read_end=read_end
                             )
 
         read_dict = chr_data[0]

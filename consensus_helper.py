@@ -117,7 +117,7 @@ def sscs_qname(tag, flag):
         new_tag[3] = ref_chr
         new_tag[2] = mate_coor
         new_tag[4] = ref_coor
-        new_tag = "_".join(new_tag)[:-9]
+        new_tag = "_".join(new_tag)[:-7]
         # Determine strand 
         if 'R1' in tag: # rev_R1
             new_tag = new_tag + '_neg'
@@ -126,16 +126,15 @@ def sscs_qname(tag, flag):
     else:
         # === Use flags to determine strand direction === 
         # for reads with the same coordinate mate (start and stop are the same)
-        consensus_tag = tag[:-9]
         if ref_chr == mate_chr and ref_coor == mate_coor:
             if flag in pos_flag:
-                new_tag = consensus_tag + '_pos'
+                new_tag = tag[:-7] + '_pos'
             else:
-                new_tag = consensus_tag + '_neg'
+                new_tag = tag[:-7] + '_neg'
         elif 'R1' in tag: # fwd_R1
-            new_tag = consensus_tag + '_pos'
+            new_tag = tag[:-7] + '_pos'
         else: # fwd_R2
-            new_tag = consensus_tag + '_neg'
+            new_tag = tag[:-7] + '_neg'
 
     # === Add flag information to query name ===
     # with smaller flag ordered first, to help differentiate between reads 
@@ -244,17 +243,17 @@ def read_bam(bamfile, pair_dict, read_dict, tag_dict, read_chr = None,
         ref_start = line.reference_start
         next_start = line.next_reference_start
         
-        if 'S' in line.cigarstring:
-            softclip = 'S'
-        else:
-            softclip = 'M'
+        #if 'S' in line.cigarstring:
+            #softclip = 'S'
+        #else:
+            #softclip = 'M'
     
-        tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
+        tag = '{}_{}_{}_{}_{}_{}_{}'.format(barcode, # mol barcode
                                       line.reference_id, # chr num
                                       ref_start, # start R1 (0-based)
                                       line.next_reference_id,
                                       next_start, # start R2
-                                      softclip,
+                                      #softclip,
                                       strand, # strand direction
                                       read # read num
                                       )    
@@ -373,3 +372,37 @@ def reverse_seq(seq):
         rev_comp = nuc[base] + rev_comp
         
     return rev_comp
+
+###############################
+##           Main            ##
+###############################
+if __name__ == "__main__": 
+    import time
+    import pysam
+    start_time = time.time()
+    bamfile = pysam.AlignmentFile('/Users/nina/Desktop/Ninaa/PughLab/Molecular_barcoding/code/pl_duplex_sequencing/subsampled_bam/MEM-001-p015625.bam', "rb")
+    
+    bam_dict = collections.OrderedDict() # dict that remembers order of entries
+    tag_dict = collections.defaultdict(int)
+    pair_dict = collections.OrderedDict()
+    
+    #tag_quality_dict = collections.defaultdict(list)
+    quality_dict = collections.defaultdict(list)
+    prop_dict = collections.defaultdict(list)
+    
+    sc_lst=[]
+    read_pair_dict = collections.defaultdict(list)    
+    
+    chr_data = read_bam(bamfile, 
+                        pair_dict = pair_dict, 
+                        read_dict = bam_dict,
+                        tag_dict = tag_dict)
+    
+    print((time.time() - start_time)/60)  
+    
+    bam_dict = chr_data[0]
+    tag_dict = chr_data[1]
+    pair_dict = chr_data[2]
+    
+    
+    

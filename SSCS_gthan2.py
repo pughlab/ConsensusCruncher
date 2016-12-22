@@ -238,13 +238,10 @@ def main():
 
     # ===== Initialize counters =====
     unmapped = 0
-    unmapped_flag = 0
     bad_reads = 0  # secondary/supplementary reads
-    poor_mapq = 0
     counter = 0
     singletons = 0
     SSCS_reads = 0
-
     # ===== Determine data division coordinates =====
     # division by bed file if provided, or by chr arm coordinates
     if 'args.bedfile' in locals():
@@ -274,9 +271,7 @@ def main():
 
         counter += chr_data[4]
         unmapped += chr_data[5]
-        unmapped_flag += chr_data[6]
-        bad_reads += chr_data[7]
-        poor_mapq += chr_data[8]
+        bad_reads += chr_data[6]
 
         # ===== Determine read length =====
         # Randomly picked family with largest family size (aka most PCR dupes)
@@ -292,7 +287,7 @@ def main():
 
         # ===== Create consensus sequences as paired reads =====
         for readPair in list(csn_pair_dict.keys()):
-            if len(csn_pair_dict[readPair]) == 2:
+            if len(csn_pair_dict[readPair]) == 2:  # WHAT ABOUT 4 READS? due to non-specific consensus qname
                 for tag in csn_pair_dict[readPair]:
                     # === Check for singletons ===
                     if tag_dict[tag] == 1:
@@ -342,39 +337,23 @@ def main():
                 del csn_pair_dict[readPair]
 
         print(x)
-
-        # This ends up writing everything to the file, also dictionary of reads is not decreasing over time -> memory issue
-        #read_dict_file = open(args.outfile.split('.sscs')[0] + '.read_dict.txt', 'ab+')
-        #pickle.dump(bam_dict, read_dict_file)
-        #read_dict_file.close()
-
-        print(str((time.time() - start_time)/60))
+        print(str((time.time() - start_time) / 60))
         try:
             time_tracker.write(x + ': ')
-            time_tracker.write(str((time.time() - start_time)/60) + '\n')
+            time_tracker.write(str((time.time() - start_time) / 60) + '\n')
 
         except:
             continue
 
-
-    # Reads left over at the end due to how pysam fetches reads -> does it get read twice?
+    # === Check to see if there's remaining reads ===
     print('=== pair_dict remaining ===')
     if bool(pair_dict):
         for i in pair_dict:
-            if '|' in i:
-                if bamfile.mate(pair_dict[i][0]).mapq > 10:
-                    print(i)
-                    print('read remaining:')
-                    print(pair_dict[i][0])
-                    print('mate:')
-                    print(bamfile.mate(pair_dict[i][0]))
-                else:
-                    print('mate has poor mapping quality')
-                    print(i)
-            else:
-                print(i)
-                print('read remaining:')
-                print(pair_dict[i])
+            print(i)
+            print('read remaining:')
+            print(pair_dict[i][0])
+            print('mate:')
+            print(bamfile.mate(pair_dict[i][0]))
     print('=== read_dict remaining ===')
     if bool(read_dict):
         for i in read_dict:
@@ -383,6 +362,14 @@ def main():
             print(read_dict[i][0])
             print('mate:')
             print(bamfile.mate(read_dict[i][0]))
+    print('=== csn_pair_dict remaining ===')
+    if bool(csn_pair_dict):
+        for i in csn_pair_dict:
+            print(i)
+            print('read remaining:')
+            print(csn_pair_dict[i][0])
+            print('mate:')
+            print(bamfile.mate(csn_pair_dict[i][0]))
 
     # ===== write tag family size dictionary to file =====
     import pickle
@@ -402,13 +389,11 @@ def main():
     tag_file.close()
 
     summary_stats = '''Total reads: {} \n
-Unmapped reads: {} \n
-Unmapped flag reads: {} \n
-Secondary/Supplementary reads: {} \n
-Poor mapping quaity (<5): {} \n
-SSCS reads: {} \n
-Singletons: {} \n
-'''.format(counter, unmapped, unmapped_flag, bad_reads, poor_mapq, SSCS_reads, singletons)
+    Unmapped reads: {} \n
+    Secondary/Supplementary reads: {} \n
+    SSCS reads: {} \n
+    Singletons: {} \n
+    '''.format(counter, unmapped, bad_reads, SSCS_reads, singletons)
 
     stats.write(summary_stats)
     print(summary_stats)

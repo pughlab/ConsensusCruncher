@@ -46,6 +46,9 @@ def duplex_consensus(read1, read2):
     consensus_seq = ''
     qual_consensus = []
 
+    ### NOTE: if one of the reads is SSCS, maybe we should take the base of that instead? AKA just asign the singleton read the seq of the SSCS
+    ### My concern is when the SSCS is formed from 2/3 reads...
+
     for i in range(read1.query_length):
         if read1.query_sequence[i] == read2.query_sequence[i]:
             consensus_seq += read1.query_sequence[i]
@@ -327,7 +330,7 @@ def main():
                     sscs_dup_rescue += 1
                     sscs_rescue_bam.write(rescue_read)
 
-                    rescue_dict[tag] = duplex
+                    # rescue_dict[tag] = duplex
 
                     del sscs_dict[duplex]
                     del singleton_dict[tag]
@@ -371,8 +374,8 @@ def main():
     ######################
     ##      SUMMARY     ##
     ######################
-    sscs_rescue_frac = (sscs_dup_rescue/counter) * 100
-    singleton_rescue_frac = (singleton_dup_rescue/counter) * 100
+    sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
+    singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
 
     summary_stats = '''Total singletons: {} \n
 SSCS strand rescued singletons: {} \n

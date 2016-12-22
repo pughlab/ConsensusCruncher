@@ -284,20 +284,11 @@ def sscs_qname(tag, flag):
         # for reads with the same coordinate mate (start and stop are the same)
         new_tag = tag[:-7]
 
-    # === Add flag information to query name ===
-    # Flags allow further differentiation as read and its duplex might have same coordinate and strand direction
-    # smaller flag ordered first
-    #
-    # if flag < flag_pairings[flag]:
-    #     new_tag = '{}_{}_{}'.format(new_tag, flag, flag_pairings[flag])
-    # else:
-    #     new_tag = '{}_{}_{}'.format(new_tag, flag_pairings[flag], flag)
-
     return new_tag
 
 
-def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, read_chr = None,
-             read_start = None, read_end = None, duplex = None):
+def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, duplex, read_chr = None,
+             read_start = None, read_end = None):
     '''(bamfile object, dict, dict, dict, str, int, int, str) ->
     dict, dict, dict, dict, dict, int, int, int, int
 
@@ -358,8 +349,8 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
     8) poor_mapq: number of poorly mapped reads (mapping quality < 5)
     '''
     # ===== Fetch data given coordinates =====
-    if read_chr == None:
-        bamLines = bamfile.fetch(until_eof = True)
+    if read_chr is None:
+        bamLines = bamfile.fetch(until_eof=True)
     else:
         bamLines = bamfile.fetch(read_chr, read_start, read_end)
 
@@ -372,7 +363,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
     for line in bamLines:
         # Parse out reads that don't fall within region
         if read_chr is not None:
-            # this excludes certain reads that were previously seen
+            # pysam fetch will retrieve reads that fall outside region due to pairing
             if line.reference_start < read_start or line.reference_start > read_end:
                 continue
 
@@ -586,6 +577,51 @@ def reverse_seq(seq):
         rev_comp = nuc[base] + rev_comp
 
     return rev_comp
+
+
+def duplex_tag(tag):
+    '''(str) -> str
+    Return tag for duplex read.
+
+    Things to be changed in tag:
+    1) barcode: molecular identifiers get swapped (e.g. 2 based identifiers on each side of DNA fragment)
+               (+) 5' AT-------GC  3' -> ATGC
+               (-)    AT-------GC     <- GCAT
+    2) strand: pos -> neg
+    3) read: R1 -> R2
+
+    Test cases:
+    >>> duplex_tag('GTCT_1_1507809_7_55224319_98M_98M_pos_fwd_R1')
+    'CTGT_1_1507809_7_55224319_98M_98M_neg_fwd_R2'
+    >>> duplex_tag('GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2')
+    'CTGT_7_55224319_1_1507809_98M_98M_neg_rev_R1'
+    >>> duplex_tag('CTGT_1_1507809_7_55224319_98M_98M_neg_fwd_R2')
+    'GTCT_1_1507809_7_55224319_98M_98M_pos_fwd_R1'
+    >>> duplex_tag('CTGT_7_55224319_1_1507809_98M_98M_neg_rev_R1')
+    'GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2'
+    '''
+    split_tag = tag.split('_')
+    # 1) Barcode needs to be swapped
+    barcode = split_tag[0]
+    barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
+    # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
+    split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
+
+    # 2) Opposite strand in duplex
+    strand = split_tag[7]
+    if strand == 'pos':
+        split_tag[7] = 'neg'
+    else:
+        split_tag[7] = 'pos'
+
+    # 3) Opposite read number in duplex
+    read_num = split_tag[9]
+    if read_num == 'R1':
+        split_tag[9] = 'R2'
+    else:
+        split_tag[9] = 'R1'
+
+    return '_'.join(split_tag)
 
 
 ###############################
