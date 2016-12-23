@@ -63,7 +63,31 @@ from consensus_helper import *
 ###############################
 
 
-def consensus_maker(readList, cutoff):
+def genomicBasedCigar(cigar, pos):
+    '''(str, int) -> list
+    Return list of genomic positions based on cigar and start coordinate.
+
+    Function accounts for insertions in genome coordinate.
+    '''
+    pattern = re.compile('([MIDNS=])')
+    C = pattern.split(cigar)[1::2]  # Cigar e.g. ['S', 'M']
+    I = pattern.split(cigar)[::2][:-1]  # Index e.g. ['33', '90']
+    cord = []
+    for i in range(len(C)):
+        if C[i] == 'S':
+            cord = cord + [0] * int(I[i])
+        elif C[i] == 'M':
+            cord = cord + list(range(pos, pos + int(I[i]), 1))
+            pos += int(I[i])
+        elif C[i] == 'I':
+            cord = cord + [pos] * int(I[i])
+        elif C[i] == 'D':
+            pos += int(I[i])
+
+    return cord
+
+
+def consensus_maker(readList, cutoff, failed_bases):
     '''(list, int, int) -> str
     Return consensus sequence and quality score.
 
@@ -77,6 +101,10 @@ def consensus_maker(readList, cutoff):
     frequent base
     - If a majority can't be determined (i.e. a tie with 2 maximums)
     '''
+    # === Genome coordinate of each base ===
+    # As each family shares the same start coordinate and cigar, this info can be collected from any read
+    base_coor = genomicBasedCigar(readList[0].cigarstring, readList[0].reference_start)
+
     # === Determine read length ===
     cigar_mode = statistics.mode([r.cigarstring for r in readList])
     cigar_mode_read = [r for r in readList if r.cigarstring == cigar_mode][0]
@@ -149,6 +177,18 @@ def consensus_maker(readList, cutoff):
             quality_consensus.append(mol_qual)
             proportion_scores.append(0)
 
+            # === Write failed bases to file ===
+            # position of 2nd most freq base
+            nuc_count[max_nuc] = 0
+            second_max = nuc_count.index(max(nuc_count))
+
+            failed_info = '{}\t{}\t{}\t{}'.format(readList[0].reference_id,  # Chr
+                                                  base_coor[i],  # Pos
+                                                  nuc_lst[max_nuc],  # Most freq base
+                                                  nuc_lst[second_max])  # 2nd most freq base
+
+            failed_bases.write(failed_info)
+
     return consensus_read, quality_consensus, proportion_scores
 
 
@@ -172,6 +212,7 @@ def main():
     badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
 
     tag_bam = pysam.AlignmentFile('{}.tag_reads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    failed_bases = open('{}.failed_bases.txt'.format(args.outfile.split('.sscs')[0]), 'w')
 
     # set up time tracker
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
@@ -240,7 +281,7 @@ def main():
                         # print(read_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
-                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff))
+                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff), failed_bases)
 
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
@@ -321,6 +362,7 @@ Singletons: {} \n
     SSCS_bam.close()
     badRead_bam.close()
     tag_bam.close()
+    failed_bases.close()
 
 
     # ===== Create tag family size plot =====
