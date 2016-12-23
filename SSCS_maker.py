@@ -118,12 +118,17 @@ def consensus_maker(readList, cutoff, failed_bases):
 
     for i in range(readLength):
         nuc_count = [0, 0, 0, 0, 0]  # A, C, G, T, N
+        failed_nuc_count = [0, 0, 0, 0, 0]
         quality_score = [[], [], [], [], []]
         phred_fail = 0
 
         for j in range(len(readList)):
             # === Phred filter Q30 cut-off ===
             if readList[j].query_qualities[i] < 30:
+                nuc = readList[j].query_sequence[i]
+                nuc_index = nuc_lst.index(nuc)
+                failed_nuc_count[nuc_index] += 1
+                # quality_score[4] += 0
                 phred_fail += 1
             else:
                 nuc = readList[j].query_sequence[i]
@@ -133,10 +138,10 @@ def consensus_maker(readList, cutoff, failed_bases):
 
         # Find most frequent nuc (don't worry about ties (2 maxes) as it won't pass proportion cut-off and N will
         # be assigned)
-        max_nuc = nuc_count.index(max(nuc_count))
+        max_nuc_index = nuc_count.index(max(nuc_count))
 
         # === Molecular phred quality (consensus quality score) ===
-        max_nuc_quality = quality_score[max_nuc]
+        max_nuc_quality = quality_score[max_nuc_index]
 
         base_fail = False
 
@@ -158,12 +163,12 @@ def consensus_maker(readList, cutoff, failed_bases):
         # only make consensus if proportion of nuc is > cutoff (e.g. 70%) of reads
         phred_pass_reads = len(readList) - phred_fail
         if phred_pass_reads != 0:
-            prop_score = nuc_count[max_nuc]/phred_pass_reads
+            prop_score = nuc_count[max_nuc_index]/phred_pass_reads
             if prop_score >= cutoff:
                 if base_fail == True:
                     # test to see if a position that has failed quality score making can still pass filters
                     print('base fail == True!!')
-                consensus_read += nuc_lst[max_nuc]
+                consensus_read += nuc_lst[max_nuc_index]
                 quality_consensus.append(mol_qual)
                 proportion_scores.append(prop_score)
             else:
@@ -178,14 +183,41 @@ def consensus_maker(readList, cutoff, failed_bases):
             proportion_scores.append(0)
 
             # === Write failed bases to file ===
-            # position of 2nd most freq base
-            nuc_count[max_nuc] = 0
-            second_max = nuc_count.index(max(nuc_count))
+            # position of 2 most freq bases
+            if nuc_count == [0, 0, 0, 0, 0]:
+                max_nuc_index = failed_nuc_count.index(max(failed_nuc_count))
+                max_nuc = '{}*'.format(nuc_lst[max_nuc_index])
+                failed_nuc_count[max_nuc_index] = 0
+                if failed_nuc_count == [0, 0, 0, 0, 0]:
+                    second_max_nuc = 'NA'
+                else:
+                    second_max_index = failed_nuc_count.index(max(failed_nuc_count))
+                    second_max_nuc = '{}*'.format(nuc_lst[second_max_index])
+            else:
+                max_nuc = nuc_lst[max_nuc_index]
+                nuc_count[max_nuc_index] = 0
+                if nuc_count == [0, 0, 0, 0, 0]:
+                    second_max_nuc = 'NA'
+                else:
+                    second_max_index = nuc_count.index(max(nuc_count))
+                    second_max_nuc = nuc_lst[second_max_index]
 
-            failed_info = '{}\t{}\t{}\t{}'.format(readList[0].reference_id,  # Chr
-                                                  base_coor[i],  # Pos
-                                                  nuc_lst[max_nuc],  # Most freq base
-                                                  nuc_lst[second_max])  # 2nd most freq base
+            # chr number
+            if readList[0].reference_id == 0:
+                chr = 'M'
+            elif readList[0].reference_id == 23:
+                chr = 'X'
+            elif readList[0].reference_id == 24:
+                chr = 'Y'
+            else:
+                chr = readList[0].reference_id
+            # print(nuc_count)
+            # print('max nuc {}'.format(max_nuc))
+            # print('2nd max nuc {}'.format(second_max_nuc))
+            failed_info = 'chr{}\t{}\t{}\t{}\n'.format(chr,
+                                                       base_coor[i],  # Pos
+                                                       max_nuc,  # Most freq base
+                                                       second_max_nuc)  # 2nd most freq base
 
             failed_bases.write(failed_info)
 
