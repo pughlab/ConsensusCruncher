@@ -112,7 +112,7 @@ def main():
     SSCS_bam = pysam.AlignmentFile(args.infile, "rb")    
     DCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = SSCS_bam)
     SSCS_singleton = pysam.AlignmentFile('{}.dcs.singleton.bam'.format(args.outfile.split('.dcs')[0]), "wb", template = SSCS_bam)
-    badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.dcs')[0]), "wb", template = SSCS_bam)
+    badRead_bam = pysam.AlignmentFile('{}.dcs.badReads.bam'.format(args.outfile.split('.dcs')[0]), "wb", template = SSCS_bam)
 
     stats = open('{}.stats.txt'.format(args.outfile.split('.dcs')[0]), 'a')
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.dcs')[0]), 'a')
