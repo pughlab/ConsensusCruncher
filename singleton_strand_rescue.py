@@ -113,7 +113,7 @@ def main():
     remaining_rescue_bam = pysam.AlignmentFile(
         '{}.rescue.remaining.bam'.format(args.singleton.split('.singleton')[0]), 'wb', template=singleton_bam)
 
-    badRead_bam = pysam.AlignmentFile('{}.singleton.badReads.bam'.format(args.singleton.split('.singleton')[0]), "wb",
+    badRead_bam = pysam.AlignmentFile('{}.singleton.rescue.badReads.bam'.format(args.singleton.split('.singleton')[0]), "wb",
                                       template=singleton_bam)
 
     stats = open('{}.rescue_stats.txt'.format(args.singleton.split('.singleton')[0]), 'w')
