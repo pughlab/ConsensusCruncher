@@ -59,7 +59,7 @@ import time
 from consensus_helper import *
 
 ###############################
-#          Functions          #
+#       Helper Functions      #
 ###############################
 
 
@@ -224,6 +224,10 @@ def consensus_maker(readList, cutoff, failed_bases):
     return consensus_read, quality_consensus, proportion_scores
 
 
+###############################
+#        Main Function        #
+###############################
+
 def main():
     # Command-line parameters
     parser = ArgumentParser()
@@ -338,31 +342,42 @@ def main():
             continue
 
     # === Check to see if there's remaining reads ===
+
     print('=== pair_dict remaining ===')
     if bool(pair_dict):
         for i in pair_dict:
-            print(i)
-            print('read remaining:')
-            print(pair_dict[i][0])
-            print('mate:')
-            print(bamfile.mate(pair_dict[i][0]))
+            try:
+                print(i)
+                print('read remaining:')
+                print(pair_dict[i][0])
+                print('mate:')
+                print(bamfile.mate(pair_dict[i][0]))
+            except ValueError:
+                print("Mate not found")
     print('=== read_dict remaining ===')
     if bool(read_dict):
         for i in read_dict:
-            print(i)
-            print('read remaining:')
-            print(read_dict[i][0])
-            print('mate:')
-            print(bamfile.mate(read_dict[i][0]))
+            try:
+                print(i)
+                print('read remaining:')
+                print(read_dict[i][0])
+                print('mate:')
+                print(bamfile.mate(read_dict[i][0]))
+            except ValueError:
+                print("Mate not found")
     print('=== csn_pair_dict remaining ===')
     if bool(csn_pair_dict):
         for i in csn_pair_dict:
-            print(i)
-            print(csn_pair_dict[i])
-            # print('read remaining:')
-            # print(csn_pair_dict[i][0])
-            # print('mate:')
-            # print(bamfile.mate(csn_pair_dict[i][0]))
+            try:
+                print(i)
+                print(csn_pair_dict[i])
+                # print('read remaining:')
+                # print(csn_pair_dict[i][0])
+                # print('mate:')
+                # print(bamfile.mate(csn_pair_dict[i][0]))
+            except ValueError:
+                print("Mate not found")
+
 
     # ===== write tag family size dictionary to file =====
     import pickle
@@ -420,8 +435,9 @@ Singletons: {} \n
 
     plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')
 
+
 ###############################
-##           Main            ##
+#            Main             #
 ###############################
 if __name__ == "__main__":
     import time
