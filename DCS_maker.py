@@ -45,7 +45,7 @@ import math
 from consensus_helper import *
 
 ###############################
-##         Functions         ##
+#       Helper Functions      #
 ###############################
 
 
@@ -97,6 +97,10 @@ def duplex_consensus(read1, read2):
     return consensus_seq, qual_consensus
 
 
+###############################
+#        Main Function        #
+###############################
+
 def main():
     # Command-line parameters
     parser = ArgumentParser()
@@ -130,7 +134,7 @@ def main():
     multiple_mappings = 0
     
     duplex_count = 0
-    duplex_dict = collections.OrderedDict()    
+    duplex_dict = collections.defaultdict(int)
 
     # ===== Read data and create dictionaries =====
     chr_data = read_bam(SSCS_bam, 
@@ -178,7 +182,8 @@ def main():
                         dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
                                                           qual_consensus, dcs_query_name)
 
-                        duplex_dict[tag] = dcs_read  # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
+                        duplex_dict[tag] += 1
+                        # duplex_dict[tag] = dcs_read  # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
 
                         DCS_bam.write(dcs_read)
 
@@ -214,7 +219,7 @@ SSCS singletons: {} \n
 
 
 ###############################
-##           Main            ##
+#            Main             #
 ###############################
 if __name__ == "__main__": 
     import time
