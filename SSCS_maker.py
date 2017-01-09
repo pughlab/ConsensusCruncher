@@ -51,7 +51,6 @@ from random import *
 from itertools import chain
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
-import statistics
 import math
 import time
 
@@ -105,7 +104,7 @@ def consensus_maker(readList, cutoff, failed_bases):
     base_coor = genomicBasedCigar(readList[0].cigarstring, readList[0].reference_start)
 
     # === Determine read length ===
-    cigar_mode = statistics.mode([r.cigarstring for r in readList])
+    cigar_mode = collections.Counter([r.cigarstring for r in readList]).most_common(1)[0][0]
     cigar_mode_read = [r for r in readList if r.cigarstring == cigar_mode][0]
     readLength = cigar_mode_read.infer_query_length()
 
