@@ -150,10 +150,14 @@ def consensus_maker(readList, cutoff, failed_bases):
             for Q in max_nuc_quality:
                 P *= 10**(-(Q/10))
 
-            mol_qual = round(-10 * math.log10(P))
-
-            if mol_qual > 62:
+            # large families leads to multiplication of numerous small floats resulting in zero
+            if P == 0:
                 mol_qual = 62
+            else:
+                mol_qual = round(-10 * math.log10(P))
+
+                if mol_qual > 62:
+                    mol_qual = 62
 
         else:
             mol_qual = 0
