@@ -50,7 +50,6 @@ import array
 from random import *
 from itertools import chain
 from argparse import ArgumentParser
-import numpy as np
 import matplotlib.pyplot as plt
 import statistics
 import math
