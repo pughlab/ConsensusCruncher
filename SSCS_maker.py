@@ -387,10 +387,10 @@ def main():
     pickle.dump(tag_dict, tag_file)
     tag_file.close()
 
-    summary_stats = '''Total reads overlapping bedfile: {} \n
-Unmapped reads: {} \n
-Reads with unmapped mate: {} \n
-Secondary/Supplementary reads: {} \n
+    summary_stats = '''Original - Total reads overlapping bedfile: {} \n
+Original - Unmapped reads: {} \n
+Original - Reads with unmapped mate: {} \n
+Original - Secondary/Supplementary reads: {} \n
 SSCS reads: {} \n
 Singletons: {} \n
 '''.format(counter, unmapped, unmapped_mate, multiple_mapping, SSCS_reads, singletons)

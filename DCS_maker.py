@@ -197,12 +197,11 @@ def main():
     time_tracker.write('DCS: ')
     time_tracker.write(str((time.time() - start_time)/60) + '\n') 
     
-    summary_stats = '''\n
-=== DCS ===
-Total reads: {} \n
-Unmapped reads: {} \n
-Secondary/Supplementary reads: {} \n
-Multiple Mappings: {} \n
+    summary_stats = '''
+SSCS - Total reads: {} \n
+SSCS - Unmapped reads: {} \n
+SSCS - Secondary/Supplementary reads: {} \n
+SSCS - Multiple Mappings: {} \n
 DCS reads: {} \n
 SSCS singletons: {} \n
     '''.format(counter, unmapped, bad_reads, multiple_mappings, duplex_count, SSCS_singletons)

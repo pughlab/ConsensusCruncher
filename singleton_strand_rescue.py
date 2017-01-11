@@ -30,7 +30,7 @@ import inspect
 from consensus_helper import *
 
 ###############################
-#          Functions          #
+#       Helper Functions      #
 ###############################
 
 
@@ -82,6 +82,10 @@ def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=No
     return dcs_read
 
 
+###############################
+#        Main Function        #
+###############################
+
 def main():
     '''Singleton rescue:
     - First rescue with SSCS bam
@@ -116,8 +120,8 @@ def main():
     badRead_bam = pysam.AlignmentFile('{}.singleton.rescue.badReads.bam'.format(args.singleton.split('.singleton')[0]), "wb",
                                       template=singleton_bam)
 
-    stats = open('{}.rescue_stats.txt'.format(args.singleton.split('.singleton')[0]), 'w')
-    time_tracker = open('{}.time.tracker.txt'.format(args.singleton.split('.singleton')[0]), 'a')
+    stats = open('{}.stats.txt'.format(args.singleton.split('.singleton')[0]), 'a')
+    time_tracker = open('{}.time_tracker.txt'.format(args.singleton.split('.singleton')[0]), 'a')
 
     # ===== Initialize dictionaries =====
     singleton_dict = collections.OrderedDict()  # dict that remembers order of entries
@@ -273,7 +277,7 @@ def main():
             continue
 
     ######################
-    ##      SUMMARY     ##
+    #       SUMMARY      #
     ######################
     sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
     singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
@@ -299,7 +303,7 @@ Singletons remaining (not rescued): {} \n
 
 
 ###############################
-##           Main            ##
+#            Main             #
 ###############################
 if __name__ == "__main__":
     import time
