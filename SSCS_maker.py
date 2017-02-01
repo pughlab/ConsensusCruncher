@@ -399,8 +399,8 @@ Singletons: {} \n
     print(summary_stats)
 
     # === QC ===
-    print('===QC metric===')
-    print('Mapped reads overlapping bed file should be equivalent with mapped reads in bam file.')
+    # print('===QC metric===')
+    print('# QC: Mapped reads overlapping bed file should be equivalent to mapped reads in bam file.')
     print('Total mapped reads in bam file: {}'.format(bamfile.mapped))
     # print('Total unmapped reads: {}'.format(bamfile.unmapped))
     # print('Total reads: {}'.format(bamfile.mapped + bamfile.unmapped))
