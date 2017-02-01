@@ -203,8 +203,7 @@ SSCS - Unmapped reads: {} \n
 SSCS - Secondary/Supplementary reads: {} \n
 SSCS - Multiple Mappings: {} \n
 DCS reads: {} \n
-SSCS singletons: {} \n
-    '''.format(counter, unmapped, bad_reads, multiple_mappings, duplex_count, SSCS_singletons)
+SSCS singletons: {} \n'''.format(counter, unmapped, bad_reads, multiple_mappings, duplex_count, SSCS_singletons)
     stats.write(summary_stats)
 
     print(summary_stats)
