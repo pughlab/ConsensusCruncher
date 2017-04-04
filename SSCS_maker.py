@@ -390,12 +390,12 @@ def main():
 
 
     # ===== write tag family size dictionary to file =====
-    import pandas as pd
+    # count of tags within each family size
     tags_per_fam_size = collections.Counter([i for i in tag_dict.values()])
     lst_fam_per_read = list(tags_per_fam_size.items())  # convert to list
-
-    tag_fam_size = pd.DataFrame(lst_fam_per_read, columns=['family_size', 'frequency'])
-    tag_fam_size.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
+    with open(args.outfile.split('.sscs')[0] + '.read_families.txt', "w") as stat_file:
+        stat_file.write('family_size\tfrequency\n')
+        stat_file.write('\n'.join('%s\t%s' % x for x in lst_fam_per_read))
 
 	# == Pandas method ==
 #     import pandas as pd
