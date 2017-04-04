@@ -245,11 +245,11 @@ def main():
     # ===== Initialize input and output bam files =====
     bamfile = pysam.AlignmentFile(args.infile, "rb")
     SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
+    SSCS_uncollapesd = pysam.AlignmentFile('{}.sscs.uncollapsed.bam'.format(args.outfile.split('.sscs')[0]), 'wb', template = bamfile)
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
 
-    tag_bam = pysam.AlignmentFile('{}.tag_reads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     failed_bases = open('{}.failed_bases.txt'.format(args.outfile.split('.sscs')[0]), 'w')
 
     # set up time tracker
@@ -268,6 +268,7 @@ def main():
     counter = 0
     singletons = 0
     SSCS_reads = 0
+    SSCS_uncollapsed_reads = 0
 
     # ===== Determine data division coordinates =====
     # division by bed file if provided
@@ -319,12 +320,19 @@ def main():
                         # print(read_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
+                        # === Write uncollapsed SSCS reads ===
+                        # write reads from tag family sizes >= 2 to file prior to collapsing
+                        for read in read_dict[tag]:
+                            SSCS_uncollapesd.write(read)
+                            SSCS_uncollapsed_reads += 1
+
+                        # === Create collapsed SSCSs ===
                         SSCS = consensus_maker(read_dict[tag], float(args.cutoff), failed_bases)
 
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
 
-                        # ===== Write consensus bam =====
+                        # === Write consensus bam ===
                         SSCS_bam.write(SSCS_read)
                         SSCS_reads += 1
 
@@ -382,18 +390,26 @@ def main():
 
 
     # ===== write tag family size dictionary to file =====
-    import pickle
-    tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
-    pickle.dump(tag_dict, tag_file)
-    tag_file.close()
+    import pandas as pd
+    tag_df = pd.DataFrame(list(tag_dict.items()), columns=['tag_ID', 'family_size'])
+    tag_df_summary = tag_df.join(tag_df['tag_ID'].str.split('_', expand=True))
+    tag_df_summary.columns = ['tag_ID', 'family_size', 'barcode', 'R1chr', 'R1start', 'R2chr', 'R2start', 'R1cigar',
+                              'R2cigar', 'strand', 'orientation', 'RG']
+    tag_df_summary.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
 
-    summary_stats = '''Original - Total reads overlapping bedfile: {} \n
-Original - Unmapped reads: {} \n
-Original - Reads with unmapped mate: {} \n
-Original - Secondary/Supplementary reads: {} \n
-SSCS reads: {} \n
-Singletons: {} \n
-'''.format(counter, unmapped, unmapped_mate, multiple_mapping, SSCS_reads, singletons)
+    # import pickle
+    # tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
+    # pickle.dump(tag_dict, tag_file)
+    # tag_file.close()
+
+    # === STATS ===
+    # Note: total reads = unmapped + secondary + SSCS uncollapsed + singletons
+    summary_stats = '''Original - Total reads overlapping bedfile: {}
+Original - Unmapped reads: {}
+Original - Secondary/Supplementary reads: {}
+SSCS reads: {}
+SSCS uncollapsed reads: {}
+Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, SSCS_uncollapsed_reads, singletons)
 
     stats.write(summary_stats)
     print(summary_stats)
@@ -409,17 +425,16 @@ Singletons: {} \n
     stats.close()
     bamfile.close()
     SSCS_bam.close()
+    SSCS_uncollapesd.close()
     badRead_bam.close()
-    tag_bam.close()
     failed_bases.close()
-
 
     # ===== Create tag family size plot =====
     # Count number of families containing each number of read (e.g. Counter({1: 3737, 32: 660... ->
     # 3737 families are singletons)
 
     fam_per_read_group = collections.Counter([i for i in tag_dict.values()])
-    lst_fam_per_read = list(fam_per_read_group.items()) # conver to list
+    lst_fam_per_read = list(fam_per_read_group.items())  # convert to list
 
     total_reads = sum(tag_dict.values())
     # Multiply number of families by read num to get total number of reads in that read group, divide it by total reads
