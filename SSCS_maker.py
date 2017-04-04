@@ -391,12 +391,21 @@ def main():
 
     # ===== write tag family size dictionary to file =====
     import pandas as pd
-    tag_df = pd.DataFrame(list(tag_dict.items()), columns=['tag_ID', 'family_size'])
-    tag_df_summary = tag_df.join(tag_df['tag_ID'].str.split('_', expand=True))
-    tag_df_summary.columns = ['tag_ID', 'family_size', 'barcode', 'R1chr', 'R1start', 'R2chr', 'R2start', 'R1cigar',
-                              'R2cigar', 'strand', 'orientation', 'RG']
-    tag_df_summary.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
+    tags_per_fam_size = collections.Counter([i for i in tag_dict.values()])
+    lst_fam_per_read = list(tags_per_fam_size.items())  # convert to list
 
+    tag_fam_size = pd.DataFrame(lst_fam_per_read, columns=['family_size', 'frequency'])
+    tag_fam_size.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
+
+	# == Pandas method ==
+#     import pandas as pd
+#     tag_df = pd.DataFrame(list(tag_dict.items()), columns=['tag_ID', 'family_size'])
+#     tag_df_summary = tag_df.join(tag_df['tag_ID'].str.split('_', expand=True))
+#     tag_df_summary.columns = ['tag_ID', 'family_size', 'barcode', 'R1chr', 'R1start', 'R2chr', 'R2start', 'R1cigar',
+#                               'R2cigar', 'strand', 'orientation', 'RG']
+#     tag_df_summary.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
+
+	# == Pickle method ==
     # import pickle
     # tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     # pickle.dump(tag_dict, tag_file)
