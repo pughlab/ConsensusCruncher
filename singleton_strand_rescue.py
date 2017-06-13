@@ -282,13 +282,13 @@ def main():
     sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
     singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
 
-    summary_stats = '''Total singletons: {} \n
-SSCS strand rescued singletons: {} \n
-% SSCS rescue: {} \n
-Singleton strand rescued singletons: {} \n
-% singleton rescue: {} \n
-Singletons remaining (not rescued): {} \n
-'''.format(counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
+    summary_stats = '''# === Singleton Rescue ===
+Total singletons: {}
+SSCS strand rescued singletons: {}
+% SSCS rescue: {}
+Singleton strand rescued singletons: {}
+% singleton rescue: {}
+Singletons remaining (not rescued): {} \n'''.format(counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
 
     stats.write(summary_stats)
     print(summary_stats)

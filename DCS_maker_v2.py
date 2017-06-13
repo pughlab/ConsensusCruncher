@@ -225,11 +225,11 @@ def main():
     time_tracker.write('DCS: ')
     time_tracker.write(str((time.time() - start_time)/60) + '\n')
 
-    summary_stats = '''# === DCS MAKER ===
-SSCS - Total reads: {}
-SSCS - Unmapped reads: {} 
-SSCS - Secondary/Supplementary reads: {}
-DCS reads: {}
+    summary_stats = '''
+SSCS - Total reads: {} \n
+SSCS - Unmapped reads: {} \n
+SSCS - Secondary/Supplementary reads: {} \n
+DCS reads: {} \n
 SSCS singletons: {} \n'''.format(counter, unmapped, multiple_mappings, duplex_count, SSCS_singletons)
     stats.write(summary_stats)
 

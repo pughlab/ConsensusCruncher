@@ -272,9 +272,9 @@ def sscs_qname(tag, flag):
     # === Order qname by chr coordinate ===
     # e.g. CCCC_12_25398156_12_25398064 -> CCCC_12_25398064_12_25398156
     if (int(ref_coor) > int(mate_coor) and ref_chr == mate_chr) or \
-       (int(ref_chr) > int(mate_chr) and ref_chr != mate_coor):
+       (int(ref_chr) > int(mate_chr)):
         new_tag = tag.split("_")
-        new_tag[1] = mate_chr # swap ref with mate
+        new_tag[1] = mate_chr  # swap ref with mate
         new_tag[3] = ref_chr
         new_tag[2] = mate_coor
         new_tag[4] = ref_coor

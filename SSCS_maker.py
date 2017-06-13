@@ -184,44 +184,44 @@ def consensus_maker(readList, cutoff, failed_bases):
             quality_consensus.append(mol_qual)
             proportion_scores.append(0)
 
-            # === Write failed bases to file ===
-            # position of 2 most freq bases
-            if nuc_count == [0, 0, 0, 0, 0]:
-                max_nuc_index = failed_nuc_count.index(max(failed_nuc_count))
-                max_nuc = '{}*'.format(nuc_lst[max_nuc_index])
-                failed_nuc_count[max_nuc_index] = 0
-                if failed_nuc_count == [0, 0, 0, 0, 0]:
-                    second_max_nuc = 'NA'
-                else:
-                    second_max_index = failed_nuc_count.index(max(failed_nuc_count))
-                    second_max_nuc = '{}*'.format(nuc_lst[second_max_index])
-            else:
-                max_nuc = nuc_lst[max_nuc_index]
-                nuc_count[max_nuc_index] = 0
-                if nuc_count == [0, 0, 0, 0, 0]:
-                    second_max_nuc = 'NA'
-                else:
-                    second_max_index = nuc_count.index(max(nuc_count))
-                    second_max_nuc = nuc_lst[second_max_index]
-
-            # chr number
-            if readList[0].reference_id == 0:
-                chr = 'M'
-            elif readList[0].reference_id == 23:
-                chr = 'X'
-            elif readList[0].reference_id == 24:
-                chr = 'Y'
-            else:
-                chr = readList[0].reference_id
-            # print(nuc_count)
-            # print('max nuc {}'.format(max_nuc))
-            # print('2nd max nuc {}'.format(second_max_nuc))
-            failed_info = 'chr{}\t{}\t{}\t{}\n'.format(chr,
-                                                       base_coor[i],  # Pos
-                                                       max_nuc,  # Most freq base
-                                                       second_max_nuc)  # 2nd most freq base
-
-            failed_bases.write(failed_info)
+#             # === Write failed bases to file ===
+#             # position of 2 most freq bases
+#             if nuc_count == [0, 0, 0, 0, 0]:
+#                 max_nuc_index = failed_nuc_count.index(max(failed_nuc_count))
+#                 max_nuc = '{}*'.format(nuc_lst[max_nuc_index])
+#                 failed_nuc_count[max_nuc_index] = 0
+#                 if failed_nuc_count == [0, 0, 0, 0, 0]:
+#                     second_max_nuc = 'NA'
+#                 else:
+#                     second_max_index = failed_nuc_count.index(max(failed_nuc_count))
+#                     second_max_nuc = '{}*'.format(nuc_lst[second_max_index])
+#             else:
+#                 max_nuc = nuc_lst[max_nuc_index]
+#                 nuc_count[max_nuc_index] = 0
+#                 if nuc_count == [0, 0, 0, 0, 0]:
+#                     second_max_nuc = 'NA'
+#                 else:
+#                     second_max_index = nuc_count.index(max(nuc_count))
+#                     second_max_nuc = nuc_lst[second_max_index]
+# 
+#             # chr number
+#             if readList[0].reference_id == 0:
+#                 chr = 'M'
+#             elif readList[0].reference_id == 23:
+#                 chr = 'X'
+#             elif readList[0].reference_id == 24:
+#                 chr = 'Y'
+#             else:
+#                 chr = readList[0].reference_id
+#             # print(nuc_count)
+#             # print('max nuc {}'.format(max_nuc))
+#             # print('2nd max nuc {}'.format(second_max_nuc))
+#             failed_info = 'chr{}\t{}\t{}\t{}\n'.format(chr,
+#                                                        base_coor[i],  # Pos
+#                                                        max_nuc,  # Most freq base
+#                                                        second_max_nuc)  # 2nd most freq base
+# 
+#             failed_bases.write(failed_info)
 
     return consensus_read, quality_consensus, proportion_scores
 
@@ -245,12 +245,9 @@ def main():
     # ===== Initialize input and output bam files =====
     bamfile = pysam.AlignmentFile(args.infile, "rb")
     SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
-    SSCS_uncollapesd = pysam.AlignmentFile('{}.sscs.uncollapsed.bam'.format(args.outfile.split('.sscs')[0]), 'wb', template = bamfile)
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
     singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
     badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
-
-    failed_bases = open('{}.failed_bases.txt'.format(args.outfile.split('.sscs')[0]), 'w')
 
     # set up time tracker
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
@@ -284,7 +281,7 @@ def main():
             read_start = None
             read_end = None
         else:
-            read_chr = x.rsplit('_', 1)[0]
+            read_chr = x.split('_', 1)[0]
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
@@ -320,12 +317,6 @@ def main():
                         # print(read_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
-                        # === Write uncollapsed SSCS reads ===
-                        # write reads from tag family sizes >= 2 to file prior to collapsing
-                        for read in read_dict[tag]:
-                            SSCS_uncollapesd.write(read)
-                            SSCS_uncollapsed_reads += 1
-
                         # === Create collapsed SSCSs ===
                         SSCS = consensus_maker(read_dict[tag], float(args.cutoff), failed_bases)
 
@@ -397,15 +388,13 @@ def main():
         stat_file.write('family_size\tfrequency\n')
         stat_file.write('\n'.join('%s\t%s' % x for x in lst_fam_per_read))
 
-	# == Pandas method ==
-#     import pandas as pd
-#     tag_df = pd.DataFrame(list(tag_dict.items()), columns=['tag_ID', 'family_size'])
-#     tag_df_summary = tag_df.join(tag_df['tag_ID'].str.split('_', expand=True))
-#     tag_df_summary.columns = ['tag_ID', 'family_size', 'barcode', 'R1chr', 'R1start', 'R2chr', 'R2start', 'R1cigar',
-#                               'R2cigar', 'strand', 'orientation', 'RG']
-#     tag_df_summary.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
+    # import pandas as pd
+    # tag_df = pd.DataFrame(list(tag_dict.items()), columns=['tag_ID', 'family_size'])
+    # tag_df_summary = tag_df.join(tag_df['tag_ID'].str.split('_', expand=True))
+    # tag_df_summary.columns = ['tag_ID', 'family_size', 'barcode', 'R1chr', 'R1start', 'R2chr', 'R2start', 'R1cigar',
+    #                           'R2cigar', 'strand', 'orientation', 'RG']
+    # tag_df_summary.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
 
-	# == Pickle method ==
     # import pickle
     # tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
     # pickle.dump(tag_dict, tag_file)
@@ -413,12 +402,12 @@ def main():
 
     # === STATS ===
     # Note: total reads = unmapped + secondary + SSCS uncollapsed + singletons
-    summary_stats = '''Original - Total reads overlapping bedfile: {}
+    summary_stats = '''# === SSCS MAKER ===
+Original - Total reads overlapping bedfile: {}
 Original - Unmapped reads: {}
 Original - Secondary/Supplementary reads: {}
 SSCS reads: {}
-SSCS uncollapsed reads: {}
-Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, SSCS_uncollapsed_reads, singletons)
+Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons)
 
     stats.write(summary_stats)
     print(summary_stats)
@@ -434,9 +423,7 @@ Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, SSC
     stats.close()
     bamfile.close()
     SSCS_bam.close()
-    SSCS_uncollapesd.close()
     badRead_bam.close()
-    failed_bases.close()
 
     # ===== Create tag family size plot =====
     # Count number of families containing each number of read (e.g. Counter({1: 3737, 32: 660... ->
@@ -456,8 +443,7 @@ Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, SSC
     plt.xlim([0, math.ceil(lst_fam_per_read[-1][0]/10) * 10])
 
     #plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
-    plt.xlabel('Tag family size (# of reads per family)')
-    plt.ylabel('Fraction of total reads')
+
 
     plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')
 
