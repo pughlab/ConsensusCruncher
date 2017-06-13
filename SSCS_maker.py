@@ -85,7 +85,7 @@ def genomicBasedCigar(cigar, pos):
     return cord
 
 
-def consensus_maker(readList, cutoff, failed_bases):
+def consensus_maker(readList, cutoff):
     '''(list, int, int) -> str
     Return consensus sequence and quality score.
 
@@ -318,7 +318,7 @@ def main():
                         singleton_bam.write(read_dict[tag][0])
                     else:
                         # === Create collapsed SSCSs ===
-                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff), failed_bases)
+                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff))
 
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
