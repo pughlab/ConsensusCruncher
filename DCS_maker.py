@@ -152,7 +152,7 @@ def main():
             read_start = None
             read_end = None
         else:
-            read_chr = x.rsplit('_', 1)[0]
+            read_chr = x.split('_', 1)[0]
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
