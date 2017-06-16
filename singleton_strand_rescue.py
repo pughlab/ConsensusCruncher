@@ -168,7 +168,7 @@ def main():
             read_start = None
             read_end = None
         else:
-            read_chr = x.split('_', 1)[0]
+            read_chr = x.rsplit('_', 1)[0]
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
@@ -221,7 +221,6 @@ def main():
         ######################
         #       RESCUE       #
         ######################
-        # print(singleton_csn_pair)
         for readPair in list(singleton_csn_pair.keys()):
             for tag in singleton_csn_pair[readPair]:
                 counter += 1
@@ -248,16 +247,10 @@ def main():
                     rescue_dict[tag] = duplex
 
                     if duplex in rescue_dict.keys():
-                        # print(tag)
-                        # print(duplex)
-                        # print(rescue_dict)
-                        # print(tag in singleton_dict)
-                        # print(duplex in singleton_dict)
-                        # return 'hi'
-                        # delete tags from dict if both singletons are rescued in singleton-singleton
-                        # (aka duplex strand is already in dict)
                         del singleton_dict[tag]
                         del singleton_dict[duplex]
+                        del rescue_dict[tag]
+                        del rescue_dict[duplex]
 
                 # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex rescue was possible
                 else:
