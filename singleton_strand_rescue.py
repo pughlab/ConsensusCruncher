@@ -162,15 +162,28 @@ def main():
     else:
         division_coor = [1]
 
+    last_chr = "chrM"
+
     for x in division_coor:
         if division_coor == [1]:
             read_chr = None
             read_start = None
             read_end = None
         else:
-            read_chr = x.rsplit('_', 1)[0]
+            read_chr = x.split('_', 1)[0]
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
+            
+            # === Remove dict keys from previous chr ===
+            if last_chr != read_chr:
+                singleton_tag = collections.defaultdict(int)
+                # Its okay to remove all SSCSs after each region as rescue can only be done within same coor
+                sscs_dict = collections.OrderedDict()
+                sscs_tag = collections.defaultdict(int)
+                sscs_pair = collections.defaultdict(list)
+                sscs_csn_pair = collections.defaultdict(list)
+
+                last_chr = read_chr
 
         # === Store singleton reads in dictionaries ===
         singleton = read_bam(singleton_bam,
@@ -226,15 +239,13 @@ def main():
                 counter += 1
                 # Check to see if singleton can be rescued by SSCS, then by singletons. If not, add to 'remaining' rescue bamfile
                 duplex = duplex_tag(tag)
-                query_name = readPair + ':' + str(singleton_tag[tag])
+                query_name = readPair + ':1'  # This reflects its a rescued singleton as non-rescued ones won't have our unique identifier
 
                 # 1) SSCS duplex strand rescue -> check for duplex sequence matching singleton in SSCS bam
                 if duplex in sscs_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
                     sscs_dup_rescue += 1
                     sscs_rescue_bam.write(rescue_read)
-
-                    # rescue_dict[tag] = duplex
 
                     del sscs_dict[duplex]
                     del singleton_dict[tag]
