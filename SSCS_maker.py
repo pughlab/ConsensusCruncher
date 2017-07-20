@@ -150,12 +150,12 @@ def consensus_maker(readList, cutoff):
 
             # large families leads to multiplication of numerous small floats resulting in zero
             if P == 0:
-                mol_qual = 62
+                mol_qual = 60
             else:
                 mol_qual = round(-10 * math.log10(P))
 
-                if mol_qual > 62:
-                    mol_qual = 62
+                if mol_qual > 60:
+                    mol_qual = 60
 
         else:
             mol_qual = 0
