@@ -2,37 +2,24 @@
 
 ###############################################################
 #
-#                           SSCS Maker
+#      Single Stranded Consensus Sequence (SSCS) Generator
 #
 # Author: Nina Wang
-# Date Created: Jun 23, 2016
+# Date Created: Mar 24, 2016
 ###############################################################
 # Function:
+# To generate single strand consensus sequences for strand based error suppression.
+# - Consensus sequence from most common base with quality score >= Q30 and greater than <cutoff> representation
+# - Consensus quality score from addition of quality scores (i.e. product of error probabilities)
+#
 # Written for Python 3.5.1
 #
-# Inputs:
-# 1. A position-sorted paired-end BAM file containing reads with a duplex tag
-#    in the header.
-#
-# Outputs:
-# 1. A paired-end BAM file containing single stranded consensus sequences.
-# 2. A singleton BAM file containing all read families with single reads.
-# 3. A tag family size distribution plot (x-axis: family size, y-axis: number of reads).
-# 4. A text file containing summary statistics (Total reads, SSCS reads,
-#    singletons, rescued reads)
-#
-# Concepts:
-#    - Read family: reads that share the same molecular barcode, genome
-#                   coordinates for Read1 and Read2, cigar string, strand, flag, and read number
-#    - Singleton: a read family containing only one member (a single read)
-#
-# Usage: python3 SSCS_maker.py [--cutoff CUTOFF] [--infile INFILE] [--outfile OUTFILE]
+# Usage:
+# python3 SSCS_maker.py [--cutoff CUTOFF] [--infile INFILE] [--outfile OUTFILE] [--bedfile BEDFILE]
 #
 # Arguments:
-# --infile INFILE     input BAM file
-# --outfile OUTFILE   output BAM file
-# --cutoff CUTOFF     Percentage of nucleotides at a given position in a
-#                     sequence required to be identical for a consensus [0.7]
+# --cutoff CUTOFF     Proportion of nucleotides at a given position in a sequence required to be identical to form a
+#                     consensus (Recommendation: 0.7 - based on previous literature Kennedy et al.)
 #                        Example (--cutoff = 0.7):
 #                           Four reads (readlength = 10) are as follows:
 #                              Read 1: ACTGATACTT
@@ -40,93 +27,92 @@
 #                              Read 3: ACTGATACCT
 #                              Read 4: ACTGATACTT
 #                           The resulting SSCS is: ACTGATACNT
+# --infile INFILE     Input BAM file
+# --outfile OUTFILE   Output BAM file
+# --bedfile BEDFILE   Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt -
+#                     See bed_separator.R for making your own bed file based on a target panel / specific coordinates)
+#
+# Inputs:
+# 1. A position-sorted BAM file containing paired-end reads with duplex barcode in the header
+# 2. A BED file containing coordinates subdividing the entire ref genome for more manageable data processing
+#
+# Outputs:
+# 1. A SSCS BAM file containing paired single stranded consensus sequences - "sscs.bam"
+# 2. A singleton BAM file containing single reads - "singleton.bam"
+# 3. A bad read BAM file containing unpaired, unmapped, and multiple mapping reads - "badReads.bam"
+# 4. A text file containing summary statistics (Total reads, Unmmaped reads, Secondary/Supplementary reads, SSCS reads,
+#    and singletons) - "stats.txt"
+# 5. A tag family size distribution plot (x-axis: family size, y-axis: number of reads) - "tag_fam_size.png"
+# 6. A text file tracking the time to complete each genomic region (based on bed file) - "time_tracker.txt"
+#
+# Concepts:
+#    - Read family: reads that share the same molecular barcode, genome
+#                   coordinates for Read1 and Read2, cigar string, strand, flag, and read number
+#    - Singleton: a read family containing only one member (a single read)
 #
 ###############################################################
 
-import pysam # Need to install
+##############################
+#        Load Modules        #
+##############################
+import pysam  # Need to install
 import collections
 import re
 import array
 from random import *
 from itertools import chain
-from argparse import ArgumentParser
+import argparse
 import matplotlib.pyplot as plt
 import math
 import time
 
 from consensus_helper import *
 
+
 ###############################
 #       Helper Functions      #
 ###############################
-
-
-def genomicBasedCigar(cigar, pos):
-    '''(str, int) -> list
-    Return list of genomic positions based on cigar and start coordinate.
-
-    Function accounts for insertions in genome coordinate.
-    '''
-    pattern = re.compile('([MIDNS=])')
-    C = pattern.split(cigar)[1::2]  # Cigar e.g. ['S', 'M']
-    I = pattern.split(cigar)[::2][:-1]  # Index e.g. ['33', '90']
-    cord = []
-    for i in range(len(C)):
-        if C[i] == 'S':
-            cord = cord + [0] * int(I[i])
-        elif C[i] == 'M':
-            cord = cord + list(range(pos, pos + int(I[i]), 1))
-            pos += int(I[i])
-        elif C[i] == 'I':
-            cord = cord + [pos] * int(I[i])
-        elif C[i] == 'D':
-            pos += int(I[i])
-
-    return cord
-
-
-def consensus_maker(readList, cutoff):
-    '''(list, int, int) -> str
+def consensus_maker(readList, cutoff, readLength):
+    """(list, int, int) -> str
     Return consensus sequence and quality score.
 
-    Majority rules concept where if no majority is reached above the cutoff, an 'N' is assigned to the position.
-    - At each position, reads supporting each nucleotide is recorded along with the quality score corresponding to each
-    nucleotide
-    - Bases below the phred quality cutoff (Q30) are excluded from consensus making
-    - The most frequent base is added to the consensus sequence, given that the proportion of reads supporting this base
-    is greater than the cutoff
-    - A molecular phred quality score (consensus quality score) is determined by taking the product of errors of the most
-    frequent base
-    - If a majority can't be determined (i.e. a tie with 2 maximums)
-    '''
-    # === Genome coordinate of each base ===
-    # As each family shares the same start coordinate and cigar, this info can be collected from any read
-    base_coor = genomicBasedCigar(readList[0].cigarstring, readList[0].reference_start)
+    Arguments:
+        - readList: list of reads sharing the same unique molecular identifier
+        - cutoff: Proportion of nucleotides at a given position in a sequence required to be identical to form a consensus
 
-    # === Determine read length ===
-    cigar_mode = collections.Counter([r.cigarstring for r in readList]).most_common(1)[0][0]
-    cigar_mode_read = [r for r in readList if r.cigarstring == cigar_mode][0]
-    readLength = cigar_mode_read.infer_query_length()
-
-    # === Initialize counters ===
+    Concept:
+        Majority rules concept where if no majority is reached above the cutoff, an 'N' is assigned to the position.
+        - At each position, reads supporting each nucleotide is recorded along with the quality score corresponding to
+          each nucleotide
+        - Bases below the Phred quality cutoff (Q30) are excluded from consensus making
+        - The most frequent base is added to the consensus sequence, given that the proportion of reads supporting this
+          base is greater than the cutoff
+        - A molecular phred quality score (consensus quality score) is determined by taking the product of errors of the
+          most frequent base
+        - If a majority can't be determined (i.e. a tie with 2 maximums), N will be assigned as these bases won't pass
+          the proportion cut-off
+    """
+    # Initialize counters
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
     consensus_read = ''
     quality_consensus = []
     proportion_scores = []
 
+    # Determine consensus for every position across read length
     for i in range(readLength):
-        nuc_count = [0, 0, 0, 0, 0]  # A, C, G, T, N
+        # Positions in the following lists corresponds to A, C, G, T, N
+        nuc_count = [0, 0, 0, 0, 0]
         failed_nuc_count = [0, 0, 0, 0, 0]
-        quality_score = [[], [], [], [], []]
+        quality_score = [[], [], [], []]
         phred_fail = 0
 
+        # Count bases and quality scores for position i across all reads in list
         for j in range(len(readList)):
-            # === Phred filter Q30 cut-off ===
+            # Filter bases < phred quality 30 into separate list
             if readList[j].query_qualities[i] < 30:
                 nuc = readList[j].query_sequence[i]
                 nuc_index = nuc_lst.index(nuc)
                 failed_nuc_count[nuc_index] += 1
-                # quality_score[4] += 0
                 phred_fail += 1
             else:
                 nuc = readList[j].query_sequence[i]
@@ -134,42 +120,27 @@ def consensus_maker(readList, cutoff):
                 nuc_count[nuc_index] += 1
                 quality_score[nuc_index].append(readList[j].query_qualities[i])
 
-        # Find most frequent nuc (don't worry about ties (2 maxes) as it won't pass proportion cut-off and N will
-        # be assigned)
+        # Find most frequent nucleotide base and quality score (don't worry about ties (2 maxes) as it won't pass the
+        # proportion cut-off and N will be assigned)
         max_nuc_index = nuc_count.index(max(nuc_count))
-
-        # === Molecular phred quality (consensus quality score) ===
         max_nuc_quality = quality_score[max_nuc_index]
 
+        # Determine consensus phred quality through addition of quality scores (i.e. product of error probabilities)
         base_fail = False
-
-        if max_nuc_quality != []:
-            P = 1
-            for Q in max_nuc_quality:
-                P *= 10**(-(Q/10))
-
-            # large families leads to multiplication of numerous small floats resulting in zero
-            if P == 0:
+        if max_nuc_quality is not []:
+            mol_qual = sum(max_nuc_quality)
+            # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
+            if mol_qual > 60:
                 mol_qual = 60
-            else:
-                mol_qual = round(-10 * math.log10(P))
-
-                if mol_qual > 60:
-                    mol_qual = 60
-
         else:
             mol_qual = 0
             base_fail = True
 
-        # === Check proportion cutoff ===
-        # only make consensus if proportion of nuc is > cutoff (e.g. 70%) of reads
-        phred_pass_reads = len(readList) - phred_fail
+        # Consensus only made if proportion of most common base is > cutoff (e.g. 70%)
+        phred_pass_reads = len(readList) - phred_fail  # Remove number of failed bases from total count
         if phred_pass_reads != 0:
             prop_score = nuc_count[max_nuc_index]/phred_pass_reads
             if prop_score >= cutoff:
-                if base_fail == True:
-                    # test to see if a position that has failed quality score making can still pass filters
-                    print('base fail == True!!')
                 consensus_read += nuc_lst[max_nuc_index]
                 quality_consensus.append(mol_qual)
                 proportion_scores.append(prop_score)
@@ -178,66 +149,47 @@ def consensus_maker(readList, cutoff):
         else:
             base_fail = True
 
-        # === Set base to N if no consensus could be made ===
+        # Set base to N if no consensus could be made
         if base_fail:
             consensus_read += 'N'
             quality_consensus.append(mol_qual)
             proportion_scores.append(0)
 
-#             # === Write failed bases to file ===
-#             # position of 2 most freq bases
-#             if nuc_count == [0, 0, 0, 0, 0]:
-#                 max_nuc_index = failed_nuc_count.index(max(failed_nuc_count))
-#                 max_nuc = '{}*'.format(nuc_lst[max_nuc_index])
-#                 failed_nuc_count[max_nuc_index] = 0
-#                 if failed_nuc_count == [0, 0, 0, 0, 0]:
-#                     second_max_nuc = 'NA'
-#                 else:
-#                     second_max_index = failed_nuc_count.index(max(failed_nuc_count))
-#                     second_max_nuc = '{}*'.format(nuc_lst[second_max_index])
-#             else:
-#                 max_nuc = nuc_lst[max_nuc_index]
-#                 nuc_count[max_nuc_index] = 0
-#                 if nuc_count == [0, 0, 0, 0, 0]:
-#                     second_max_nuc = 'NA'
-#                 else:
-#                     second_max_index = nuc_count.index(max(nuc_count))
-#                     second_max_nuc = nuc_lst[second_max_index]
-# 
-#             # chr number
-#             if readList[0].reference_id == 0:
-#                 chr = 'M'
-#             elif readList[0].reference_id == 23:
-#                 chr = 'X'
-#             elif readList[0].reference_id == 24:
-#                 chr = 'Y'
-#             else:
-#                 chr = readList[0].reference_id
-#             # print(nuc_count)
-#             # print('max nuc {}'.format(max_nuc))
-#             # print('2nd max nuc {}'.format(second_max_nuc))
-#             failed_info = 'chr{}\t{}\t{}\t{}\n'.format(chr,
-#                                                        base_coor[i],  # Pos
-#                                                        max_nuc,  # Most freq base
-#                                                        second_max_nuc)  # 2nd most freq base
-# 
-#             failed_bases.write(failed_info)
-
     return consensus_read, quality_consensus, proportion_scores
+
+
+# Improve readability of argument help documentation
+class SmartFormatter(argparse.HelpFormatter):
+
+    def _split_lines(self, text, width):
+        if text.startswith('R|'):
+            return text[2:].splitlines()
+        return argparse.HelpFormatter._split_lines(self, text, width)
 
 
 ###############################
 #        Main Function        #
 ###############################
-
 def main():
     # Command-line parameters
-    parser = ArgumentParser()
-    parser.add_argument("--cutoff", action="store", dest="cutoff", help="nucleotide base % cutoff", required=True)
-    # parser.add_argument("--Ncutoff", action = "store", dest="Ncutoff", help="N % cutoff", required = True)
-    parser.add_argument("--infile", action="store", dest="infile", help="input BAM file", required=True)
-    parser.add_argument("--outfile", action="store", dest="outfile", help="output SSCS BAM file", required=True)
-    parser.add_argument("--bedfile", action="store", dest="bedfile", help="input bedfile for data division", required=False)
+    parser = ArgumentParser(formatter_class=SmartFormatter)
+    parser.add_argument("--cutoff", action="store", dest="cutoff", type=float,
+                        help="R|Proportion of nucleotides at a given position in a\nsequence required to be identical"
+                        " to form a consensus\n(Recommendation: 0.7 - based on previous literature\nKennedy et al.)\n"
+                        "   Example (--cutoff = 0.7):\n"
+                        "       Four reads (readlength = 10) are as follows:\n"
+                        "       Read 1: ACTGATACTT\n"
+                        "       Read 2: ACTGAAACCT\n"
+                        "       Read 3: ACTGATACCT\n"
+                        "       Read 4: ACTGATACTT\n"
+                        "   The resulting SSCS is: ACTGATACNT",
+                        required=True)
+    parser.add_argument("--infile", action="store", dest="infile", help="Input BAM file", required=True)
+    parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", required=True)
+    parser.add_argument("--bedfile", action="store", dest="bedfile",
+                        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
+                        See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
+                        required=False)
     args = parser.parse_args()
 
     start_time = time.time()
@@ -265,7 +217,6 @@ def main():
     counter = 0
     singletons = 0
     SSCS_reads = 0
-    SSCS_uncollapsed_reads = 0
 
     # ===== Determine data division coordinates =====
     # division by bed file if provided
@@ -285,18 +236,38 @@ def main():
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
-        chr_data = read_bam(bamfile,
-                            pair_dict=pair_dict,
-                            read_dict=read_dict,
-                            csn_pair_dict=csn_pair_dict,
-                            tag_dict=tag_dict,
-                            badRead_bam=badRead_bam,
-                            duplex=None,
-                            read_chr=read_chr,
-                            read_start=read_start,
-                            read_end=read_end
-                            )
+        # === Construct dictionaries for consensus making ===
+        # 1) read_dict: dictionary of bamfile reads
+        #    {read_tag: [ < pysam.calignedsegment.AlignedSegment >,
+        #    < pysam.calignedsegment.AlignedSegment >,..etc.]}
+        #     - Key: barcode_chr_startR1_startR2_strand_ReadNum
+        #     - Value: list of bamfile reads
+        #
+        # 2) tag_dict: integer dictionary indicating number of reads in each read family
+        #    {read_tag: 2,..etc}
+        #
+        # 3) pair_dict: dictionary of paired reads based on query name to process data in pairs
+        #    (note: this is a tmp dict as values are removed from dict once pair assigned to other dicts, this is
+        #     important for retaining data from translocations or reads crossing bam division regions)
+        #    {query name: [read 1, read 2]}
+        #
+        # 4) csn_pair_dict: dictionary of paired tags sharing the same consensus tag to track pairing (paired reads
+        #    share the same query name/header)
+        #    {consensus_tag: [R1_tag, R2_tag]}
 
+        chr_data = read_bam(bamfile,
+                                read_dict=read_dict,
+                                tag_dict=tag_dict,
+                                pair_dict=pair_dict,
+                                csn_pair_dict=csn_pair_dict,
+                                badRead_bam=badRead_bam,
+                                duplex=None,  # this indicates bamfile is not for making DCS (thus headers are diff)
+                                read_chr=read_chr,
+                                read_start=read_start,
+                                read_end=read_end
+                                )
+
+        # Set dicts and update counters
         read_dict = chr_data[0]
         tag_dict = chr_data[1]
         pair_dict = chr_data[2]
@@ -307,23 +278,29 @@ def main():
         unmapped_mate += chr_data[6]
         multiple_mapping += chr_data[7]
 
-        # ===== Create consensus sequences as paired reads =====
+        # Determine length of sequence using read with most the common cigar string from the largest family
+        max_fam_tag = max(tag_dict.keys(), key=(lambda k:tag_dict[k]))
+        max_fam_reads = read_dict[max_fam_tag]
+        cigar_mode = collections.Counter([r.cigarstring for r in max_fam_reads]).most_common(1)[0][0]
+        cigar_mode_read = [r for r in max_fam_reads if r.cigarstring == cigar_mode][0]
+        readLength = cigar_mode_read.infer_query_length()
+
+        # ===== Create consensus sequences for paired reads =====
         for readPair in list(csn_pair_dict.keys()):
             if len(csn_pair_dict[readPair]) == 2:
                 for tag in csn_pair_dict[readPair]:
-                    # === Check for singletons ===
+                    # Check for singletons
                     if tag_dict[tag] == 1:
                         singletons += 1
-                        # print(read_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
-                        # === Create collapsed SSCSs ===
-                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff))
+                        # Create collapsed SSCSs
+                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff), readLength)
 
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
 
-                        # === Write consensus bam ===
+                        # Write consensus bam
                         SSCS_bam.write(SSCS_read)
                         SSCS_reads += 1
 
@@ -333,17 +310,31 @@ def main():
                 # Remove key from dictionary after writing
                 del csn_pair_dict[readPair]
 
-        print(x)
-        print(str((time.time() - start_time)/60))
         try:
             time_tracker.write(x + ': ')
             time_tracker.write(str((time.time() - start_time)/60) + '\n')
-
         except:
+            # When no genomic coordinates (x) provided for data division
             continue
 
-    # === Check to see if there's remaining reads ===
+    # === STATS ===
+    # Note: total reads = unmapped + secondary + SSCS uncollapsed + singletons
+    summary_stats = '''# === SSCS MAKER ===
+Uncollapsed - Total reads: {}
+Uncollapsed - Unmapped reads: {}
+Uncollapsed - Secondary/Supplementary reads: {}
+SSCS reads: {}
+Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons)
 
+    stats.write(summary_stats)
+    print(summary_stats)
+
+    # === QC to see if there's remaining reads ===
+    print('# QC: Total uncollapsed reads should be equivalent to mapped reads in bam file.')
+    print('Total uncollapsed reads: {}'.format(counter))
+    print('Total mapped reads in bam file: {}'.format(bamfile.mapped))
+
+    print("QC: check dictionaries to see if there are any remaining reads")
     print('=== pair_dict remaining ===')
     if bool(pair_dict):
         for i in pair_dict:
@@ -372,80 +363,32 @@ def main():
             try:
                 print(i)
                 print(csn_pair_dict[i])
-                # print('read remaining:')
-                # print(csn_pair_dict[i][0])
-                # print('mate:')
-                # print(bamfile.mate(csn_pair_dict[i][0]))
             except ValueError:
                 print("Mate not found")
 
-
     # ===== write tag family size dictionary to file =====
-    # count of tags within each family size
-    tags_per_fam_size = collections.Counter([i for i in tag_dict.values()])
-    lst_fam_per_read = list(tags_per_fam_size.items())  # convert to list
+    tags_per_fam = collections.Counter([i for i in tag_dict.values()])  # count of tags within each family size
+    lst_tags_per_fam = list(tags_per_fam.items())  # convert to list [(fam, numTags)]
     with open(args.outfile.split('.sscs')[0] + '.read_families.txt', "w") as stat_file:
         stat_file.write('family_size\tfrequency\n')
-        stat_file.write('\n'.join('%s\t%s' % x for x in lst_fam_per_read))
+        stat_file.write('\n'.join('%s\t%s' % x for x in lst_tags_per_fam))
 
-    # import pandas as pd
-    # tag_df = pd.DataFrame(list(tag_dict.items()), columns=['tag_ID', 'family_size'])
-    # tag_df_summary = tag_df.join(tag_df['tag_ID'].str.split('_', expand=True))
-    # tag_df_summary.columns = ['tag_ID', 'family_size', 'barcode', 'R1chr', 'R1start', 'R2chr', 'R2start', 'R1cigar',
-    #                           'R2cigar', 'strand', 'orientation', 'RG']
-    # tag_df_summary.to_csv(args.outfile.split('.sscs')[0] + '.read_families.txt', index=None, sep='\t', mode='a')
+    # ===== Create tag family size plot =====
+    total_reads = sum(tag_dict.values())
+    # Read fraction = family size * frequency of family / total reads
+    read_fraction = [(i*j)/total_reads for i, j in lst_tags_per_fam]
 
-    # import pickle
-    # tag_file = open(args.outfile.split('.sscs')[0] + '.read_families.txt', 'ab+')
-    # pickle.dump(tag_dict, tag_file)
-    # tag_file.close()
+    plt.bar(lst_tags_per_fam, read_fraction)
+    # Determine read family size range to standardize plot axis
+    plt.xlim([0, math.ceil(lst_tags_per_fam[-1][0]/10) * 10])
+    plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')
 
-    # === STATS ===
-    # Note: total reads = unmapped + secondary + SSCS uncollapsed + singletons
-    summary_stats = '''# === SSCS MAKER ===
-Original - Total reads overlapping bedfile: {}
-Original - Unmapped reads: {}
-Original - Secondary/Supplementary reads: {}
-SSCS reads: {}
-Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons)
-
-    stats.write(summary_stats)
-    print(summary_stats)
-
-    # === QC ===
-    # print('===QC metric===')
-    print('# QC: Mapped reads overlapping bed file should be equivalent to mapped reads in bam file.')
-    print('Total mapped reads in bam file: {}'.format(bamfile.mapped))
-    # print('Total unmapped reads: {}'.format(bamfile.unmapped))
-    # print('Total reads: {}'.format(bamfile.mapped + bamfile.unmapped))
-
+    # ===== Close files =====
     time_tracker.close()
     stats.close()
     bamfile.close()
     SSCS_bam.close()
     badRead_bam.close()
-
-    # ===== Create tag family size plot =====
-    # Count number of families containing each number of read (e.g. Counter({1: 3737, 32: 660... ->
-    # 3737 families are singletons)
-
-    fam_per_read_group = collections.Counter([i for i in tag_dict.values()])
-    lst_fam_per_read = list(fam_per_read_group.items())  # convert to list
-
-    total_reads = sum(tag_dict.values())
-    # Multiply number of families by read num to get total number of reads in that read group, divide it by total reads
-    # to obtain read fraction
-    read_fraction = [(i*j)/total_reads for i,j in lst_fam_per_read]
-
-    plt.bar(list(fam_per_read_group), read_fraction)
-
-    # == Determine read family size range to standardize plot axis ==
-    plt.xlim([0, math.ceil(lst_fam_per_read[-1][0]/10) * 10])
-
-    #plt.locator_params(axis = 'x', nbins=lst_fam_per_read[-1][0]//5)
-
-
-    plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')
 
 
 ###############################
