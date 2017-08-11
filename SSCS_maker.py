@@ -73,7 +73,7 @@ from consensus_helper import *
 #       Helper Functions      #
 ###############################
 def consensus_maker(readList, cutoff, readLength):
-    """(list, int, int) -> str
+    """(list, int, int) -> str, list, list
     Return consensus sequence and quality score.
 
     Arguments:
@@ -212,7 +212,6 @@ def main():
 
     # ===== Initialize counters =====
     unmapped = 0
-    unmapped_mate = 0
     multiple_mapping = 0  # secondary/supplementary reads
     counter = 0
     singletons = 0
@@ -237,24 +236,6 @@ def main():
             read_end = division_coor[x][1]
 
         # === Construct dictionaries for consensus making ===
-        # 1) read_dict: dictionary of bamfile reads
-        #    {read_tag: [ < pysam.calignedsegment.AlignedSegment >,
-        #    < pysam.calignedsegment.AlignedSegment >,..etc.]}
-        #     - Key: barcode_chr_startR1_startR2_strand_ReadNum
-        #     - Value: list of bamfile reads
-        #
-        # 2) tag_dict: integer dictionary indicating number of reads in each read family
-        #    {read_tag: 2,..etc}
-        #
-        # 3) pair_dict: dictionary of paired reads based on query name to process data in pairs
-        #    (note: this is a tmp dict as values are removed from dict once pair assigned to other dicts, this is
-        #     important for retaining data from translocations or reads crossing bam division regions)
-        #    {query name: [read 1, read 2]}
-        #
-        # 4) csn_pair_dict: dictionary of paired tags sharing the same consensus tag to track pairing (paired reads
-        #    share the same query name/header)
-        #    {consensus_tag: [R1_tag, R2_tag]}
-
         chr_data = read_bam(bamfile,
                                 read_dict=read_dict,
                                 tag_dict=tag_dict,
@@ -275,8 +256,7 @@ def main():
 
         counter += chr_data[4]
         unmapped += chr_data[5]
-        unmapped_mate += chr_data[6]
-        multiple_mapping += chr_data[7]
+        multiple_mapping += chr_data[6]
 
         # Determine length of sequence using read with most the common cigar string from the largest family
         max_fam_tag = max(tag_dict.keys(), key=(lambda k:tag_dict[k]))
@@ -298,7 +278,7 @@ def main():
                         SSCS = consensus_maker(read_dict[tag], float(args.cutoff), readLength)
 
                         query_name = readPair + ':' + str(tag_dict[tag])
-                        SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
+                        SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], SSCS[2], query_name)
 
                         # Write consensus bam
                         SSCS_bam.write(SSCS_read)
