@@ -374,6 +374,9 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
 
         counter += 1
 
+        ######################
+        #    Filter Reads    #
+        ######################
         # === 1) FILTER OUT UNMAPPED / MULTIPLE MAPPING READS ===
         mate_unmapped = [73, 89, 121, 153, 185, 137]
         badRead = True
@@ -396,6 +399,9 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         else:
             pair_dict[line.qname].append(line)
 
+            ######################
+            #      Unique ID     #
+            ######################
             # === 2) ASSIGN UNIQUE IDENTIFIER TO READ PAIRS ===
             if len(pair_dict[line.qname]) == 2:
                 cigar = cigar_order(pair_dict[line.qname][0], pair_dict[line.qname][1])
@@ -415,6 +421,9 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                     # Assign consensus tag as new query name for paired consensus reads
                     consensus_tag = sscs_qname(tag)
 
+                    ######################
+                    #   Assign to Dict   #
+                    ######################
                     # === 3) ADD READ PAIRS TO DICTIONARIES ===
                     if tag not in read_dict and tag not in tag_dict:
                         read_dict[tag] = [read]

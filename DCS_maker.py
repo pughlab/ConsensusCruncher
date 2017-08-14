@@ -15,7 +15,7 @@
 # Written for Python 3.5.1
 #
 # Usage:
-# Python3 DCS_maker.py [--infile INFILE] [--outfile OUTFILE]
+# Python3 DCS_maker.py [--infile INFILE] [--outfile OUTFILE] [--bedfile BEDFILE]
 #
 # Arguments:
 # --infile INFILE     input BAM file
@@ -137,8 +137,10 @@ def main():
                         required=False)
     args = parser.parse_args()
 
+    ######################
+    #       SETUP        #
+    ######################
     start_time = time.time()
-
     # ===== Initialize input and output bam files =====
     args.infile = str(args.infile)
     args.outfile = str(args.outfile)
@@ -180,6 +182,9 @@ def main():
     duplex_count = 0
     duplex_dict = collections.defaultdict(int)
 
+    #######################
+    #   SPLIT BY REGION   #
+    #######################
     # ===== Determine data division coordinates =====
     # division by bed file if provided
     if args.bedfile is not None:
@@ -220,6 +225,9 @@ def main():
         unmapped_mate += chr_data[6]
         multiple_mapping += chr_data[7]
 
+        ######################
+        #     CONSENSUS      #
+        ######################
         # ===== Create consenus seq for reads =====
         for readPair in list(csn_pair_dict.keys()):
             for tag in csn_pair_dict[readPair]:
@@ -256,6 +264,9 @@ def main():
             # Remove key from dictionary after writing
             del csn_pair_dict[readPair]
 
+    ######################
+    #       SUMMARY      #
+    ######################
     summary_stats = '''# === {} ===
 SSCS{} - Total reads: {}
 SSCS{} - Unmapped reads: {}

@@ -192,8 +192,10 @@ def main():
                         required=False)
     args = parser.parse_args()
 
+    ######################
+    #       SETUP        #
+    ######################
     start_time = time.time()
-
     # ===== Initialize input and output bam files =====
     bamfile = pysam.AlignmentFile(args.infile, "rb")
     SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
@@ -217,6 +219,9 @@ def main():
     singletons = 0
     SSCS_reads = 0
 
+    #######################
+    #   SPLIT BY REGION   #
+    #######################
     # ===== Determine data division coordinates =====
     # division by bed file if provided
     if args.bedfile is not None:
@@ -265,6 +270,9 @@ def main():
         cigar_mode_read = [r for r in max_fam_reads if r.cigarstring == cigar_mode][0]
         readLength = cigar_mode_read.infer_query_length()
 
+        ######################
+        #     CONSENSUS      #
+        ######################
         # ===== Create consensus sequences for paired reads =====
         for readPair in list(csn_pair_dict.keys()):
             if len(csn_pair_dict[readPair]) == 2:
@@ -297,6 +305,9 @@ def main():
             # When no genomic coordinates (x) provided for data division
             continue
 
+    ######################
+    #       SUMMARY      #
+    ######################
     # === STATS ===
     # Note: total reads = unmapped + secondary + SSCS uncollapsed + singletons
     summary_stats = '''# === SSCS MAKER ===

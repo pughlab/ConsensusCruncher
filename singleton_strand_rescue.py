@@ -8,18 +8,43 @@
 #  Date Created: July 5, 2016
 ###############################################################
 #  Function:
-#  Written for Python 3.5.1
+# To rescue single reads with its complimentary (SSCS/singleton) strand and enable error suppression
+# - Traditionally, consensus sequences can only be made from 2 or more reads
 #
-#  Inputs:
-#  1. A position-sorted paired-end BAM file containing reads with a duplex tag
-#    in the header.
+# Written for Python 3.5.1
 #
-#  Description:
-#  Helper functions for single strand and duplex consensus making
+# Usage:
+# Python3 singleton_strand_rescue.py [--singleton SingletonBAM] [--bedfile BEDFILE]
+#
+# Arguments:
+# --singleton SingletonBAM  input singleton BAM file
+# --bedfile BEDFILE         Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt -
+#                           See bed_separator.R for making your own bed file based on specific coordinates)
+#
+# Inputs:
+# 1. A position-sorted BAM file containing paired-end single reads with barcode identifiers in the header/query name
+# 2. A BED file containing coordinates subdividing the entire ref genome for more manageable data processing
+#
+# Outputs:
+# 1. A BAM file containing paired singletons error corrected by its complimentary SSCS - "sscs.rescue.bam"
+# 2. A BAM file containing paired singletons error corrected by its complimentary singleton - "singleton.rescue.bam"
+# 3. A BAM file containing the remaining singletons that cannot be rescued as its missing a complimentary strand -
+#    "rescue.remaining.bam"
+# 4. A text file containing summary statistics (Total singletons, Single strand rescued singletons, % SSCS rescue,
+#    Singleton strand rescued singletons, % singleton rescue, Singleton remaining (not rescued))
+#    - "stats.txt" (Stats pended to same stats file as SSCS)
+#
+# Concepts:
+#    - Read family: reads that share the same molecular barcode, chr, and start
+#                   coordinates for Read1 and Read2
+#    - Singleton: single read with no PCR duplicates (family size = 1)
 #
 ###############################################################
 
-import pysam # Need to install
+##############################
+#        Load Modules        #
+##############################
+import pysam  # Need to install
 import collections
 from argparse import ArgumentParser
 import time
@@ -29,36 +54,34 @@ import inspect
 
 from consensus_helper import *
 
+
 ###############################
 #       Helper Functions      #
 ###############################
-
-
 def duplex_consensus(read1, read2):
-    '''(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> pysam.calignedsegment.AlignedSegment
+    """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) ->
+    pysam.calignedsegment.AlignedSegment
 
-    Return consensus of 2 reads with N for variant bases.
-    '''
+    Return consensus of complimentary reads with N for inconsistent bases.
+    """
     consensus_seq = ''
-    qual_consensus = []
-
-    ### NOTE: if one of the reads is SSCS, maybe we should take the base of that instead? AKA just asign the singleton read the seq of the SSCS
-    ### My concern is when the SSCS is formed from 2/3 reads...
+    consensus_qual = []
 
     for i in range(read1.query_length):
+        # Check to see if base at position i is the same
         if read1.query_sequence[i] == read2.query_sequence[i]:
             consensus_seq += read1.query_sequence[i]
-            P = 10**(-(read1.query_qualities[i]/10)) * 10**(-(read2.query_qualities[i]/10))
-            Q = round(-10 * math.log10(P))
-            if Q > 62:
-                qual_consensus += [62]
+            mol_qual = sum(read1.query_qualities[i], read2.query_qualities[i])
+            # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
+            if mol_qual > 60:
+                consensus_qual += [60]
             else:
-                qual_consensus += [Q]
+                consensus_qual += [mol_qual]
         else:
             consensus_seq += 'N'
-            qual_consensus += [0]
+            consensus_qual += [0]
 
-    return consensus_seq, qual_consensus
+    return consensus_seq, consensus_qual
 
 
 def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
@@ -71,7 +94,7 @@ def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=No
     read = singleton_dict[read_tag][0]
 
     # If SSCS bamfile provided, rescue with SSCS
-    if sscs_dict == None:
+    if sscs_dict is None:
         compliment_read = singleton_dict[duplex_tag][0]
     else:
         compliment_read = sscs_dict[duplex_tag][0]
@@ -87,38 +110,37 @@ def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=No
 ###############################
 
 def main():
-    '''Singleton rescue:
+    """Singleton rescue:
     - First rescue with SSCS bam
     - Rescue remaining singletons with singleton bam
-    '''
+    """
     # Command-line parameters
     parser = ArgumentParser()
     parser.add_argument("--singleton", action="store", dest="singleton", help="input singleton BAM file",
                         required=True, type=str)
-    parser.add_argument("--bedfile", action="store", dest="bedfile", help="input bedfile", required=False)
+    parser.add_argument("--bedfile", action="store", dest="bedfile",
+                        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
+                        See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
+                        required=False)
     args = parser.parse_args()
-
-    start_time = time.time()
 
     ######################
     #       SETUP        #
     ######################
+    start_time = time.time()
     # ===== Initialize input and output bam files =====
-    # Read input bams as pysam objects
     singleton_bam = pysam.AlignmentFile(args.singleton, "rb")
+    # Infer SSCS bam from singleton bamfile (by removing extensions)
     sscs_bam = pysam.AlignmentFile('{}.sscs{}'.format(args.singleton.split('.singleton')[0],
                                                       args.singleton.split('.singleton')[1]), "rb")
-
-    # Setup output bams
     sscs_rescue_bam = pysam.AlignmentFile('{}.sscs.rescue.bam'.format(args.singleton.split('.singleton')[0]), 'wb',
-                                          template = singleton_bam)
+                                          template=singleton_bam)
     singleton_rescue_bam = pysam.AlignmentFile('{}.singleton.rescue.bam'.format(args.singleton.split('.singleton')[0]),
                                                'wb', template=singleton_bam)
-    remaining_rescue_bam = pysam.AlignmentFile(
-        '{}.rescue.remaining.bam'.format(args.singleton.split('.singleton')[0]), 'wb', template=singleton_bam)
-
-    badRead_bam = pysam.AlignmentFile('{}.singleton.rescue.badReads.bam'.format(args.singleton.split('.singleton')[0]), "wb",
-                                      template=singleton_bam)
+    remaining_rescue_bam = pysam.AlignmentFile('{}.rescue.remaining.bam'.format(args.singleton.split('.singleton')[0]),
+                                               'wb', template=singleton_bam)
+    badRead_bam = pysam.AlignmentFile('{}.singleton.rescue.badReads.bam'.format(args.singleton.split('.singleton')[0]),
+                                      "wb", template=singleton_bam)
 
     stats = open('{}.stats.txt'.format(args.singleton.split('.singleton')[0]), 'a')
     time_tracker = open('{}.time_tracker.txt'.format(args.singleton.split('.singleton')[0]), 'a')
@@ -129,7 +151,7 @@ def main():
     singleton_pair = collections.defaultdict(list)
     singleton_csn_pair = collections.defaultdict(list)
 
-    sscs_dict = collections.OrderedDict()  # dict that remembers order of entries
+    sscs_dict = collections.OrderedDict()
     sscs_tag = collections.defaultdict(int)
     sscs_pair = collections.defaultdict(list)
     sscs_csn_pair = collections.defaultdict(list)
@@ -151,19 +173,17 @@ def main():
     singleton_dup_rescue = 0
     singleton_remaining = 0
 
-    counter = 0
+    counter = 0  # Total singletons
 
     #######################
     #   SPLIT BY REGION   #
     #######################
-
     if args.bedfile is not None:
         division_coor = bed_separator(args.bedfile)
     else:
         division_coor = [1]
 
     last_chr = "chrM"
-
     for x in division_coor:
         if division_coor == [1]:
             read_chr = None
@@ -174,10 +194,10 @@ def main():
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
             
-            # === Remove dict keys from previous chr ===
+            # === Reset dictionaries ===
             if last_chr != read_chr:
                 singleton_tag = collections.defaultdict(int)
-                # Its okay to remove all SSCSs after each region as rescue can only be done within same coor
+                # Its okay to clear SSCS dicts after each region as rescue can only be done within the same coor
                 sscs_dict = collections.OrderedDict()
                 sscs_tag = collections.defaultdict(int)
                 sscs_pair = collections.defaultdict(list)
@@ -237,11 +257,12 @@ def main():
         for readPair in list(singleton_csn_pair.keys()):
             for tag in singleton_csn_pair[readPair]:
                 counter += 1
-                # Check to see if singleton can be rescued by SSCS, then by singletons. If not, add to 'remaining' rescue bamfile
+                # Check to see if singleton can be rescued by SSCS, then by singletons
+                # If not, add to 'remaining' rescue bamfile
                 duplex = duplex_tag(tag)
-                query_name = readPair + ':1'  # This reflects its a rescued singleton as non-rescued ones won't have our unique identifier
+                query_name = readPair + ':1'  # Reflect rescued singleton (non-rescues won't have our unique ID tag)
 
-                # 1) SSCS duplex strand rescue -> check for duplex sequence matching singleton in SSCS bam
+                # 1) Singleton rescue by complimentary SSCS
                 if duplex in sscs_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
                     sscs_dup_rescue += 1
@@ -250,7 +271,7 @@ def main():
                     del sscs_dict[duplex]
                     del singleton_dict[tag]
 
-                # 2) Singleton duplex strand rescue -> check for duplex sequence matching singleton in singletons bam
+                # 2) Singleton rescue by complimentary Singletons
                 elif duplex in singleton_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict)
                     singleton_dup_rescue += 1
