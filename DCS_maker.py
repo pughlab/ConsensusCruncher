@@ -62,22 +62,37 @@ def dcs_consensus_tag(tag, ds):
     """(str, str) -> str
     Return consensus tag for duplex reads.
 
-    >>> dcs_consensus_tag('TTCA_7_55259315_7_55259454_98M_98M_neg:3', 'CATT_7_55259315_7_55259454_98M_98M_pos:6')
-    'CATT_TTCA_7_55259315_7_55259454_98M_98M'
+    Strand removed and family size from both SSCS included in order of pos_neg strand.
 
-    >>> dcs_consensus_tag('CTTC_23_74804535_23_74804611_98M_98M_neg:2', 'TCCT_23_74804535_23_74804611_98M_98M_pos:3')
-    'CTTC_TCCT_23_74804535_23_74804611_98M_98M'
+    Test cases:
+    >>> dcs_consensus_tag('TTCA_7_55259315_7_55259454_98M_98M_neg:3', 'CATT_7_55259315_7_55259454_98M_98M_pos:6')
+    'CATT_TTCA_7_55259315_7_55259454_98M_98M:6_3'
+
+    >>> dcs_consensus_tag('CTTC_23_74804535_23_74804611_98M_98M_pos:2', 'TCCT_23_74804535_23_74804611_98M_98M_neg:3')
+    'CTTC_TCCT_23_74804535_23_74804611_98M_98M:2_3'
 
     >>> dcs_consensus_tag('TTTC_7_140477735_7_140477790_98M_98M_neg:3', 'TCTT_7_140477735_7_140477790_98M_98M_pos:2')
-    'TCTT_TTTC_7_140477735_7_140477790_98M_98M'
+    'TCTT_TTTC_7_140477735_7_140477790_98M_98M:2_3'
     """
     barcode = tag.split('_')[0]
     duplex_barcode = ds.split('_')[0]
     tag_coor = tag.split('_', 1)[1].rsplit('_', 1)[0]
+    tag_fam_size = tag.split(':')[1]
+    ds_fam_size = ds.split(':')[1]
 
-    dcs_query_name = "{}_{}_{}".format(min(barcode, duplex_barcode),
-                                       max(barcode, duplex_barcode),
-                                       tag_coor)
+    # Order tag barcodes and family size based on strand (pos then negative)
+    if 'pos' in tag:
+        dcs_query_name = "{}_{}_{}:{}_{}".format(barcode,
+                                                 duplex_barcode,
+                                                 tag_coor,
+                                                 tag_fam_size,
+                                                 ds_fam_size)
+    else:
+        dcs_query_name = "{}_{}_{}:{}_{}".format(duplex_barcode,
+                                                 barcode,
+                                                 tag_coor,
+                                                 ds_fam_size,
+                                                 tag_fam_size)
 
     return dcs_query_name
 
@@ -128,21 +143,21 @@ def main():
     args.infile = str(args.infile)
     args.outfile = str(args.outfile)
 
-    SSCS_bam = pysam.AlignmentFile(args.infile, "rb")
-    DCS_bam = pysam.AlignmentFile(args.outfile, "wb", template=SSCS_bam)
+    sscs_bam = pysam.AlignmentFile(args.infile, "rb")
+    dcs_bam = pysam.AlignmentFile(args.outfile, "wb", template=sscs_bam)
     
     if re.search('dcs.sr', args.outfile):
-        SSCS_singleton = pysam.AlignmentFile('{}.sscs.sr.singleton.bam'.format(args.outfile.split('.dcs.sr')[0]),
-                                             "wb", template=SSCS_bam)
+        sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.sr.singleton.bam'.format(args.outfile.split('.dcs.sr')[0]),
+                                             "wb", template=sscs_bam)
         badRead_bam = pysam.AlignmentFile('{}.dcs.sr.badReads.bam'.format(args.outfile.split('.dcs.sr')[0]),
-                                          "wb", template=SSCS_bam)
+                                          "wb", template=sscs_bam)
         dcs_header = "DCS - Singleton Rescue"
         sr_header = " SR"
     else:
-        SSCS_singleton = pysam.AlignmentFile('{}.sscs.singleton.bam'.format(args.outfile.split('.dcs')[0]),
-                                             "wb", template=SSCS_bam)
+        sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.singleton.bam'.format(args.outfile.split('.dcs')[0]),
+                                             "wb", template=sscs_bam)
         badRead_bam = pysam.AlignmentFile('{}.dcs.badReads.bam'.format(args.outfile.split('.dcs')[0]),
-                                          "wb", template=SSCS_bam)
+                                          "wb", template=sscs_bam)
         dcs_header = "DCS"
         sr_header = ""
 
@@ -159,7 +174,7 @@ def main():
     unmapped_mate = 0
     multiple_mapping = 0  # Secondary/supplementary reads
     counter = 0
-    SSCS_singletons = 0  # Single strand consensus sequences without a complimentary strand
+    sscs_singletons = 0  # Single strand consensus sequences without a complimentary strand
     multiple_mappings = 0
 
     duplex_count = 0
@@ -183,7 +198,7 @@ def main():
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
-        chr_data = read_bam(SSCS_bam,
+        chr_data = read_bam(sscs_bam,
                             pair_dict=pair_dict,
                             read_dict=read_dict,
                             csn_pair_dict=csn_pair_dict,
@@ -207,47 +222,39 @@ def main():
 
         # ===== Create consenus seq for reads =====
         for readPair in list(csn_pair_dict.keys()):
-            if len(csn_pair_dict[readPair]) != 2:
-                # This shouldn't be a problem as our SSCS should contain read pairs
-                print('uh oh pairing problem!!! Only one read, mate missing')
-                print(readPair)
-                print(csn_pair_dict[readPair][0])
-                print(read_dict[csn_pair_dict[readPair][0]][0])
-                print(SSCS_bam.mate(read_dict[csn_pair_dict[readPair][0]][0]))
-            else:
-                for tag in csn_pair_dict[readPair]:
-                    # Determine tag of duplex read
-                    ds = duplex_tag(tag)
+            for tag in csn_pair_dict[readPair]:
+                # Determine tag of duplex read
+                ds = duplex_tag(tag)
 
-                    # === Group duplex read pairs and create consensus ===
-                    # Check presence of duplex pair
-                    if ds not in duplex_dict.keys():
-                        if tag in tag_dict and ds in tag_dict:
-                            duplex_count += 1
+                # === Group duplex read pairs and create consensus ===
+                # Check presence of duplex pair
+                if ds not in duplex_dict.keys():
+                    if tag in tag_dict and ds in tag_dict:
+                        duplex_count += 1
 
-                            # consensus seq
-                            consensus_seq, consensus_qual = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
+                        # consensus seq
+                        consensus_seq, consensus_qual = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
 
-                            # consensus duplex tag
-                            dcs_query_name = dcs_consensus_tag(tag, ds)  # New query name containing both barcodes
+                        # consensus duplex tag
+                        dcs_query_name = dcs_consensus_tag(tag, ds)  # New query name containing both barcodes
 
-                            dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
-                                                              consensus_qual, dcs_query_name)
+                        dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
+                                                          consensus_qual, dcs_query_name)
 
-                            # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
-                            duplex_dict[tag] += 1
+                        # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
+                        duplex_dict[tag] += 1
 
-                            DCS_bam.write(dcs_read)
+                        dcs_bam.write(dcs_read)
 
-                        else:
-                            SSCS_singleton.write(read_dict[tag][0])
-                            SSCS_singletons += 1
+                    else:
+                        sscs_singleton_bam.write(read_dict[tag][0])
+                        sscs_singletons += 1
 
-                        # Remove read from dictionary after writing
-                        del read_dict[tag]
+                    # Remove read from dictionary after writing
+                    del read_dict[tag]
 
-                # Remove key from dictionary after writing
-                del csn_pair_dict[readPair]
+            # Remove key from dictionary after writing
+            del csn_pair_dict[readPair]
 
     summary_stats = '''# === {} ===
 SSCS{} - Total reads: {}
@@ -255,7 +262,7 @@ SSCS{} - Unmapped reads: {}
 SSCS{} - Secondary/Supplementary reads: {}
 DCS{} reads: {}
 SSCS{} singletons: {} \n'''.format(dcs_header, sr_header, counter, sr_header, unmapped, sr_header, multiple_mappings,
-                                   sr_header, duplex_count, sr_header, SSCS_singletons)
+                                   sr_header, duplex_count, sr_header, sscs_singletons)
     stats.write(summary_stats)
     print(summary_stats)
 
@@ -266,8 +273,8 @@ SSCS{} singletons: {} \n'''.format(dcs_header, sr_header, counter, sr_header, un
     # Close files
     time_tracker.close()
     stats.close()
-    DCS_bam.close()
-    SSCS_singleton.close()
+    dcs_bam.close()
+    sscs_singleton_bam.close()
 
     return duplex_dict
 
