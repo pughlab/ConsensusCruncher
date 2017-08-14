@@ -96,9 +96,12 @@ def which_strand(read):
                      65:129, 129:65, 113:177, 177:113
                      }
 
-    Notes: Need to determine orientation for translocations (flags 65, 129, 113, 177) where pair occurs in same direction
-    - pos: read is first in pair (R1) and has lower chr number than mate with higher chr number (R1 chr < R2 chr) OR
-           read is second in pair (R2) and has higher chr number than mate with lower chr number (R2 chr > R1 chr)
+    To determine orientation of translocations (flag 65, 129, 113, 177) where read pair occurs in same direction,
+    use coordinate to determine strand
+    - pos: 1) read is first in pair (R1) AND has lower chr number than mate with higher chr number (R1 chr < R2 chr) OR
+           2) read is second in pair (R2) AND has higher chr number than mate with lower chr number (R2 chr > R1 chr) OR
+           3) read is first in pair (R1) AND is on same chr as mate AND start position is less than mate start OR
+           4) read is second in pair (R2) AND is on the same chr as mate AND start position is more than mate start
            e.g. H1080:278:C8RE3ACXX:6:1209:19123:36119|CTCT	113	12	25398309	60	98M	16	7320258	98 ->
                 (chr12_chr16_R1) 'pos'
                 H1080:278:C8RE3ACXX:6:1209:19123:36119|CTCT	177	16	7320258	60	98M	12	25398309	98 ->
@@ -125,9 +128,13 @@ def which_strand(read):
     elif read.flag in neg:
         strand = 'neg'
     elif read.flag in no_ori:
-        # Determine orientation of flags with no defined direction
-        if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or \
-                (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2'):
+        # Determine orientation of flags with no defined direction using order of chr coor
+        if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or\
+           (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2') or\
+           (read.reference_id == read.next_reference_i and which_read(read.flag) == 'R1' and
+                read.reference_start < read.next_reference_start) or \
+           (read.reference_id == read.next_reference_i and which_read(read.flag) == 'R2' and
+                read.reference_start > read.next_reference_start):
             strand = 'pos'
         else:
             strand = 'neg'
@@ -538,9 +545,9 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, prop_scores, query_name):
         SSCS_read.set_tag('RG', read_mode("get_tag('RG')", bam_reads))
     except:
         pass
-    # Proportion scores: I have a feeling the start and end of sequences are problematic areas, this has been confirmed
+    # Proportion scores: I think the start and end of sequences are problematic areas, this has been confirmed
     # through base composition analysis; however, maybe we can still use these scores to filter reads
-    # [e.g. reads with mean prop score below 70% are filtered]
+    # [e.g. reads with mean prop score below 70% can be filtered]
     SSCS_read.set_tag('ps', prop_scores)
 
     return SSCS_read
