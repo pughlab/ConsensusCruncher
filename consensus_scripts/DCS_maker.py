@@ -30,8 +30,7 @@
 # Outputs:
 # 1. A BAM file containing paired double stranded consensus sequences - "dcs.bam"
 # 2. A SSCS singleton BAM file containing SSCSs without reads from the complimentary strand - "sscs.singleton.bam"
-# 3. A bad read BAM file containing unpaired, unmapped, and multiple mapping reads - "dcs.badReads.bam"
-# 4. A text file containing summary statistics (Total SSCS reads, Unmmaped SSCS reads, Secondary/Supplementary SSCS
+# 3. A text file containing summary statistics (Total SSCS reads, Unmmaped SSCS reads, Secondary/Supplementary SSCS
 #    reads, DCS reads, and SSCS singletons) - "stats.txt" (Stats pended to same stats file as SSCS)
 #
 # Concepts:
