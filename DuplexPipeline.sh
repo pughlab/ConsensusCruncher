@@ -5,7 +5,7 @@
 ################
 #    SET-UP    #
 ################
-project_dir=$1
+sample_dir=$1
 input_bam=$2
 bedfile=$3
 codedir=$4
@@ -21,11 +21,11 @@ module load java/8
 ###############
 #  Sample ID  #
 ###############
-identifier=$(echo -e $input_bam |  awk '{ gsub(/.bam/, ""); print }')
+identifier=${input_bam//\.bam/}
+identifier=${identifier##*/}
+echo $identifier
 
-cd $project_dir/consensus
-mkdir 'Duplex_'$identifier
-cd 'Duplex_'$identifier
+cd $sample_dir
 
 ################
 #     SSCS     #

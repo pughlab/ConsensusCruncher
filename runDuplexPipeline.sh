@@ -12,7 +12,7 @@ codedir='/mnt/work1/users/pughlab/projects/Duplext_sequencing/nwang_scripts/pl_d
 if [ $# -eq 3 ]; then
     bedfile=$3
 else
-	bedfile=$codedir/cytoBand.txt
+	bedfile=$codedir/consensus_scripts/cytoBand.txt
 fi
 
 cd $project_dir
@@ -22,6 +22,14 @@ mkdir consensus
 # run Duplex Pipeline #
 #######################
 cd $bamdir
-for bamfile in $(ls *.bam); do
-	qsub -q highmem.q $codedir/DuplexPipeline.sh $project_dir $bamdir/$bamfile $bedfile $codedir/consensus_scripts
+for bamfile in $(ls *bam); do
+	identifier=${bamfile//\.bam/}
+	echo $identifier
+
+	cd $project_dir/consensus
+	mkdir 'Duplex_'$identifier
+	cd 'Duplex_'$identifier
+	sample_dir=$project_dir/consensus/'Duplex_'$identifier
+
+	qsub -q highmem.q $codedir/DuplexPipeline.sh $sample_dir $bamdir/$bamfile $bedfile $codedir/consensus_scripts
 done
