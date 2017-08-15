@@ -225,8 +225,7 @@ def main():
 
         singleton_counter += singleton[4]
         singleton_unmapped += singleton[5]
-        singleton_unmapped_mate += singleton[6]
-        singleton_multiple_mappings += singleton[7]
+        singleton_multiple_mappings += singleton[6]
 
         # === Store SSCS reads in dictionaries ===
         sscs = read_bam(sscs_bam,
@@ -248,8 +247,7 @@ def main():
 
         sscs_counter += sscs[4]
         sscs_unmapped += sscs[5]
-        sscs_unmapped_mate += sscs[6]
-        sscs_multiple_mappings += sscs[7]
+        sscs_multiple_mappings += sscs[6]
 
         ######################
         #       RESCUE       #

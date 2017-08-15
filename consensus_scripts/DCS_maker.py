@@ -222,8 +222,7 @@ def main():
 
         counter += chr_data[4]
         unmapped += chr_data[5]
-        unmapped_mate += chr_data[6]
-        multiple_mapping += chr_data[7]
+        multiple_mapping += chr_data[6]
 
         ######################
         #     CONSENSUS      #
