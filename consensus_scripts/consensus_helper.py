@@ -508,7 +508,7 @@ def consensus_flag(bam_reads):
     return flag
 
 
-def create_aligned_segment(bam_reads, sscs, sscs_qual, prop_scores, query_name):
+def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
     """(list, str, list, list, str) -> pysam object
     Return consensus read representing list of reads from the same molecule.
 
