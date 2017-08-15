@@ -139,8 +139,6 @@ def main():
                                                'wb', template=singleton_bam)
     remaining_rescue_bam = pysam.AlignmentFile('{}.rescue.remaining.bam'.format(args.singleton.split('.singleton')[0]),
                                                'wb', template=singleton_bam)
-    badRead_bam = pysam.AlignmentFile('{}.singleton.rescue.badReads.bam'.format(args.singleton.split('.singleton')[0]),
-                                      "wb", template=singleton_bam)
 
     stats = open('{}.stats.txt'.format(args.singleton.split('.singleton')[0]), 'a')
     time_tracker = open('{}.time_tracker.txt'.format(args.singleton.split('.singleton')[0]), 'a')
@@ -211,7 +209,7 @@ def main():
                              read_dict=singleton_dict,  # keeps track of paired tags
                              tag_dict=singleton_tag,
                              csn_pair_dict=singleton_csn_pair,
-                             badRead_bam=badRead_bam,
+                             badRead_bam=None,
                              duplex=None,
                              read_chr=read_chr,
                              read_start=read_start,
@@ -233,7 +231,7 @@ def main():
                         read_dict=sscs_dict,  # keeps track of paired tags
                         tag_dict=sscs_tag,
                         csn_pair_dict=sscs_csn_pair,
-                        badRead_bam=badRead_bam,
+                        badRead_bam=None,
                         duplex=True,
                         read_chr=read_chr,
                         read_start=read_start,

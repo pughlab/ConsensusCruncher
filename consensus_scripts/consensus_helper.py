@@ -395,7 +395,8 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
 
         # Write bad reads to file
         if badRead:
-            badRead_bam.write(line)
+            if badRead_bam is not None:
+                badRead_bam.write(line)
         else:
             pair_dict[line.qname].append(line)
 
