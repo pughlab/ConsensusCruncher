@@ -227,6 +227,7 @@ def main():
         division_coor = [1]
 
     # ===== Process data in chunks =====
+    region=0
     for x in division_coor:
         if division_coor == [1]:
             read_chr = None
@@ -260,12 +261,10 @@ def main():
         unmapped += chr_data[5]
         multiple_mapping += chr_data[6]
 
-        # Determine length of sequence using read with most the common cigar string from the largest family
-        max_fam_tag = max(tag_dict.keys(), key=(lambda k:tag_dict[k]))
-        max_fam_reads = read_dict[max_fam_tag]
-        cigar_mode = collections.Counter([r.cigarstring for r in max_fam_reads]).most_common(1)[0][0]
-        cigar_mode_read = [r for r in max_fam_reads if r.cigarstring == cigar_mode][0]
-        readLength = cigar_mode_read.infer_query_length()
+        # Determine length of sequence
+        if region is 0:
+            readLength = next(iter(read_dict.values()))[0].infer_query_length()
+            region += 1
 
         ######################
         #     CONSENSUS      #
@@ -366,7 +365,7 @@ Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, sin
     # Read fraction = family size * frequency of family / total reads
     read_fraction = [(i*j)/total_reads for i, j in lst_tags_per_fam]
 
-    plt.bar(lst_tags_per_fam, read_fraction)
+    plt.bar(list(tags_per_fam), read_fraction)
     # Determine read family size range to standardize plot axis
     plt.xlim([0, math.ceil(lst_tags_per_fam[-1][0]/10) * 10])
     plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')
