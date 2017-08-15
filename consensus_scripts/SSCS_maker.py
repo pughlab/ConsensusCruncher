@@ -96,7 +96,6 @@ def consensus_maker(readList, cutoff, readLength):
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
     consensus_read = ''
     quality_consensus = []
-    proportion_scores = []
 
     # Determine consensus for every position across read length
     for i in range(readLength):
@@ -143,7 +142,6 @@ def consensus_maker(readList, cutoff, readLength):
             if prop_score >= cutoff:
                 consensus_read += nuc_lst[max_nuc_index]
                 quality_consensus.append(mol_qual)
-                proportion_scores.append(prop_score)
             else:
                 base_fail = True
         else:
@@ -153,9 +151,8 @@ def consensus_maker(readList, cutoff, readLength):
         if base_fail:
             consensus_read += 'N'
             quality_consensus.append(mol_qual)
-            proportion_scores.append(0)
 
-    return consensus_read, quality_consensus, proportion_scores
+    return consensus_read, quality_consensus
 
 
 # Improve readability of argument help documentation
@@ -286,7 +283,7 @@ def main():
                         SSCS = consensus_maker(read_dict[tag], float(args.cutoff), readLength)
 
                         query_name = readPair + ':' + str(tag_dict[tag])
-                        SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], SSCS[2], query_name)
+                        SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
 
                         # Write consensus bam
                         SSCS_bam.write(SSCS_read)

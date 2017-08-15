@@ -554,10 +554,6 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, prop_scores, query_name):
         SSCS_read.set_tag('RG', read_mode("get_tag('RG')", bam_reads))
     except:
         pass
-    # Proportion scores: I think the start and end of sequences are problematic areas, this has been confirmed
-    # through base composition analysis; however, maybe we can still use these scores to filter reads
-    # [e.g. reads with mean prop score below 70% can be filtered]
-    SSCS_read.set_tag('ps', prop_scores)
 
     return SSCS_read
 
