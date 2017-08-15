@@ -109,7 +109,7 @@ def duplex_consensus(read1, read2):
         # Check to see if base at position i is the same
         if read1.query_sequence[i] == read2.query_sequence[i]:
             consensus_seq += read1.query_sequence[i]
-            mol_qual = sum(read1.query_qualities[i], read2.query_qualities[i])
+            mol_qual = sum([read1.query_qualities[i], read2.query_qualities[i]])
             # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
             if mol_qual > 60:
                 consensus_qual += [60]
@@ -243,7 +243,7 @@ def main():
                         consensus_seq, consensus_qual = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
 
                         # consensus duplex tag
-                        dcs_query_name = dcs_consensus_tag(tag, ds)  # New query name containing both barcodes
+                        dcs_query_name = dcs_consensus_tag(read_dict[tag][0].qname, read_dict[ds][0].qname)  # New query name containing both barcodes
 
                         dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
                                                           consensus_qual, dcs_query_name)
