@@ -71,7 +71,7 @@ def duplex_consensus(read1, read2):
         # Check to see if base at position i is the same
         if read1.query_sequence[i] == read2.query_sequence[i]:
             consensus_seq += read1.query_sequence[i]
-            mol_qual = sum(read1.query_qualities[i], read2.query_qualities[i])
+            mol_qual = sum([read1.query_qualities[i], read2.query_qualities[i]])
             # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
             if mol_qual > 60:
                 consensus_qual += [60]
