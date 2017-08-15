@@ -23,5 +23,5 @@ mkdir consensus
 #######################
 cd $bamdir
 for bamfile in $(ls *.bam); do
-	qsub -q highmem.q $codedir/DuplexScriptGen.sh $project_dir $bamdir/$bamfile $bedfile $codedir/consensus_scripts
+	qsub -q highmem.q $codedir/DuplexPipeline.sh $project_dir $bamdir/$bamfile $bedfile $codedir/consensus_scripts
 done
