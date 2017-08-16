@@ -10,7 +10,9 @@ cwd=$project_dir
 bamdir=$2
 codedir='/mnt/work1/users/pughlab/projects/Duplext_sequencing/nwang_scripts/pl_duplex_sequencing'
 if [ $# -eq 3 ]; then
-    bedfile=$3
+	# WARNING: Please format bedfile using bed_separator.R tool before using for duplex pipeline. 
+	# It is HIGHLY RECOMMENDED to use the default cytoBand.txt and not to include your own bedfile.
+    bedfile=$3  
 else
 	bedfile=$codedir/consensus_scripts/cytoBand.txt
 fi
