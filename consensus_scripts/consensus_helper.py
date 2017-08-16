@@ -131,9 +131,9 @@ def which_strand(read):
         # Determine orientation of flags with no defined direction using order of chr coor
         if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or\
            (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2') or\
-           (read.reference_id == read.next_reference_i and which_read(read.flag) == 'R1' and
+           (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R1' and
                 read.reference_start < read.next_reference_start) or \
-           (read.reference_id == read.next_reference_i and which_read(read.flag) == 'R2' and
+           (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R2' and
                 read.reference_start > read.next_reference_start):
             strand = 'pos'
         else:
