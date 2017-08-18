@@ -135,7 +135,6 @@ mv $identifier.sscs.sr.singleton* dcs_SR
 
 # DCS
 mv $identifier.dcs.sorted.* dcs
-mv $identifier.dcs.badReads.* dcs
 mv $identifier.sscs.singleton.sorted.* dcs
 
 # SSCS SR
