@@ -83,7 +83,9 @@ def which_read(flag):
 
 def which_strand(read):
     """(pysam.calignedsegment.AlignedSegment) -> str
-    Return DNA strand based on flags.
+    Return DNA strand of origin based on flags.
+
+    Note: Strand is needed for the common identifier to replace read orientation and number (see sscs_qname for example)
 
     flag_pairings = {
                      # paired and mapped
@@ -96,11 +98,11 @@ def which_strand(read):
                      65:129, 129:65, 113:177, 177:113
                      }
 
-    To determine orientation of translocations (flag 65, 129, 113, 177) where read pair occurs in same direction,
-    use coordinate to determine strand
-    - pos: 1) read is first in pair (R1) AND has lower chr number than mate with higher chr number (R1 chr < R2 chr) OR
-           2) read is second in pair (R2) AND has higher chr number than mate with lower chr number (R2 chr > R1 chr) OR
-           3) read is first in pair (R1) AND is on same chr as mate AND start position is less than mate start OR
+    To determine orientation of translocations (flag 65, 129, 113, 177) where read pair occurs in same direction or have
+    no orientation, use coordinate to determine strand
+    - pos: 1) read is first in pair (R1) AND has lower chr number than mate with higher chr number (R1 chr < R2 chr)
+           2) read is second in pair (R2) AND has higher chr number than mate with lower chr number (R2 chr > R1 chr)
+           3) read is first in pair (R1) AND is on same chr as mate AND start position is less than mate start
            4) read is second in pair (R2) AND is on the same chr as mate AND start position is more than mate start
            e.g. H1080:278:C8RE3ACXX:6:1209:19123:36119|CTCT	113	12	25398309	60	98M	16	7320258	98 ->
                 (chr12_chr16_R1) 'pos'
@@ -112,6 +114,17 @@ def which_strand(read):
                 H1080:278:C8RE3ACXX:6:1307:20616:55254|CTCT	113	16	7320258	60	98M	12	25398309	98 ->
                 (chr12_chr16_R2) 'neg'
 
+    Exceptions:
+    81/161 - reads from two strands of a molecule encoded as 81/161/81/161 when typically different flags given e.g.
+             99/147/83/163 between two strands. In addition, duplex pairing of these reads also differ (ignore edge
+             cases for now as there are very few occurrences)
+
+    normal:
+        for cases where flags of read/mate and their reverse complement are encoded in
+          the same direction or share the same flags
+          (e.g. flags 65/129 -> +/+/+/+ OR 81/161/81/161 [scenarios like this cannot be distinguished by flag info such
+          as orientation and strand number alone. Genome coordinate can be included to help differentiate reads])
+
     Example Test cases:
     Flag = 147 -> 'pos'
     Flag = 67 -> 'pos'
@@ -119,9 +132,9 @@ def which_strand(read):
     Flag = 81 -> 'neg'
     """
     # Flags indicating strand direction
-    pos = [99, 147, 67, 131, 97, 145]
-    neg = [83, 163, 115, 179, 81, 161]
-    no_ori = [65, 129, 113, 177]  # direction not defined
+    pos = [99, 147, 67, 131]
+    neg = [83, 163, 115, 179]
+    no_ori = [65, 129, 113, 177, 81, 161, 97, 145]  # direction not defined
 
     if read.flag in pos:
         strand = 'pos'
@@ -129,12 +142,12 @@ def which_strand(read):
         strand = 'neg'
     elif read.flag in no_ori:
         # Determine orientation of flags with no defined direction using order of chr coor
-        if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or\
-           (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2') or\
-           (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R1' and
-                read.reference_start < read.next_reference_start) or \
-           (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R2' and
-                read.reference_start > read.next_reference_start):
+        if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or \
+                (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2') or \
+                (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R1' and
+                         read.reference_start < read.next_reference_start) or \
+                (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R2' and
+                         read.reference_start > read.next_reference_start):
             strand = 'pos'
         else:
             strand = 'neg'
@@ -148,9 +161,14 @@ def which_strand(read):
     return strand
 
 
-def cigar_order(read, read_pair):
+def cigar_order(read, mate):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
-    Return ordered cigar string from R1 and R2
+    Return ordered cigar string from paired reads based on strand and read number.
+    * Note: order does not correspond to read and mate as cigars were extracted from read pair prior to assignment of
+    individual read identifiers (as mate cigar is not a parameter of each read, we would have to track both cigars
+    individually and order them for each read separately if we wanted cigars to be in the order of mate_pair. It just
+    makes more intuitive sense to track them by strand and read number since that's what we'll be using for the new
+    query name and that's the part end-users see anyways)
 
     0 = Match/mismatch
     1 = Insertion
@@ -174,29 +192,84 @@ def cigar_order(read, read_pair):
 
     if (ori_strand == 'pos' and read_num == 'R1') or (ori_strand == 'neg' and read_num == 'R2'):
         cigar = '{}_{}'.format(read.cigarstring,
-                               read_pair.cigarstring)
+                               mate.cigarstring)
     else:
-        cigar = '{}_{}'.format(read_pair.cigarstring,
+        cigar = '{}_{}'.format(mate.cigarstring,
                                read.cigarstring)
 
     return cigar
 
 
-def unique_tag(read, cigar, barcode):
+def sscs_qname(read, mate, barcode, cigar):
+    """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
+    Return new query name for consensus sequences:
+    [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Read Cigar String]_[Mate Cigar String]_[Strand]:[Family Size]
+
+    * Since multiple reads go into making a consensus, a new query name is needed as an identifier for consensus read
+    pairs * (Read pairs share the same query name to indicate they're mates)
+
+    Note: coordinates are ordered from low -> high and cigars ordered by read number and strand, so read pairs will
+          share common identifiers
+    WARNING: Pysam converts coordinates to be 0-based, query name coordinates don't match coordinate seen in read
+
+    ---
+    original query name -> H1080:278:C8RE3ACXX:6:1308:18882:18072|TTTG
+    new query name -> TTTG_24_58847448_24_58847416_137M10S_147M_pos
+
+    Examples:
+    (+)                                                 [Flag]
+    TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1 [99] --> TTTG_24_58847416_24_58847448_137M10S_147M_pos
+    TTTG_24_58847448_24_58847416_137M10S_147M_pos_rev_R2 [147]
+
+    (-)
+    TGTT_24_58847448_24_58847416_137M10S_147M_neg_rev_R1 [83] --> TGTT_24_58847416_24_58847448_137M10S_147M_neg
+    TGTT_24_58847416_24_58847448_137M10S_147M_neg_fwd_R2 [163]
+
+    Special case (mate and complementary reads are all in the same direction)
+    - Use coordinate and flags to differentiate between strand (see which_strand fx for details)
+    """
+    read_chr = read.reference_id
+    mate_chr = mate.reference_id
+    read_coor = read.reference_start
+    mate_coor = mate.reference_start
+
+    if (read_chr == mate_chr and int(read_coor) > int(mate_coor)) or \
+            (int(read_chr) > int(mate_chr)):
+        read_chr = mate.reference_id
+        mate_chr = read.reference_id
+        read_coor = mate.reference_start
+        mate_coor = read.reference_start
+
+    strand = which_strand(read)
+    query_tag = '{}_{}_{}_{}_{}_{}_{}'.format(barcode,
+                                              read_chr,
+                                              read_coor,
+                                              mate_chr,
+                                              mate_coor,
+                                              cigar,
+                                              strand)
+
+    return query_tag
+
+
+def unique_tag(read, barcode, cigar):
     """(pysam.calignedsegment.AlignedSegment, str, str) -> str
     Return unique identifier tag for one read of a strand of a molecule.
 
     Tag uses following characteristics to group reads belonging to the same strand of an individual molecule (PCR dupes):
-    [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Cigar String]_[Strand]_[Orientation]_[ReadNum]
-    e.g. TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1
+    [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Cigar String]_[Orientation]_[ReadNum]
+    e.g. TTTG_24_58847416_24_58847448_137M10S_147M_fwd_R1
 
     Notes:
-        - paired reads have ordered cigar strings (see cigar_order fx for details)
+        - barcode always in order of R1/R2 for each read pair as determined from tag_to_header.py extraction of tags
+          from fastq files
+        - paired reads have ordered cigar strings of read and mate (see cigar_order fx for details) - important to have
+        both for easy duplex tag search (if we didn't track both, you'd have to look for the corresponding mate cigar
+        each time)
         - barcode location differs depending on whether you're making SSCS (end of header in uncollapsed) vs
           DCS (start of header in SSCS)
         - chr of R1 and R2 included as they might differ in case of translocation
-        - orientation included for cases where mate and complimentary strand are on the same strand
-          (e.g. flags 65/129 -> +/+/+/+)
+        - orientation and read number included to differentiate palindromic barcodes
 
     Example:
        R1 --->   <--- R2
@@ -205,18 +278,16 @@ def unique_tag(read, cigar, barcode):
     (-) TT-----------GT
        R2 --->   <--- R1
 
-    R1 of (+) -> TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1
+    R1 of (+) -> TTTG_24_58847416_24_58847448_137M10S_147M_fwd_R1
     NB500964:12:HTTG2BGXX:4:22601:26270:1144|TTTG	99	24	58847416	17	137M10S	24	58847448	137
 
-    R2 of (+) -> TTTG_24_58847448_24_58847416_137M10S_147M_pos_rev_R2
+    R2 of (+) -> TTTG_24_58847448_24_58847416_137M10S_147M_rev_R2
     NB500964:12:HTTG2BGXX:4:22601:26270:1144|TTTG	147	24	58847448	17	147M	24	58847416	147
 
-    R1 of (-) -> TGTT_24_58847448_24_58847416_137M10S_147M_neg_rev_R1
+    R1 of (-) -> TGTT_24_58847448_24_58847416_137M10S_147M_rev_R1
 
-    R2 of (-) -> TGTT_24_58847416_24_58847448_137M10S_147M_neg_fwd_R2
+    R2 of (-) -> TGTT_24_58847416_24_58847448_137M10S_147M_fwd_R2
     """
-    strand = which_strand(read)
-
     orientation = 'fwd'
     if read.is_reverse:
         orientation = 'rev'
@@ -224,77 +295,16 @@ def unique_tag(read, cigar, barcode):
     readNum = which_read(read.flag)
 
     # Unique identifier for strand of individual molecules
-    tag = '{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,  # mol barcode
-                                              read.reference_id,  # chr
-                                              read.reference_start,  # start (0-based)
-                                              read.next_reference_id,  # mate chr
-                                              read.next_reference_start,  # mate start
-                                              cigar,
-                                              strand,
-                                              orientation,  # strand direction
-                                              readNum
-                                              )
+    tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,  # mol barcode
+                                           read.reference_id,  # chr
+                                           read.reference_start,  # start (0-based)
+                                           read.next_reference_id,  # mate chr
+                                           read.next_reference_start,  # mate start
+                                           cigar,
+                                           orientation,  # strand direction
+                                           readNum
+                                           )
     return tag
-
-
-def sscs_qname(tag):
-    """(str, int) -> str
-    Return new query name for consensus sequences:
-    [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Cigar String]_[Strand]:[Family Size]
-
-    * Since multiple reads go into making a consensus, a new query name is needed as an identifier for consensus read
-    pairs * (Read pairs share the same query name to indicate they're mates)
-
-    Note: coordinates are ordered from low -> high, so read pairs will share common identifiers
-    WARNING: Pysam converts coordinates to be 0-based, query name coordinates don't match coordinate seen in read
-
-    ---
-    original query name -> H1080:278:C8RE3ACXX:6:1308:18882:18072
-    new query name -> TTTG_24_58847448_24_58847416_137M10S_147M_pos:2
-
-    Examples:
-    (+)                                                 [Flag]
-    TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1 [99] --> TTTG_24_58847416_24_58847448_137M10S_147M_pos_99_147
-    TTTG_24_58847448_24_58847416_137M10S_147M_pos_rev_R2 [147]
-
-    (-)
-    TGTT_24_58847448_24_58847416_137M10S_147M_neg_rev_R1 [83] --> TGTT_24_58847416_24_58847448_137M10S_147M_neg_83_163
-    TGTT_24_58847416_24_58847448_137M10S_147M_neg_fwd_R2 [163]
-
-    Special case (mate and complimentary reads are all in the same direction)
-    - Use coordinate and flags to differentiate between strand
-
-    Test cases:
-    >>> sscs_qname('TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1', 99)
-    'TTTG_24_58847416_24_58847448_137M10S_147M_pos_99_147'
-    >>> sscs_qname('TTTG_24_58847448_24_58847416_137M10S_147M_pos_rev_R2', 147)
-    'TTTG_24_58847416_24_58847448_137M10S_147M_pos_99_147'
-    >>> sscs_qname('TGTT_24_58847448_24_58847416_137M10S_147M_neg_rev_R1', 83)
-    'TGTT_24_58847416_24_58847448_137M10S_147M_neg_83_163'
-    >>> sscs_qname('TGTT_24_58847416_24_58847448_137M10S_147M_neg_fwd_R2', 163)
-    'TGTT_24_58847416_24_58847448_137M10S_147M_neg_83_163'
-    """
-    ref_chr = tag.split("_")[1]
-    mate_chr = tag.split("_")[3]
-    ref_coor = tag.split("_")[2]
-    mate_coor = tag.split("_")[4]
-
-    # Order query name by chr coordinate (ascending)
-    # e.g. CCCC_12_25398156_12_25398064 -> CCCC_12_25398064_12_25398156
-    if (int(ref_coor) > int(mate_coor) and ref_chr == mate_chr) or \
-       (int(ref_chr) > int(mate_chr)):
-        new_tag = tag.split("_")
-        new_tag[1] = mate_chr  # swap ref with mate
-        new_tag[3] = ref_chr
-        new_tag[2] = mate_coor
-        new_tag[4] = ref_coor
-        new_tag = "_".join(new_tag)[:-7]  # consensus query name excludes orientation and read number
-
-    else:
-        # for reads with the same coordinate mate (start and stop are the same)
-        new_tag = tag[:-7]
-
-    return new_tag
 
 
 def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, duplex,
@@ -405,29 +415,33 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
             ######################
             # === 2) ASSIGN UNIQUE IDENTIFIER TO READ PAIRS ===
             if len(pair_dict[line.qname]) == 2:
-                cigar = cigar_order(pair_dict[line.qname][0], pair_dict[line.qname][1])
+                read = pair_dict[line.qname][0]
+                mate = pair_dict[line.qname][1]
+                # === Create consensus identifier ===
+                # Extract molecular barcode, barcodes in diff position for SSCS vs DCS generation
+                if duplex == None or duplex == False:
+                    # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
+                    barcode = read.qname.split("|")[1]
+                else:
+                    # DCS query name: CCTG_12_25398000_12_25398118_neg:5
+                    barcode = read.qname.split("_")[0]
 
-                for read in pair_dict[line.qname]:
-                    # === Create molecular identifier ===
-                    # Extract molecular barcode, barcodes in diff position for SSCS vs DCS generation
-                    if duplex == None or duplex == False:
-                        # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
-                        barcode = read.qname.split("|")[1]
-                    else:
-                        # DCS query name: CCTG_12_25398000_12_25398118_neg:5
-                        barcode = read.qname.split("_")[0]
+                # Consensus_tag cigar (ordered by strand and read)
+                cigar = cigar_order(read, mate)
+                # Assign consensus tag as new query name for paired consensus reads
+                consensus_tag = sscs_qname(read, mate, barcode, cigar)
 
-                    # Unique identifier for grouping reads belonging to the same read of a strand of a molecule
-                    tag = unique_tag(read, cigar, barcode)
-                    # Assign consensus tag as new query name for paired consensus reads
-                    consensus_tag = sscs_qname(tag)
+                for i in range(2):
+                    read_i = pair_dict[line.qname][i]
+                    # Molecular identifier for grouping reads belonging to the same read of a strand of a molecule
+                    tag = unique_tag(read_i, barcode, cigar)
 
                     ######################
                     #   Assign to Dict   #
                     ######################
                     # === 3) ADD READ PAIRS TO DICTIONARIES ===
                     if tag not in read_dict and tag not in tag_dict:
-                        read_dict[tag] = [read]
+                        read_dict[tag] = [read_i]
                         tag_dict[tag] += 1
 
                         # Group paired unique tags using consensus tag
@@ -436,15 +450,23 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                         elif len(csn_pair_dict[consensus_tag]) == 2:
                             # Honestly this shouldn't happen anymore with these identifiers
                             print("Consensus tag NOT UNIQUE -> multiple tags (4) share same consensus tag [due to poor "
-                                  "strand differentiation]")
+                                  "strand differentiation as a result of identifiers lacking complexity]")
+                            print(consensus_tag)
+                            print(tag)
+                            print(read_i)
+                            print(csn_pair_dict[consensus_tag])
+                            print(read_dict[csn_pair_dict[consensus_tag][0]][0])
+                            print(read_dict[csn_pair_dict[consensus_tag][1]][0])
+
+                            # Manual inspection should be done on these reads,
                         else:
                             csn_pair_dict[consensus_tag].append(tag)
                     elif tag in tag_dict and read not in read_dict[tag]:
                         # Append reads sharing the same unique tag together (PCR dupes)
-                        read_dict[tag].append(read)
+                        read_dict[tag].append(read_i)
                         tag_dict[tag] += 1
                     else:
-                        # Data fetch error - line read twice (if its found in tag_dict and read_dict) [shouldn't occur]
+                        # Data fetch error - line read twice (if its found in tag_dict and read_dict)
                         print('Pair already written: line read twice - check to see if read overlapping / near cytoband'
                               ' region (point of data division)')
 
@@ -561,7 +583,7 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
 
 def reverse_seq(seq):
     """(str) -> str
-    Return reverse compliment of sequence (used for writing rev comp sequences to fastq files).
+    Return reverse complement of sequence (used for writing rev comp sequences to fastq files).
 
     >>> reverse_seq('TCAGCATAATT')
     'AATTATGCTGA'
@@ -580,21 +602,22 @@ def duplex_tag(tag):
     """(str) -> str
     Return tag for duplex read.
 
-    Things to be changed in tag to find its complimentary tag:
+    Things to be changed in tag to find its complementary tag:
     1) barcode: molecular identifiers get swapped (e.g. 2 based identifiers on each side of DNA fragment)
-               (+) 5' AT-------GC  3' -> ATGC
-               (-)    AT-------GC     <- GCAT
-    2) strand: pos -> neg
-    3) read: R1 -> R2
+               (+) 5' AT-------CG  3' -> ATGC
+               (-)    AT-------CG     <- GCAT
+    2) read: R1 -> R2
+
+    Note: don't need to swap cigar strings as they are already ordered by strand (pos R1 correspond to neg R2)
 
     Test cases:
-    >>> duplex_tag('GTCT_1_1507809_7_55224319_98M_98M_pos_fwd_R1')
+    >>> duplex_tag('GTCT_1_1507809_7_55224319_98M_98M_fwd_R1')
     'CTGT_1_1507809_7_55224319_98M_98M_neg_fwd_R2'
-    >>> duplex_tag('GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2')
+    >>> duplex_tag('GTCT_7_55224319_1_1507809_98M_98M_rev_R2')
     'CTGT_7_55224319_1_1507809_98M_98M_neg_rev_R1'
-    >>> duplex_tag('CTGT_1_1507809_7_55224319_98M_98M_neg_fwd_R2')
+    >>> duplex_tag('CTGT_1_1507809_7_55224319_98M_98M_fwd_R2')
     'GTCT_1_1507809_7_55224319_98M_98M_pos_fwd_R1'
-    >>> duplex_tag('CTGT_7_55224319_1_1507809_98M_98M_neg_rev_R1')
+    >>> duplex_tag('CTGT_7_55224319_1_1507809_98M_98M_rev_R1')
     'GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2'
     """
     split_tag = tag.split('_')
@@ -604,18 +627,11 @@ def duplex_tag(tag):
     # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
     split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
 
-    # 2) Opposite strand in duplex
-    strand = split_tag[7]
-    if strand == 'pos':
-        split_tag[7] = 'neg'
-    else:
-        split_tag[7] = 'pos'
-
-    # 3) Opposite read number in duplex
-    read_num = split_tag[9]
+    # 2) Opposite read number in duplex
+    read_num = split_tag[8]
     if read_num == 'R1':
-        split_tag[9] = 'R2'
+        split_tag[8] = 'R2'
     else:
-        split_tag[9] = 'R1'
+        split_tag[8] = 'R1'
 
     return '_'.join(split_tag)
