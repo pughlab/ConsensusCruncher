@@ -27,6 +27,7 @@ sh [Duplex Sequencing git directory]/runDuplexPipeline.sh ProjectDir BamDir
 Although the runDuplexPipeline.sh script takes in a bedfile, this needs to be a specially formatted bedfile (using the bed\_separator.R tool). It is HIGHLY recommended you run the script without a bedfile (if this is your time), so the default "cytoband.txt" will be used to separate the bam file for processing. 
 
 This script will feed bamfiles into the DuplexPipeline.sh
+
 1. Single stranded consensus sequence (SSCS) maker
 2. Duplex consensus sequence (DCS) maker
 3. Singlet strand rescue (SR)
@@ -47,6 +48,7 @@ This pipeline requires the following dependencies:
 
 # Intro to Molecular Barcoding #
 ![Scheme](beta/script_overview.png)
+Duplex sequencing schematic: An uncollapsed BAM file is first processed through SSCS_maker.py to create an error suppressed single strand consensus sequences (SSCS) BAM file and an uncorrected Singleton BAM file. The single reads can be recovered through singleton_strand_rescue.py, which salvages singletons with its complementary SSCS or singleton. SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with rescued singletons to create an expanded pool of DCS reads (Figure illustrates singleton rescue merged work flow).
 
 ### Bamfiles ###
 * Uncollapsed: Original bamfiles
