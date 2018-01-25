@@ -47,7 +47,8 @@ This pipeline requires the following dependencies:
 | Java    | 8       | Used with Picard to merge bamfiles         |
 
 # Intro to Molecular Barcoding #
-![Scheme](beta/script_overview.png)
+![Scheme](beta/script_overview.png){:height="50%" width="50%"}
+
 Duplex sequencing schematic: An uncollapsed BAM file is first processed through SSCS_maker.py to create an error suppressed single strand consensus sequences (SSCS) BAM file and an uncorrected Singleton BAM file. The single reads can be recovered through singleton_strand_rescue.py, which salvages singletons with its complementary SSCS or singleton. SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with rescued singletons to create an expanded pool of DCS reads (Figure illustrates singleton rescue merged work flow).
 
 ### Bamfiles ###
