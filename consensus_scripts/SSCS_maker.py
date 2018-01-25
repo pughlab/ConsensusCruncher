@@ -276,6 +276,8 @@ def main():
                     # Check for singletons
                     if tag_dict[tag] == 1:
                         singletons += 1
+                        # Assign singletons our unique query name
+                        read_dict[tag][0].query_name = readPair + ':' + str(tag_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
                         # Create collapsed SSCSs
