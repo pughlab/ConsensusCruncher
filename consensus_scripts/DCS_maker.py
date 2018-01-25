@@ -29,14 +29,14 @@
 #
 # Outputs:
 # 1. A BAM file containing paired double stranded consensus sequences - "dcs.bam"
-# 2. A SSCS singleton BAM file containing SSCSs without reads from the complimentary strand - "sscs.singleton.bam"
+# 2. A SSCS singleton BAM file containing SSCSs without reads from the complementary strand - "sscs.singleton.bam"
 # 3. A text file containing summary statistics (Total SSCS reads, Unmmaped SSCS reads, Secondary/Supplementary SSCS
 #    reads, DCS reads, and SSCS singletons) - "stats.txt" (Stats pended to same stats file as SSCS)
 #
 # Concepts:
 #    - Read family: reads that share the same molecular barcode, chr, and start
 #                   coordinates for Read1 and Read2
-#    - SSCS Singleton: a SSCS read without its complimentary read
+#    - SSCS Singleton: a SSCS read without its complementary read
 #
 ###############################################################
 
@@ -99,7 +99,7 @@ def dcs_consensus_tag(tag, ds):
 def duplex_consensus(read1, read2):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> pysam.calignedsegment.AlignedSegment
 
-    Return consensus of complimentary reads with N for inconsistent bases.
+    Return consensus of complementary reads with N for inconsistent bases.
     """
     consensus_seq = ''
     consensus_qual = []
@@ -171,7 +171,7 @@ def main():
     unmapped_mate = 0
     multiple_mapping = 0  # Secondary/supplementary reads
     counter = 0
-    sscs_singletons = 0  # Single strand consensus sequences without a complimentary strand
+    sscs_singletons = 0  # Single strand consensus sequences without a complementary strand
     multiple_mappings = 0
 
     duplex_count = 0
