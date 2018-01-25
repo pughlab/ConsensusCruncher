@@ -8,7 +8,7 @@
 #  Date Created: July 5, 2016
 ###############################################################
 #  Function:
-# To rescue single reads with its complimentary (SSCS/singleton) strand and enable error suppression
+# To rescue single reads with its complementary (SSCS/singleton) strand and enable error suppression
 # - Traditionally, consensus sequences can only be made from 2 or more reads
 #
 # Written for Python 3.5.1
@@ -26,9 +26,9 @@
 # 2. A BED file containing coordinates subdividing the entire ref genome for more manageable data processing
 #
 # Outputs:
-# 1. A BAM file containing paired singletons error corrected by its complimentary SSCS - "sscs.rescue.bam"
-# 2. A BAM file containing paired singletons error corrected by its complimentary singleton - "singleton.rescue.bam"
-# 3. A BAM file containing the remaining singletons that cannot be rescued as its missing a complimentary strand -
+# 1. A BAM file containing paired singletons error corrected by its complementary SSCS - "sscs.rescue.bam"
+# 2. A BAM file containing paired singletons error corrected by its complementary singleton - "singleton.rescue.bam"
+# 3. A BAM file containing the remaining singletons that cannot be rescued as its missing a complementary strand -
 #    "rescue.remaining.bam"
 # 4. A text file containing summary statistics (Total singletons, Single strand rescued singletons, % SSCS rescue,
 #    Singleton strand rescued singletons, % singleton rescue, Singleton remaining (not rescued))
@@ -62,14 +62,15 @@ def duplex_consensus(read1, read2):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) ->
     pysam.calignedsegment.AlignedSegment
 
-    Return consensus of complimentary reads with N for inconsistent bases.
+    Return consensus of complementary reads with N for inconsistent bases.
     """
     consensus_seq = ''
     consensus_qual = []
 
     for i in range(read1.query_length):
         # Check to see if base at position i is the same
-        if read1.query_sequence[i] == read2.query_sequence[i]:
+        if read1.query_sequence[i] == read2.query_sequence[i] and \
+                        read1.query_qualities[i] > 29 and read2.query_qualities[i] > 29:
             consensus_seq += read1.query_sequence[i]
             mol_qual = sum([read1.query_qualities[i], read2.query_qualities[i]])
             # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
@@ -87,19 +88,19 @@ def duplex_consensus(read1, read2):
 def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
     """(str, str, dict, dict) -> Pysam.AlignedSegment
 
-    Return 'rescued' singleton read using compliment read from opposite strand (either found in SSCS or singleton).
+    Return 'rescued' singleton read using complement read from opposite strand (either found in SSCS or singleton).
 
-    Quality score calculated from singleton and complimentary read. Read template retained from singleton being rescued.
+    Quality score calculated from singleton and complementary read. Read template retained from singleton being rescued.
     """
     read = singleton_dict[read_tag][0]
 
     # If SSCS bamfile provided, rescue with SSCS
     if sscs_dict is None:
-        compliment_read = singleton_dict[duplex_tag][0]
+        complement_read = singleton_dict[duplex_tag][0]
     else:
-        compliment_read = sscs_dict[duplex_tag][0]
+        complement_read = sscs_dict[duplex_tag][0]
 
-    dcs = duplex_consensus(read, compliment_read)
+    dcs = duplex_consensus(read, complement_read)
     dcs_read = create_aligned_segment([read], dcs[0], dcs[1], query_name)
 
     return dcs_read
@@ -210,7 +211,7 @@ def main():
                              tag_dict=singleton_tag,
                              csn_pair_dict=singleton_csn_pair,
                              badRead_bam=None,
-                             duplex=None,
+                             duplex=True,
                              read_chr=read_chr,
                              read_start=read_start,
                              read_end=read_end
@@ -258,7 +259,7 @@ def main():
                 duplex = duplex_tag(tag)
                 query_name = readPair + ':1'  # Reflect rescued singleton (non-rescues won't have our unique ID tag)
 
-                # 1) Singleton rescue by complimentary SSCS
+                # 1) Singleton rescue by complementary SSCS
                 if duplex in sscs_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
                     sscs_dup_rescue += 1
@@ -267,7 +268,7 @@ def main():
                     del sscs_dict[duplex]
                     del singleton_dict[tag]
 
-                # 2) Singleton rescue by complimentary Singletons
+                # 2) Singleton rescue by complementary Singletons
                 elif duplex in singleton_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict)
                     singleton_dup_rescue += 1
