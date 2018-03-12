@@ -9,10 +9,7 @@ This README would normally document whatever steps are necessary to get your app
 ## How do I get set up? ##
 
 ### Summary of Set Up ###
-1. Run tag_to_header.py on fastq files to remove barcodes and spacer
-* --taglen 2
-* --spacerlen 1
-* --filtspacer T
+1. Run tag_to_header.py on fastq files to remove barcodes and spacer (--taglen 2 --spacerlen 1 --filtspacer T)
 2. Align fastqs (Recommendation: bwa mem)
 3. Process bams through GATK IndelRealigner (If you're following GATK best practices guidelines, don't do mark duplicates)
 4. runDuplexPipeline.sh
