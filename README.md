@@ -56,10 +56,11 @@ An uncollapsed BAM file is first processed through SSCS_maker.py to create an er
 * Uncollapsed: Original bamfiles
 * SSCS: Single strand consensus sequences
 * SSCS_SR: Single strand consensus sequences with rescued singletons
+* SSCS_SR_Singletons: SSCS that could not be made into DCSs
 * All_unique_sscs: Single strand consensus sequences + rescued singletons + remaining (unrescued) singletons 
 * DCS: Duplex consensus sequences
 * DCS_SR: Duplex consensus sequences from SSCS_SR
-* All_unique_dcs: Duplex consensus sequences from SSCS_SR + SSCS SR Singletons + remaining singletons
+* All_unique_dcs: Duplex consensus sequences from SSCS_SR + SSCS_SR_Singletons + remaining singletons
 * Singletons: Single reads
 
 ### Who do I talk to? ###
