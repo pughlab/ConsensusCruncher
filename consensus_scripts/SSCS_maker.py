@@ -240,16 +240,16 @@ def main():
 
         # === Construct dictionaries for consensus making ===
         chr_data = read_bam(bamfile,
-                                read_dict=read_dict,
-                                tag_dict=tag_dict,
-                                pair_dict=pair_dict,
-                                csn_pair_dict=csn_pair_dict,
-                                badRead_bam=badRead_bam,
-                                duplex=None,  # this indicates bamfile is not for making DCS (thus headers are diff)
-                                read_chr=read_chr,
-                                read_start=read_start,
-                                read_end=read_end
-                                )
+                            read_dict=read_dict,
+                            tag_dict=tag_dict,
+                            pair_dict=pair_dict,
+                            csn_pair_dict=csn_pair_dict,
+                            badRead_bam=badRead_bam,
+                            duplex=None,  # this indicates bamfile is not for making DCS (thus headers are diff)
+                            read_chr=read_chr,
+                            read_start=read_start,
+                            read_end=read_end
+                            )
 
         # Set dicts and update counters
         read_dict = chr_data[0]
@@ -263,6 +263,7 @@ def main():
 
         # Determine length of sequence
         if region is 0:
+            print(next(iter(read_dict.values()))[0])
             readLength = next(iter(read_dict.values()))[0].infer_query_length()
             region += 1
 
