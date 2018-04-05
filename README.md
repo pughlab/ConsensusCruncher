@@ -9,9 +9,9 @@ This README would normally document whatever steps are necessary to get your app
 ## How do I get set up? ##
 
 ### Summary of Set Up ###
-1. Run tag_to_header.py on fastq files to remove barcodes and spacer
+1. Run tag_to_header.py on fastq files to remove barcodes and spacer (--taglen 2 --spacerlen 1 --filtspacer T)
 2. Align fastqs (Recommendation: bwa mem)
-3. Process bams through GATK IndelRealigner (If you're following GATK best practices guidelines, don't mark duplicates)
+3. Process bams through GATK IndelRealigner (If you're following GATK best practices guidelines, don't do mark duplicates)
 4. runDuplexPipeline.sh
 
 ### Configuration ###
@@ -27,6 +27,7 @@ sh [Duplex Sequencing git directory]/runDuplexPipeline.sh ProjectDir BamDir
 Although the runDuplexPipeline.sh script takes in a bedfile, this needs to be a specially formatted bedfile (using the bed\_separator.R tool). It is HIGHLY recommended you run the script without a bedfile (if this is your time), so the default "cytoband.txt" will be used to separate the bam file for processing. 
 
 This script will feed bamfiles into the DuplexPipeline.sh
+
 1. Single stranded consensus sequence (SSCS) maker
 2. Duplex consensus sequence (DCS) maker
 3. Singlet strand rescue (SR)
@@ -46,16 +47,20 @@ This pipeline requires the following dependencies:
 | Java    | 8       | Used with Picard to merge bamfiles         |
 
 # Intro to Molecular Barcoding #
-![Scheme](beta/script_overview.png)
+![Scheme](beta/script_overview.png =500x500)
+
+**Duplex sequencing schematic:** 
+An uncollapsed BAM file is first processed through SSCS_maker.py to create an error suppressed single strand consensus sequences (SSCS) BAM file and an uncorrected Singleton BAM file. The single reads can be recovered through singleton_strand_rescue.py, which salvages singletons with its complementary SSCS or singleton. SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with rescued singletons to create an expanded pool of DCS reads (Figure illustrates singleton rescue merged work flow).
 
 ### Bamfiles ###
 * Uncollapsed: Original bamfiles
 * SSCS: Single strand consensus sequences
 * SSCS_SR: Single strand consensus sequences with rescued singletons
+* SSCS_SR_Singletons: SSCS that could not be made into DCSs
 * All_unique_sscs: Single strand consensus sequences + rescued singletons + remaining (unrescued) singletons 
 * DCS: Duplex consensus sequences
 * DCS_SR: Duplex consensus sequences from SSCS_SR
-* All_unique_dcs: Duplex consensus sequences from SSCS_SR + SSCS SR Singletons + remaining singletons
+* All_unique_dcs: Duplex consensus sequences from SSCS_SR + SSCS_SR_Singletons + remaining singletons
 * Singletons: Single reads
 
 ### Who do I talk to? ###
