@@ -21,7 +21,7 @@
 ##
 ##  DESCRIPTION:
 ##
-##  This script removes molecular barcode tags  and spacers from unzipped FASTQ files,
+##  This script removes molecular barcode tags and spacers from unzipped FASTQ files,
 ##  which are found by searching the source directory for files with "*R1". Tag removed
 ##  FASTQ files are subsequently aligned with BWA mem.
 ##
