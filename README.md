@@ -16,7 +16,8 @@ Note: depending on the size of your bamfiles, software might require a lot of me
 ~~~~
 sh [Duplex Sequencing git directory]/DuplexPipeline.sh Input_dir Output_dir 
 ~~~~
-Although the DuplexPipeline.sh script takes in a bedfile, this needs to be a specially formatted bedfile (using the bed\_separator.R tool). It is HIGHLY recommended you run the script without a bedfile (if this is your time), so the default "cytoband.txt" will be used to separate the bam file for processing. 
+Although the DuplexPipeline.sh script takes in a bedfile, this needs to be a specially formatted bedfile (using the bed\_separator.R tool). 
+It is HIGHLY recommended you run the script without a bedfile (if this is your time), so the default "cytoband.txt" will be used to separate the bam file for processing. 
 
 Scripts will be created for each bamfile found in the input directory. 
 Each bamfile will be processed through the following:
