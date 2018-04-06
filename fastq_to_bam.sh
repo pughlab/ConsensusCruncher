@@ -6,7 +6,7 @@
 ##
 ##  FILE:         fastq_to_bam.sh
 ##
-##  USAGE:        fastq_to_bam.sh -s fastq -o bwa_out -p project -t 2 -s 1 -f T
+##  USAGE:        fastq_to_bam.sh -i fastq -o bwa_out -p project -t 2 -s 1 -f T
 ##
 ##  OPTIONS:
 ##
