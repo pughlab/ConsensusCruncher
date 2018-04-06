@@ -1,4 +1,4 @@
-# README - Tools for Barcode Sequencing #
+# README - Tools for Duplex Sequencing #
 
 This README would normally document whatever steps are necessary to get your application up and running.
 
@@ -8,31 +8,23 @@ This README would normally document whatever steps are necessary to get your app
 
 ## How do I get set up? ##
 
-### Summary of Set Up ###
-1. Run tag_to_header.py on fastq files to remove barcodes and spacer (--taglen 2 --spacerlen 1 --filtspacer T)
-2. Align fastqs (Recommendation: bwa mem)
-3. Process bams through GATK IndelRealigner (If you're following GATK best practices guidelines, don't do mark duplicates)
-4. runDuplexPipeline.sh
-
 ### Configuration ###
-Set up runDuplexPipeline.sh
-- Input git directory as codedir 
+Set up DuplexPipeline.sh
 - Setup cluster configuration (default SGE cluster with highmem.q) 
-
 Note: depending on the size of your bamfiles, software might require a lot of memory resources
 
 ~~~~
-sh [Duplex Sequencing git directory]/runDuplexPipeline.sh ProjectDir BamDir 
+sh [Duplex Sequencing git directory]/DuplexPipeline.sh Input_dir Output_dir 
 ~~~~
-Although the runDuplexPipeline.sh script takes in a bedfile, this needs to be a specially formatted bedfile (using the bed\_separator.R tool). It is HIGHLY recommended you run the script without a bedfile (if this is your time), so the default "cytoband.txt" will be used to separate the bam file for processing. 
+Although the DuplexPipeline.sh script takes in a bedfile, this needs to be a specially formatted bedfile (using the bed\_separator.R tool). It is HIGHLY recommended you run the script without a bedfile (if this is your time), so the default "cytoband.txt" will be used to separate the bam file for processing. 
 
-This script will feed bamfiles into the DuplexPipeline.sh
-
-1. Single stranded consensus sequence (SSCS) maker
-2. Duplex consensus sequence (DCS) maker
-3. Singlet strand rescue (SR)
-4. Merge SSCS and Rescued singletons
-5. Duplex consensus sequence maker from SSCS + rescued singletons (DCS_SR)
+Scripts will be created for each bamfile found in the input directory. 
+Each bamfile will be processed through the following:
+1. Single stranded consensus sequence (SSCS)
+2. Duplex consensus sequence (DCS)
+3. Singleton Correction (SC)
+4. Merge SSCS and Singleton Correction (SSCS_SC)	
+5. DCS from SSCS + Singleton Correction (DCS_SC)
 6. Generate all unique molecular bamfiles 
 
 ### Dependencies ###
@@ -50,17 +42,21 @@ This pipeline requires the following dependencies:
 ![Scheme](beta/script_overview.png =500x500)
 
 **Duplex sequencing schematic:** 
-An uncollapsed BAM file is first processed through SSCS_maker.py to create an error suppressed single strand consensus sequences (SSCS) BAM file and an uncorrected Singleton BAM file. The single reads can be recovered through singleton_strand_rescue.py, which salvages singletons with its complementary SSCS or singleton. SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with rescued singletons to create an expanded pool of DCS reads (Figure illustrates singleton rescue merged work flow).
+An uncollapsed BAM file is first processed through SSCS_maker.py to create an error suppressed single-strand 
+consensus sequences (SSCS) BAM file and an uncorrected Singleton BAM file. The single reads can be corrected
+through singleton_correction.py, which rescues singletons with its complementary SSCS or singleton. SSCS 
+reads can be directly made into duplex consensus sequences (DCS) or merged with corrected singletons to create
+an expanded pool of DCS reads (Figure illustrates singleton correction merged work flow).
 
 ### Bamfiles ###
 * Uncollapsed: Original bamfiles
 * SSCS: Single strand consensus sequences
-* SSCS_SR: Single strand consensus sequences with rescued singletons
-* SSCS_SR_Singletons: SSCS that could not be made into DCSs
-* All_unique_sscs: Single strand consensus sequences + rescued singletons + remaining (unrescued) singletons 
+* SSCS_SC: Single strand consensus sequences with Singleton Correction
+* SSCS_SC_Singletons: SSCS + SC that could not be made into DCSs
+* All_unique_sscs: Single strand consensus sequences + Singleton Correction + remaining (unrescued) singletons 
 * DCS: Duplex consensus sequences
-* DCS_SR: Duplex consensus sequences from SSCS_SR
-* All_unique_dcs: Duplex consensus sequences from SSCS_SR + SSCS_SR_Singletons + remaining singletons
+* DCS_SC: Duplex consensus sequences from SSCS_SC
+* All_unique_dcs: Duplex consensus sequences from SSCS_SC + SSCS_SC_Singletons + remaining singletons
 * Singletons: Single reads
 
 ### Who do I talk to? ###
