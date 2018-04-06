@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-#/bin/bash
 #$ -S /bin/bash
 #$ -cwd
 
