@@ -140,13 +140,13 @@ fi
 ################
 #load modules
 module load python3/3.4.3
-module load pysam
+#module load pysam
 module load samtools/1.2
 module load picard/2.4.1
 module load java/8 
 
 ##check necessary modules have been loaded
-tools="python pysam samtools picard java"
+tools="python samtools picard java"
 modules=$(module list 2>&1)
 for i in $tools
 do
@@ -199,19 +199,19 @@ fi
 ####################
 #  Duplex Pipeline #
 ####################
-for bamfile in $(ls $INPUT | grep -v bai); do
+for bamfile in $(ls $INPUT | grep bam | grep -v bai); do
     ###############
     #  Sample ID  #
     ###############
     identifier=${bamfile//\.bam/}
 
     # Create sample directory
-    : ${SAMPDIR:=$OUTPUT/$identifier}
-    [ -d $SAMPDIR ] || mkdir $SAMPDIR
+    SAMPDIR=$OUTPUT/$identifier
+    mkdir $SAMPDIR
 
     # Set-up sh script
     echo "#!/bin/bash" > $QSUBDIR/$identifier.sh
-    echo -e "#$ -S /bin/bash\n#$ -cwd\n#$ -N\nmodule load $python_version\nmodule load $pysam_version\nmodule load $samtools_version\nmodule load $picard_version\nmodule load $java_version\n">>$QSUBDIR/$identifier.sh
+    echo -e "#$ -S /bin/bash\n#$ -cwd\n\nmodule load $python_version\nmodule load $pysam_version\nmodule load $samtools_version\nmodule load $picard_version\nmodule load $java_version\n">>$QSUBDIR/$identifier.sh
 
     echo -e "cd $SAMPDIR\n" >> $QSUBDIR/$identifier.sh
 
@@ -219,136 +219,136 @@ for bamfile in $(ls $INPUT | grep -v bai); do
     #     SSCS     #
     ################
     if [[ -z $BEDFILE ]]; then
-        echo -e "python3 $code_dir/SSCS_maker.py  --cutoff $CUTOFF --infile $INPUT/$bamfile --outfile $SAMPDIR/$identifier.sscs.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "python3 $code_dir/SSCS_maker.py  --cutoff $CUTOFF --infile $INPUT/$bamfile --outfile $SAMPDIR/$identifier.sscs.bam\n" >> $QSUBDIR/$identifier.sh
     else
-        echo -e "python3 $code_dir/SSCS_maker.py  --cutoff $CUTOFF --infile $INPUT/$bamfile --outfile $SAMPDIR/$identifier.sscs.bam --bedfile $BEDFILE" >> $QSUBDIR/$identifier.sh
+        echo -e "python3 $code_dir/SSCS_maker.py  --cutoff $CUTOFF --infile $INPUT/$bamfile --outfile $SAMPDIR/$identifier.sscs.bam --bedfile $BEDFILE\n" >> $QSUBDIR/$identifier.sh
     fi
     # sort and index SSCS
-    echo -e "samtools view -bu $identifier.sscs.bam | samtools sort - $identifier.sscs.sorted" >> $QSUBDIR/$identifier.sh
-    echo -e "samtools index $identifier.sscs.sorted.bam" >> $QSUBDIR/$identifier.sh
-    echo -e "rm $identifier.sscs.bam" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools view -bu $identifier.sscs.bam | samtools sort - $identifier.sscs.sorted\n" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools index $identifier.sscs.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+    echo -e "rm $identifier.sscs.bam\n" >> $QSUBDIR/$identifier.sh
     # sort and index Singletons
-    echo -e "samtools view -bu $identifier.singleton.bam | samtools sort - $identifier.singleton.sorted" >> $QSUBDIR/$identifier.sh
-    echo -e "samtools index $identifier.singleton.sorted.bam" >> $QSUBDIR/$identifier.sh
-    echo -e "rm $identifier.singleton.bam" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools view -bu $identifier.singleton.bam | samtools sort - $identifier.singleton.sorted\n" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools index $identifier.singleton.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+    echo -e "rm $identifier.singleton.bam\n" >> $QSUBDIR/$identifier.sh
 
     ###############
     #     DCS     #
     ###############
     if [[ -z $BEDFILE ]]; then
-        echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sorted.bam --outfile $identifier.dcs.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sorted.bam --outfile $identifier.dcs.bam\n" >> $QSUBDIR/$identifier.sh
     else
-        echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sorted.bam --outfile $identifier.dcs.bam --bedfile $BEDFILE" >> $QSUBDIR/$identifier.sh
+        echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sorted.bam --outfile $identifier.dcs.bam --bedfile $BEDFILE\n" >> $QSUBDIR/$identifier.sh
     fi
     # sort and index DCS
-    echo -e "samtools view -bu $identifier.dcs.bam | samtools sort - $identifier.dcs.sorted" >> $QSUBDIR/$identifier.sh
-    echo -e "samtools index $identifier.dcs.sorted.bam" >> $QSUBDIR/$identifier.sh
-    echo -e "rm $identifier.dcs.bam" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools view -bu $identifier.dcs.bam | samtools sort - $identifier.dcs.sorted\n" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools index $identifier.dcs.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+    echo -e "rm $identifier.dcs.bam\n" >> $QSUBDIR/$identifier.sh
     # sort and index SSCS singletons
-    echo -e "samtools view -bu $identifier.sscs.singleton.bam | samtools sort - $identifier.sscs.singleton.sorted" >> $QSUBDIR/$identifier.sh
-    echo -e "samtools index $identifier.sscs.singleton.sorted.bam" >> $QSUBDIR/$identifier.sh
-    echo -e "rm $identifier.sscs.singleton.bam" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools view -bu $identifier.sscs.singleton.bam | samtools sort - $identifier.sscs.singleton.sorted\n" >> $QSUBDIR/$identifier.sh
+    echo -e "samtools index $identifier.sscs.singleton.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+    echo -e "rm $identifier.sscs.singleton.bam\n" >> $QSUBDIR/$identifier.sh
 
     #############################
     # Singleton Correction (SC) #
     #############################
     if [[ -z $SINGCOR ]] || [[ $SINGCOR == "ON" ]]; then
         if [[ -z $BEDFILE ]]; then
-            echo -e "python3 $code_dir/singleton_correction.py --singleton $identifier.singleton.sorted.bam" >> $QSUBDIR/$identifier.sh
+            echo -e "python3 $code_dir/singleton_correction.py --singleton $identifier.singleton.sorted.bam\n" >> $QSUBDIR/$identifier.sh
         else
-            echo -e "python3 $code_dir/singleton_correction.py --singleton $identifier.singleton.sorted.bam --bedfile $BEDFILE" >> $QSUBDIR/$identifier.sh
+            echo -e "python3 $code_dir/singleton_correction.py --singleton $identifier.singleton.sorted.bam --bedfile $BEDFILE\n" >> $QSUBDIR/$identifier.sh
         fi
         # sort and index Singletons Correction by SSCS
-        echo -e "samtools view -bu $identifier.sscs.rescue.bam | samtools sort - $identifier.sscs.rescue.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.sscs.rescue.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.sscs.rescue.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.sscs.rescue.bam | samtools sort - $identifier.sscs.rescue.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.sscs.rescue.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.sscs.rescue.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index Singletons Correction by Singletons
-        echo -e "samtools view -bu $identifier.singleton.rescue.bam | samtools sort - $identifier.singleton.rescue.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.singleton.rescue.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.singleton.rescue.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.singleton.rescue.bam | samtools sort - $identifier.singleton.rescue.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.singleton.rescue.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.singleton.rescue.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index remaining singletons
-        echo -e "samtools view -bu $identifier.rescue.remaining.bam | samtools sort - $identifier.rescue.remaining.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.rescue.remaining.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.rescue.remaining.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.rescue.remaining.bam | samtools sort - $identifier.rescue.remaining.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.rescue.remaining.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.rescue.remaining.bam\n" >> $QSUBDIR/$identifier.sh
 
         #############
         # SSCS + SC #
         #############
-        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.rescue.sorted.bam I=$identifier.singleton.rescue.sorted.bam O=$identifier.sscs.sc.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools view -bu $identifier.sscs.sc.bam | samtools sort - $identifier.sscs.sc.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.sscs.sc.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.sscs.sc.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.rescue.sorted.bam I=$identifier.singleton.rescue.sorted.bam O=$identifier.sscs.sc.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.sscs.sc.bam | samtools sort - $identifier.sscs.sc.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.sscs.sc.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.sscs.sc.bam\n" >> $QSUBDIR/$identifier.sh
 
         ############
         # DCS + SC #
         ############
         # Construct DCS from SSCS + SC
         if [[ -z $BEDFILE ]]; then
-            echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sc.sorted.bam --outfile $identifier.dcs.sc.bam" >> $QSUBDIR/$identifier.sh
+            echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sc.sorted.bam --outfile $identifier.dcs.sc.bam\n" >> $QSUBDIR/$identifier.sh
         else
-            echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sc.sorted.bam --outfile $identifier.dcs.sc.bam --bedfile $BEDFILE" >> $QSUBDIR/$identifier.sh
+            echo -e "python3 $code_dir/DCS_maker.py --infile $identifier.sscs.sc.sorted.bam --outfile $identifier.dcs.sc.bam --bedfile $BEDFILE\n" >> $QSUBDIR/$identifier.sh
         fi
         # sort and index DCS SC
-        echo -e "samtools view -bu $identifier.dcs.sc.bam | samtools sort - $identifier.dcs.sc.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.dcs.sc.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.dcs.sc.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.dcs.sc.bam | samtools sort - $identifier.dcs.sc.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.dcs.sc.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.dcs.sc.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index SSCS SC Singletons (a.k.a. remaining SSCS + SC that could not be made into DCS)
-        echo -e "samtools view -bu $identifier.sscs.sc.singleton.bam | samtools sort - $identifier.sscs.sc.singleton.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.sscs.sc.singleton.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.sscs.sc.singleton.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.sscs.sc.singleton.bam | samtools sort - $identifier.sscs.sc.singleton.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.sscs.sc.singleton.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.sscs.sc.singleton.bam\n" >> $QSUBDIR/$identifier.sh
 
         ########################
         # All Unique Molecules #
         ########################
         # === SSCS + SC + remaining singletons ===
-        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.rescue.sorted.bam I=$identifier.singleton.rescue.sorted.bam I=$identifier.rescue.remaining.sorted.bam O=$identifier.all.unique.sscs.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.rescue.sorted.bam I=$identifier.singleton.rescue.sorted.bam I=$identifier.rescue.remaining.sorted.bam O=$identifier.all.unique.sscs.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index all unique SSCS molecules
-        echo -e "samtools view -bu $identifier.all.unique.sscs.bam | samtools sort - $identifier.all.unique.sscs.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.all.unique.sscs.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.all.unique.sscs.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.all.unique.sscs.bam | samtools sort - $identifier.all.unique.sscs.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.all.unique.sscs.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.all.unique.sscs.bam\n" >> $QSUBDIR/$identifier.sh
 
         # === DCS (SSCS_SC) + SSCS SC singletons + remaining singletons ===
-        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.dcs.sc.sorted.bam I=$identifier.sscs.sc.singleton.sorted.bam I=$identifier.rescue.remaining.sorted.bam O=$identifier.all.unique.dcs.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.dcs.sc.sorted.bam I=$identifier.sscs.sc.singleton.sorted.bam I=$identifier.rescue.remaining.sorted.bam O=$identifier.all.unique.dcs.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index all unique DCS molecules
-        echo -e "samtools view -bu $identifier.all.unique.dcs.bam | samtools sort - $identifier.all.unique.dcs.sorted" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.all.unique.dcs.sorted.bam" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.all.unique.dcs.bam" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.all.unique.dcs.bam | samtools sort - $identifier.all.unique.dcs.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.all.unique.dcs.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.all.unique.dcs.bam\n" >> $QSUBDIR/$identifier.sh
 
         #####################
         # Organize SC files #
         #####################
-        echo -e "mkdir sscs_SC" >> $QSUBDIR/$identifier.sh
-        echo -e "mkdir dcs_SC" >> $QSUBDIR/$identifier.sh
+        echo -e "mkdir sscs_SC\n" >> $QSUBDIR/$identifier.sh
+        echo -e "mkdir dcs_SC\n" >> $QSUBDIR/$identifier.sh
 
         # DCS + SC
-        echo -e "mv $identifier.all.unique.dcs.sorted* dcs_SC" >> $QSUBDIR/$identifier.sh
-        echo -e "mv $identifier.dcs.sc* dcs_SC" >> $QSUBDIR/$identifier.sh
-        echo -e "mv $identifier.sscs.sc.singleton* dcs_SC" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.all.unique.dcs.sorted* dcs_SC\n" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.dcs.sc* dcs_SC\n" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.sscs.sc.singleton* dcs_SC\n" >> $QSUBDIR/$identifier.sh
 
         # SSCS + SC
-        echo -e "mv $identifier.all.unique.sscs* sscs_SC" >> $QSUBDIR/$identifier.sh
-        echo -e "mv $identifier.sscs.sc* sscs_SC" >> $QSUBDIR/$identifier.sh
-        echo -e "mv $identifier.*rescue* sscs_SC" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.all.unique.sscs* sscs_SC\n" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.sscs.sc* sscs_SC\n" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.*rescue* sscs_SC\n" >> $QSUBDIR/$identifier.sh
 
     fi
 
     #########################
     # Organize files by dir #
     #########################
-    echo -e "mkdir sscs" >> $QSUBDIR/$identifier.sh
-    echo -e "mkdir dcs" >> $QSUBDIR/$identifier.sh
+    echo -e "mkdir sscs\n" >> $QSUBDIR/$identifier.sh
+    echo -e "mkdir dcs\n" >> $QSUBDIR/$identifier.sh
 
 
     # DCS
-    echo -e "mv $identifier.dcs.sorted.* dcs" >> $QSUBDIR/$identifier.sh
-    echo -e "mv $identifier.sscs.singleton.sorted.* dcs" >> $QSUBDIR/$identifier.sh
+    echo -e "mv $identifier.dcs.sorted.* dcs\n" >> $QSUBDIR/$identifier.sh
+    echo -e "mv $identifier.sscs.singleton.sorted.* dcs\n" >> $QSUBDIR/$identifier.sh
 
     # SSCS
-    echo -e "mv $identifier* sscs" >> $QSUBDIR/$identifier.sh
+    echo -e "mv $identifier* sscs\n" >> $QSUBDIR/$identifier.sh
 
     # Keep stats and family size plot in sample directory
-    echo -e "mv ./sscs/*stats.txt ." >> $QSUBDIR/$identifier.sh
-    echo -e "mv ./sscs/*png ." >> $QSUBDIR/$identifier.sh
+    echo -e "mv ./sscs/*stats.txt .\n" >> $QSUBDIR/$identifier.sh
+    echo -e "mv ./sscs/*png .\n" >> $QSUBDIR/$identifier.sh
 
     ########
     # QSUB #

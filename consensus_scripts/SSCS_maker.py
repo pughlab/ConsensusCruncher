@@ -263,7 +263,6 @@ def main():
 
         # Determine length of sequence
         if region is 0 and bool(read_dict.values()):
-            # print(next(iter(read_dict.values()))[0])
             readLength = next(iter(read_dict.values()))[0].infer_query_length()
             region += 1
 
