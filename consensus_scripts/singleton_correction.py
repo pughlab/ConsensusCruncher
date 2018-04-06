@@ -2,19 +2,19 @@
 
 ###############################################################
 #
-#                      Singleton Rescue
+#                      Singleton Correction
 #
 #  Author: Nina Wang
 #  Date Created: July 5, 2016
 ###############################################################
-#  Function:
-# To rescue single reads with its complementary (SSCS/singleton) strand and enable error suppression
+# Function:
+# To correct single reads with its complementary (SSCS/singleton) strand and enable error suppression
 # - Traditionally, consensus sequences can only be made from 2 or more reads
 #
 # Written for Python 3.5.1
 #
 # Usage:
-# Python3 singleton_strand_rescue.py [--singleton SingletonBAM] [--bedfile BEDFILE]
+# Python3 singleton_correction.py [--singleton Singleton BAM] [--bedfile BEDFILE]
 #
 # Arguments:
 # --singleton SingletonBAM  input singleton BAM file
@@ -30,8 +30,8 @@
 # 2. A BAM file containing paired singletons error corrected by its complementary singleton - "singleton.rescue.bam"
 # 3. A BAM file containing the remaining singletons that cannot be rescued as its missing a complementary strand -
 #    "rescue.remaining.bam"
-# 4. A text file containing summary statistics (Total singletons, Single strand rescued singletons, % SSCS rescue,
-#    Singleton strand rescued singletons, % singleton rescue, Singleton remaining (not rescued))
+# 4. A text file containing summary statistics (Total singletons, Singleton Correction by SSCS, % Singleton Correction by SSCS,
+#    Singleton Correction by Singletons, % Singleton Correction by Singletons, Singleton remaining (not corrected))
 #    - "stats.txt" (Stats pended to same stats file as SSCS)
 #
 # Concepts:
@@ -306,11 +306,11 @@ def main():
 
     summary_stats = '''# === Singleton Rescue ===
 Total singletons: {}
-SSCS strand rescued singletons: {}
-% SSCS rescue: {}
-Singleton strand rescued singletons: {}
-% singleton rescue: {}
-Singletons remaining (not rescued): {} \n'''.format(counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
+Singleton Correction by SSCS: {}
+% Singleton Correction by SSCS: {}
+Singleton Correction by Singletons: {}
+% Singleton Correction by Singletons : {}
+Singletons remaining (not corrected): {} \n'''.format(counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
 
     stats.write(summary_stats)
     print(summary_stats)
