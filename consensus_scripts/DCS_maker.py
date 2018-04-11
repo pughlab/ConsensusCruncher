@@ -147,8 +147,8 @@ def main():
     sscs_bam = pysam.AlignmentFile(args.infile, "rb")
     dcs_bam = pysam.AlignmentFile(args.outfile, "wb", template=sscs_bam)
     
-    if re.search('dcs.sr', args.outfile):
-        sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.sr.singleton.bam'.format(args.outfile.split('.dcs.sr')[0]),
+    if re.search('dcs.sc', args.outfile):
+        sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.sc.singleton.bam'.format(args.outfile.split('.dcs.sc')[0]),
                                              "wb", template=sscs_bam)
         dcs_header = "DCS - Singleton Rescue"
         sr_header = " SR"
