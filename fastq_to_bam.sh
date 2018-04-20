@@ -58,7 +58,6 @@ EOF
 ################
 #    Set-up    #
 ################
-
 while getopts "hi:o:p:t:s:f:q:" OPTION
 do
      case $OPTION in
@@ -214,7 +213,7 @@ for R1_file in $( ls $INPUT | grep R1); do
     #################
     #  Align reads  #
     #################
-    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $BWAINDEX $TAGDIR/$filename.seq1.smi.fq $TAGDIR/$filename.seq2.smi.fq > $OUTPUT/$filename.sam \n" >>$QSUBDIR/$filename.sh
+    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $BWAINDEX $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $OUTPUT/$filename.sam \n" >>$QSUBDIR/$filename.sh
 
     # Convert to BAM format and sort by positions
     echo -e "samtools view -bhS $OUTPUT/$filename.sam | samtools sort -@4 - $OUTPUT/$filename \n" >> $QSUBDIR/$filename.sh
@@ -227,7 +226,7 @@ for R1_file in $( ls $INPUT | grep R1); do
     # Remove unzipped files #
     #########################
     # Don't want to remove entire folder as there may be other files used by other scripts
-    if [ -z $UNZIPDIR ]; then
+    if [[ $UNZIPDIR ]]; then
         echo -e "rm $UNZIPDIR/$R1_unzip" >> $QSUBDIR/$filename.sh
         echo -e "rm $UNZIPDIR/$R2_unzip" >> $QSUBDIR/$filename.sh
     fi
