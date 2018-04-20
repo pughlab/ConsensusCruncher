@@ -40,7 +40,7 @@ cat << EOF
     -i  Source directory.[MANDATORY]
     -o  Output directory [MANDATORY]
     -p  Project name [MANDATORY]
-    -t  Tag length [MANDATORY]
+    -b  Barcode length [MANDATORY]
     -s  Spacer length [MANDATORY]
     -f  Spacer filter (e.g. "T" will filter out spacers that are non-T)
     -q  qusb directory, default: output/qsub
@@ -58,7 +58,7 @@ EOF
 ################
 #    Set-up    #
 ################
-while getopts "hi:o:p:t:s:f:q:" OPTION
+while getopts "hi:o:p:b:s:f:q:" OPTION
 do
      case $OPTION in
          h)
@@ -74,8 +74,8 @@ do
          p)
              PROJECT=$OPTARG
              ;;
-         t)
-             TAGLEN=$OPTARG
+         b)
+             BARCODELEN=$OPTARG
              ;;
          s)
              SPACERLEN=$OPTARG
@@ -93,7 +93,7 @@ do
      esac
 done
 
-if [[ -z $INPUT ]] || [[ -z $OUTPUT ]] || [[ -z $PROJECT ]] || [[ -z $TAGLEN ]] || [[ -z $SPACERLEN ]]
+if [[ -z $INPUT ]] || [[ -z $OUTPUT ]] || [[ -z $PROJECT ]] || [[ -z $BARCODELEN ]] || [[ -z $SPACERLEN ]]
 then
      usage
      exit 1
@@ -205,9 +205,9 @@ for R1_file in $( ls $INPUT | grep R1); do
 
     # Check if there's a spacer filter
     if [ -z $SPACERFILT ]; then
-        echo -e "python $code_dir/consensus_scripts/tag_to_header.py --infile1 $R1 --infile2 $R2 --outprefix $TAGDIR/$filename --taglen $TAGLEN --spacerlen $SPACERLEN --filtspacer $SPACERFILT \n" >> $QSUBDIR/$filename.sh
+        echo -e "python $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outprefix $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
     else
-        echo -e "python $code_dir/consensus_scripts/tag_to_header.py --infile1 $R1 --infile2 $R2 --outprefix $TAGDIR/$filename --taglen $TAGLEN --spacerlen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
+        echo -e "python $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outprefix $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
     fi
 
     #################
