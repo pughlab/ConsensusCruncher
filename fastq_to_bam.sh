@@ -104,7 +104,7 @@ fi
 #    Modules   #
 ################
 ## Load modules
-module load python
+module load python3/3.4.3
 module load samtools
 module load bwa
 BWAINDEX="/mnt/work1/data/genomes/human/hg19/iGenomes/Sequence/BWAIndex/genome.fa"
@@ -205,9 +205,9 @@ for R1_file in $( ls $INPUT | grep R1); do
 
     # Check if there's a spacer filter
     if [ -z $SPACERFILT ]; then
-        echo -e "python $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outprefix $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
+        echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outprefix $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
     else
-        echo -e "python $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outprefix $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
+        echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outprefix $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
     fi
 
     #################
