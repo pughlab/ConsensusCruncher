@@ -6,14 +6,14 @@
 ##
 ##  FILE:         fastq_to_bam.sh
 ##
-##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -t 2 -s 1 -f T
+##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
 ##
 ##  OPTIONS:
 ##
 ##    -i  Input directory.[MANDATORY]
 ##    -o  Output directory [MANDATORY]
 ##    -p  Project name [MANDATORY]
-##    -t  Tag length [MANDATORY]
+##    -b  Barcode length [MANDATORY]
 ##    -s  Spacer length [MANDATORY]
 ##    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
 ##    -q  qusb directory, default: output/qsub
@@ -33,7 +33,7 @@ cat << EOF
 
   FILE:         fastq_to_bam.sh
 
-  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -t 2 -s 1 -f T
+  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
 
   OPTIONS:
 
