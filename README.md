@@ -34,6 +34,8 @@ This pipeline requires the following dependencies:
 | Program | Version | Purpose                                    |
 | ------- | ------- | ------------------------------------------ |
 | Python3 | 3.5.1   | Consensus sequence pipeline                |
+| Numpy   | 1.11.0  | Python library for scientific computing    |
+| Pandas  | 0.19.2  | Python library for data analysis           |
 | Pysam   | 0.9.0   | Python interface for working with bamfiles |
 | Samtools| 1.3.1   | Sorting and indexing bamfiles              |
 | Picard  | 2.6.0   | Merging bamfiles                           |
