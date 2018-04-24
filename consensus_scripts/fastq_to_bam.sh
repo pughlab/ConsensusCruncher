@@ -11,7 +11,7 @@
 ##  OPTIONS:
 ##
 ##    -i  Input directory.[MANDATORY]
-##    -o  Output directory [MANDATORY]
+##    -o  Output project directory [MANDATORY]
 ##    -p  Project name [MANDATORY]
 ##    -b  Barcode length [MANDATORY]
 ##    -s  Spacer length [MANDATORY]
@@ -21,9 +21,11 @@
 ##
 ##  DESCRIPTION:
 ##
-##  This script removes molecular barcode tags and spacers from unzipped FASTQ files,
-##  which are found by searching the source directory for files with "*R1". Tag removed
-##  FASTQ files are subsequently aligned with BWA mem.
+##  This script extracts molecular barcode tags and removes spacers from unzipped FASTQ
+##  files found in the input directory (file names must contain "R1" or "R2"). Barcode
+##  extracted FASTQ files are written to the 'fastq_tag' directory and are subsequently
+##  aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
+##  project folder.
 ##
 ##====================================================================================
 
@@ -38,7 +40,7 @@ cat << EOF
   OPTIONS:
 
     -i  Source directory.[MANDATORY]
-    -o  Output directory [MANDATORY]
+    -o  Output project directory [MANDATORY]
     -p  Project name [MANDATORY]
     -b  Barcode length [MANDATORY]
     -s  Spacer length [MANDATORY]
@@ -48,9 +50,11 @@ cat << EOF
 
   DESCRIPTION:
 
-  This script removes molecular barcode tags and spacers from unzipped FASTQ files,
-  which are found by searching the source directory for files with "*R1". Tag removed
-  FASTQ files are subsequently aligned with BWA mem.
+  This script extracts molecular barcode tags and removes spacers from unzipped FASTQ
+  files found in the input directory (file names must contain "R1" or "R2"). Barcode
+  extracted FASTQ files are written to the 'fastq_tag' directory and are subsequently
+  aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
+  project folder.
 
 EOF
 }
@@ -154,6 +158,8 @@ code_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 [ -d $QSUBDIR ] || mkdir $QSUBDIR
 : ${TAGDIR:=$OUTPUT/fastq_tag}
 [ -d $TAGDIR ] || mkdir $TAGDIR
+: ${BAMDIR:=$OUTPUT/bamfiles}
+[ -d $BAMDIR ] || mkdir $BAMDIR
 
 
 #####################
@@ -213,14 +219,14 @@ for R1_file in $( ls $INPUT | grep R1); do
     #################
     #  Align reads  #
     #################
-    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $BWAINDEX $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $OUTPUT/$filename.sam \n" >>$QSUBDIR/$filename.sh
+    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $BWAINDEX $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
 
     # Convert to BAM format and sort by positions
-    echo -e "samtools view -bhS $OUTPUT/$filename.sam | samtools sort -@4 - $OUTPUT/$filename \n" >> $QSUBDIR/$filename.sh
-    echo -e "samtools index $OUTPUT/$filename.bam" >> $QSUBDIR/$filename.sh
+    echo -e "samtools view -bhS $BAMDIR/$filename.sam | samtools sort -@4 - $BAMDIR/$filename \n" >> $QSUBDIR/$filename.sh
+    echo -e "samtools index $BAMDIR/$filename.bam" >> $QSUBDIR/$filename.sh
 
     # Remove sam file
-    echo -e "rm $OUTPUT/$filename.sam" >> $QSUBDIR/$filename.sh
+    echo -e "rm $BAMDIR/$filename.sam" >> $QSUBDIR/$filename.sh
 
     #########################
     # Remove unzipped files #
