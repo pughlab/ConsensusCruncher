@@ -138,7 +138,7 @@ done
 ##check necessary variables have been set
 variables="BWAINDEX"
 for i in $variables; do
-    if [ -z ${!i} ]; then
+    if [[ -z ${!i} ]]; then
         echo "Please set variable $i"
         exit 1
     else
@@ -210,10 +210,10 @@ for R1_file in $( ls $INPUT | grep R1); do
     cd $TAGDIR
 
     # Check if there's a spacer filter
-    if [ -z $SPACERFILT ]; then
-        echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
-    else
+    if [[ -z $SPACERFILT ]]; then
         echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
+    else
+        echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
     fi
 
     #################
