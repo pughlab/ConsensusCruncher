@@ -11,7 +11,7 @@
 ##
 ##  OPTIONS:
 ##
-##    -i  Input directory.[MANDATORY]
+##    -i  Input directory [MANDATORY]
 ##    -o  Output project directory [MANDATORY]
 ##    -p  Project name [MANDATORY]
 ##    -r  Reference (BWA index) [MANDATORY]
@@ -42,7 +42,7 @@ cat << EOF
 
   OPTIONS:
 
-    -i  Input directory.[MANDATORY]
+    -i  Input directory [MANDATORY]
     -o  Output project directory [MANDATORY]
     -p  Project name [MANDATORY]
     -r  Reference (BWA index) [MANDATORY]
