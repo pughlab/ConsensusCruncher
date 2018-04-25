@@ -7,12 +7,14 @@
 ##  FILE:         fastq_to_bam.sh
 ##
 ##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
+##                                -r REF
 ##
 ##  OPTIONS:
 ##
 ##    -i  Input directory.[MANDATORY]
 ##    -o  Output project directory [MANDATORY]
 ##    -p  Project name [MANDATORY]
+##    -r  Reference (BWA index) [MANDATORY]
 ##    -b  Barcode length [MANDATORY]
 ##    -s  Spacer length [MANDATORY]
 ##    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
@@ -36,15 +38,17 @@ cat << EOF
   FILE:         fastq_to_bam.sh
 
   USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
+                                -r REF
 
   OPTIONS:
 
-    -i  Source directory.[MANDATORY]
+    -i  Input directory.[MANDATORY]
     -o  Output project directory [MANDATORY]
     -p  Project name [MANDATORY]
+    -r  Reference (BWA index) [MANDATORY]
     -b  Barcode length [MANDATORY]
     -s  Spacer length [MANDATORY]
-    -f  Spacer filter (e.g. "T" will filter out spacers that are non-T)
+    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
     -q  qusb directory, default: output/qsub
     -h  Show this message
 
@@ -62,7 +66,7 @@ EOF
 ################
 #    Set-up    #
 ################
-while getopts "hi:o:p:b:s:f:q:" OPTION
+while getopts "hi:o:p:r:b:s:f:q:" OPTION
 do
      case $OPTION in
          h)
@@ -77,6 +81,9 @@ do
              ;;
          p)
              PROJECT=$OPTARG
+             ;;
+         r)
+             REF=$OPTARG
              ;;
          b)
              BARCODELEN=$OPTARG
@@ -97,7 +104,7 @@ do
      esac
 done
 
-if [[ -z $INPUT ]] || [[ -z $OUTPUT ]] || [[ -z $PROJECT ]] || [[ -z $BARCODELEN ]] || [[ -z $SPACERLEN ]]
+if [[ -z $INPUT ]] || [[ -z $OUTPUT ]] || [[ -z $PROJECT ]] || [[ -z $REF ]] || [[ -z $BARCODELEN ]] || [[ -z $SPACERLEN ]]
 then
      usage
      exit 1
@@ -111,7 +118,6 @@ fi
 module load python3/3.4.3
 module load samtools
 module load bwa
-BWAINDEX="/mnt/work1/data/genomes/human/hg19/iGenomes/Sequence/BWAIndex/genome.fa"
 
 ##check necessary modules have been loaded
 tools="python bwa samtools"
@@ -136,7 +142,7 @@ do
 done
 
 ##check necessary variables have been set
-variables="BWAINDEX"
+variables="REF"
 for i in $variables; do
     if [[ -z ${!i} ]]; then
         echo "Please set variable $i"
@@ -219,7 +225,7 @@ for R1_file in $( ls $INPUT | grep R1); do
     #################
     #  Align reads  #
     #################
-    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $BWAINDEX $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
+    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $REF $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
 
     # Convert to BAM format and sort by positions
     echo -e "samtools view -bhS $BAMDIR/$filename.sam | samtools sort -@4 - $BAMDIR/$filename \n" >> $QSUBDIR/$filename.sh
