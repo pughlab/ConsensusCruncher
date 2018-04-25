@@ -38,6 +38,8 @@
 ################
 from argparse import ArgumentParser
 from itertools import zip_longest
+import pandas as pd
+import numpy as np
 import sys
 
 
@@ -68,7 +70,7 @@ def main():
     read2 = open(args.read2, "r")
     r1_output = open('{}_barcode_R1.fastq'.format(args.outfile), "w")
     r2_output = open('{}_barcode_R2.fastq'.format(args.outfile), "w")
-    stats = open('{}.stats.txt'.format(args.outfile), 'a')
+    stats = open('{}/barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
 
     # === Initialize counters ===
     readpair_count = 0
@@ -77,11 +79,17 @@ def main():
     good_barcode = 0
 
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
-    # Positions in the following lists corresponds to A, C, G, T, N
-    r1_base_counter = [0, 0, 0, 0, 0]
-    r1_spacer_counter = [0, 0, 0, 0, 0]
-    r2_base_counter = [0, 0, 0, 0, 0]
-    r2_spacer_counter = [0, 0, 0, 0, 0]
+    # Column in the following  corresponds to A, C, G, T, N
+    r1_spacer_counter = pd.DataFrame(0, index=np.arange(args.slen), columns=nuc_lst)
+    r2_spacer_counter = pd.DataFrame(0, index=np.arange(args.slen), columns=nuc_lst)
+    r1_base_counter = pd.DataFrame(0, index=np.arange(args.blen), columns=nuc_lst)
+    r2_base_counter = pd.DataFrame(0, index=np.arange(args.blen), columns=nuc_lst)
+
+    # Rename rows
+    r1_spacer_counter.index.names = ['R1_spacer']
+    r2_spacer_counter.index.names = ['R2_spacer']
+    r1_base_counter.index.names = ['R1_barcode']
+    r2_base_counter.index.names = ['R2_barcode']
 
     ######################
     #  Extract barcodes  #
@@ -102,31 +110,32 @@ def main():
         r1_spacer = r1_seq[args.blen:args.blen + args.slen]
         r2_spacer = r2_seq[args.blen:args.blen + args.slen]
 
-        r1_spacer_counter[nuc_lst.index(r1_spacer)] += 1
-        r2_spacer_counter[nuc_lst.index(r2_spacer)] += 1
+        # Count spacer bases
+        for i in range(len(r1_spacer)):
+            r1_spacer_counter.iloc[i, nuc_lst.index(r1_spacer[i])] += 1
+            r2_spacer_counter.iloc[i, nuc_lst.index(r2_spacer[i])] += 1
 
         # Check spacer filter
-        if args.sfilt is not None and r1_spacer is not args.sfilt and r2_spacer is not args.sfilt:
+        if args.sfilt is not None and r1_spacer is not args.sfilt or r2_spacer is not args.sfilt:
             nospacer += 1
         else:
             # Isolate barcodes
             r1_barcode = r1_seq[:args.blen]
             r2_barcode = r2_seq[:args.blen]
 
-            for base in list(r1_barcode):
-                r1_base_counter[nuc_lst.index(base)] += 1
-
-            for base in list(r2_barcode):
-                r2_base_counter[nuc_lst.index(base)] += 1
+            # Count barcode bases
+            for i in range(len(r1_barcode)):
+                r1_base_counter.iloc[i, nuc_lst.index(r1_barcode[i])] += 1
+                r2_base_counter.iloc[i, nuc_lst.index(r2_barcode[i])] += 1
 
             if r1_barcode.count("N") == 0 and r2_barcode.count("N") == 0:
                 good_barcode += 1
                 # Extract barcode from sequence and quality scores
-                r1_seq = r1_seq[args.blen + args.slen :]
-                r2_seq = r2_seq[args.blen + args.slen :]
+                r1_seq = r1_seq[args.blen + args.slen:]
+                r2_seq = r2_seq[args.blen + args.slen:]
 
-                r1_qual = r1_qual[args.blen + args.slen :]
-                r2_qual = r2_qual[args.blen + args.slen :]
+                r1_qual = r1_qual[args.blen + args.slen:]
+                r2_qual = r2_qual[args.blen + args.slen:]
 
                 # Add barcode and read number to header
                 r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_barcode, r2_barcode, "1")
@@ -149,15 +158,13 @@ def main():
     sys.stderr.write("Passing barcodes: {}\n".format(good_barcode))
 
     # Output stats file
-    stats.write(args.outfile)
+    stats.write("##########\n{}\n##########".format(args.outfile.split(sep="/")[-1]))
     stats.write('\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(readpair_count,
                                                                                                          nospacer,
                                                                                                          bad_barcode,
                                                                                                          good_barcode))
-    stats.write('R1 barcode (A, C, G, T, N): {}\nR1 spacer (A, C, G, T, N): {}\n'.format(r1_base_counter,
-                                                                                       r1_spacer_counter))
-    stats.write('R1 barcode (A, C, G, T, N): {}\nR1 spacer (A, C, G, T, N): {}\n\n'.format(r2_base_counter,
-                                                                                       r2_spacer_counter))
+    stats.write('-----------\n{}\n-----------\n{}\n'.format(r1_base_counter, r2_base_counter))
+    stats.write('-----------\n{}\n-----------\n{}\n\n'.format(r1_spacer_counter, r2_spacer_counter))
 
     stats.close()
 
