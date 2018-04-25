@@ -116,7 +116,7 @@ def main():
             r2_spacer_counter.iloc[i, nuc_lst.index(r2_spacer[i])] += 1
 
         # Check spacer filter
-        if args.sfilt is not None and r1_spacer is not args.sfilt or r2_spacer is not args.sfilt:
+        if args.sfilt is not None and (r1_spacer is not args.sfilt or r2_spacer is not args.sfilt):
             nospacer += 1
         else:
             # Isolate barcodes
