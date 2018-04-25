@@ -190,7 +190,7 @@ fi
 ################
 #  Create dir  #
 ################
-: ${OUTPUT:=$OUTPUT/consensus}
+OUTPUT=$OUTPUT/consensus
 [ -d $OUTPUT ] || mkdir -p $OUTPUT
 : ${QSUBDIR:=$OUTPUT/qsub}
 [ -d $QSUBDIR ] || mkdir $QSUBDIR
