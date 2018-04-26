@@ -169,7 +169,7 @@ done
 
 # Set script directory
 code_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-code_dir=$code_dir/consensus_scripts
+code_dir=$code_dir/src/helper
 
 ###############
 #  Variables  #
@@ -348,6 +348,8 @@ for bamfile in $(ls $INPUT | grep bam | grep -v bai); do
 
     # Keep stats and family size plot in sample directory
     echo -e "mv ./sscs/*stats.txt .\n" >> $QSUBDIR/$identifier.sh
+    echo -e "mv ./sscs/*time_tracker.txt .\n" >> $QSUBDIR/$identifier.sh
+    echo -e "mv ./sscs/*read_families.txt .\n" >> $QSUBDIR/$identifier.sh
     echo -e "mv ./sscs/*png .\n" >> $QSUBDIR/$identifier.sh
 
     ########

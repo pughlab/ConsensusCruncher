@@ -217,9 +217,9 @@ for R1_file in $( ls $INPUT | grep R1); do
 
     # Check if there's a spacer filter
     if [[ -z $SPACERFILT ]]; then
-        echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
+        echo -e "python3 $code_dir/src/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
     else
-        echo -e "python3 $code_dir/consensus_scripts/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
+        echo -e "python3 $code_dir/src/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
     fi
 
     #################
