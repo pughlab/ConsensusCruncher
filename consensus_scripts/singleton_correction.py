@@ -289,14 +289,6 @@ def main():
 
             del singleton_csn_pair[readPair]
 
-        # Update time tracker
-        time_diff = str((time.time() - start_time)/60)
-        print(time_diff)
-        try:
-            time_tracker.write(x + ': ')
-            # time_tracker.write(time_diff + '\n')
-        except:
-            continue
 
     ######################
     #       SUMMARY      #
