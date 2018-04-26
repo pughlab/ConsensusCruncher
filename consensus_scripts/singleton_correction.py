@@ -88,13 +88,13 @@ def duplex_consensus(read1, read2):
 def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
     """(str, str, dict, dict) -> Pysam.AlignedSegment
 
-    Return 'rescued' singleton read using complement read from opposite strand (either found in SSCS or singleton).
+    Return 'rescued/corrected' singleton using complement read from opposite strand (either found in SSCS or singleton).
 
-    Quality score calculated from singleton and complementary read. Read template retained from singleton being rescued.
+    Quality score calculated from singleton and complementary read. Read template based on singleton.
     """
     read = singleton_dict[read_tag][0]
 
-    # If SSCS bamfile provided, rescue with SSCS
+    # If SSCS bamfile provided, corrected with SSCS
     if sscs_dict is None:
         complement_read = singleton_dict[duplex_tag][0]
     else:
@@ -111,8 +111,8 @@ def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=No
 ###############################
 
 def main():
-    """Singleton rescue:
-    - First rescue with SSCS bam
+    """Singleton correction:
+    - First correct with SSCS bam
     - Rescue remaining singletons with singleton bam
     """
     # Command-line parameters
@@ -196,7 +196,7 @@ def main():
             # === Reset dictionaries ===
             if last_chr != read_chr:
                 singleton_tag = collections.defaultdict(int)
-                # Its okay to clear SSCS dicts after each region as rescue can only be done within the same coor
+                # Its okay to clear SSCS dicts after each region as correction can only be done within the same coor
                 sscs_dict = collections.OrderedDict()
                 sscs_tag = collections.defaultdict(int)
                 sscs_pair = collections.defaultdict(list)
@@ -254,12 +254,12 @@ def main():
         for readPair in list(singleton_csn_pair.keys()):
             for tag in singleton_csn_pair[readPair]:
                 counter += 1
-                # Check to see if singleton can be rescued by SSCS, then by singletons
+                # Check to see if singleton can be corrected by SSCS, then by singletons
                 # If not, add to 'remaining' rescue bamfile
                 duplex = duplex_tag(tag)
-                query_name = readPair + ':1'  # Reflect rescued singleton (non-rescues won't have our unique ID tag)
+                query_name = readPair + ':1'  # Reflect corrected singleton (uncorrected won't have our unique ID tag)
 
-                # 1) Singleton rescue by complementary SSCS
+                # 1) Singleton correction by complementary SSCS
                 if duplex in sscs_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
                     sscs_dup_rescue += 1
@@ -268,7 +268,7 @@ def main():
                     del sscs_dict[duplex]
                     del singleton_dict[tag]
 
-                # 2) Singleton rescue by complementary Singletons
+                # 2) Singleton correction by complementary Singletons
                 elif duplex in singleton_dict.keys():
                     rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict)
                     singleton_dup_rescue += 1
@@ -281,7 +281,7 @@ def main():
                         del rescue_dict[tag]
                         del rescue_dict[duplex]
 
-                # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex rescue was possible
+                # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex correction was possible
                 else:
                     remaining_rescue_bam.write(singleton_dict[tag][0])
                     singleton_remaining += 1
@@ -304,7 +304,7 @@ def main():
     sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
     singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
 
-    summary_stats = '''# === Singleton Rescue ===
+    summary_stats = '''# === Singleton Correction ===
 Total singletons: {}
 Singleton Correction by SSCS: {}
 % Singleton Correction by SSCS: {}
