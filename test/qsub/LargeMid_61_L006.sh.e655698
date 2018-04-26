@@ -1,0 +1,24 @@
+Total sequences: 10000
+Missing spacer: 62
+Bad barcodes: 152
+Passing barcodes: 9786
+[M::main_mem] read 19572 sequences (2407356 bp)...
+[M::mem_pestat] # candidate unique pairs for (FF, FR, RF, RR): (0, 8408, 0, 0)
+[M::mem_pestat] skip orientation FF as there are not enough pairs
+[M::mem_pestat] analyzing insert size distribution for orientation FR...
+[M::mem_pestat] (25, 50, 75) percentile: (158, 206, 271)
+[M::mem_pestat] low and high boundaries for computing mean and std.dev: (1, 497)
+[M::mem_pestat] mean and std.dev: (219.46, 82.54)
+[M::mem_pestat] low and high boundaries for proper pairs: (1, 610)
+[M::mem_pestat] skip orientation RF as there are not enough pairs
+[M::mem_pestat] skip orientation RR as there are not enough pairs
+[M::worker2@3] performed mate-SW for 417 reads
+[M::worker2@0] performed mate-SW for 417 reads
+[M::worker2@1] performed mate-SW for 401 reads
+[M::worker2@2] performed mate-SW for 577 reads
+[main] Version: 0.7.2-r351
+[main] CMD: bwa mem -M -t4 -R @RG	ID:1	SM:LargeMid_61_L006	PL:Illumina	PU:61.L006	LB:ConsensusCruncher_tester /mnt/work1/data/genomes/human/hg19/iGenomes/Sequence/BWAIndex/genome.fa /mnt/work1/users/pughlab/src/ConsensusCruncher/tester/fastq_tag/LargeMid_61_L006_barcode_R1.fastq /mnt/work1/users/pughlab/src/ConsensusCruncher/tester/fastq_tag/LargeMid_61_L006_barcode_R2.fastq
+[main] Real time: 14.638 sec; CPU: 6.050 sec
+sort: invalid option -- '@'
+sort: invalid option -- '4'
+[samopen] SAM header is present: 25 sequences.

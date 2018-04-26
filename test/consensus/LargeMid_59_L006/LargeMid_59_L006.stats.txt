@@ -1,0 +1,25 @@
+# === SSCS MAKER ===
+Uncollapsed - Total reads: 19550
+Uncollapsed - Unmapped reads: 6
+Uncollapsed - Secondary/Supplementary reads: 26
+SSCS reads: 4
+Singletons: 19510 
+# === DCS ===
+SSCS - Total reads: 4
+SSCS - Unmapped reads: 0
+SSCS - Secondary/Supplementary reads: 0
+DCS reads: 0
+SSCS singletons: 4 
+# === Singleton Rescue ===
+Total singletons: 19510
+Singleton Correction by SSCS: 0
+% Singleton Correction by SSCS: 0.0
+Singleton Correction by Singletons: 0
+% Singleton Correction by Singletons : 0.0
+Singletons remaining (not corrected): 19510 
+# === DCS - Singleton Rescue ===
+SSCS SR - Total reads: 4
+SSCS SR - Unmapped reads: 0
+SSCS SR - Secondary/Supplementary reads: 0
+DCS SR reads: 0
+SSCS SR singletons: 4 

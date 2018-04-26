@@ -1,0 +1,2 @@
+family_size	frequency
+1	19522

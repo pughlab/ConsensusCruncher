@@ -1,0 +1,156 @@
+##########
+LargeMid_62_L006
+##########
+Total sequences: 10000
+Missing spacer: 84
+Bad barcodes: 136
+Passing barcodes: 9780
+-----------
+               A     C     G     T    N
+R1_barcode                             
+0           1572  2920  2046  3243  135
+1           1723  2932  3021  2240    0
+-----------
+               A     C     G     T  N
+R2_barcode                           
+0           1997  2988  2200  2731  0
+1           1694  3070  3032  2119  1
+-----------
+            A   C  G     T  N
+R1_spacer                    
+0          10  10  6  9974  0
+-----------
+            A   C   G     T  N
+R2_spacer                     
+0          19  26  13  9940  2
+
+##########
+LargeMid_57_L005
+##########
+Total sequences: 10000
+Missing spacer: 74
+Bad barcodes: 148
+Passing barcodes: 9778
+-----------
+               A     C     G     T    N
+R1_barcode                             
+0           1627  2939  1990  3222  148
+1           1756  2963  3006  2201    0
+-----------
+               A     C     G     T  N
+R2_barcode                           
+0           2005  2980  2175  2766  0
+1           1664  3112  2995  2155  0
+-----------
+           A  C  G     T  N
+R1_spacer                  
+0          9  8  4  9979  0
+-----------
+            A   C   G     T  N
+R2_spacer                     
+0          18  21  10  9943  8
+
+##########
+LargeMid_56_L005
+##########
+Total sequences: 10000
+Missing spacer: 76
+Bad barcodes: 146
+Passing barcodes: 9778
+-----------
+               A     C     G     T    N
+R1_barcode                             
+0           1673  2946  1953  3206  146
+1           1724  2911  2998  2291    0
+-----------
+               A     C     G     T  N
+R2_barcode                           
+0           1989  2980  2213  2742  0
+1           1710  3030  3063  2121  0
+-----------
+            A  C  G     T  N
+R1_spacer                   
+0          10  9  4  9977  0
+-----------
+            A   C   G     T  N
+R2_spacer                     
+0          13  27  17  9941  2
+
+##########
+LargeMid_59_L006
+##########
+Total sequences: 10000
+Missing spacer: 58
+Bad barcodes: 175
+Passing barcodes: 9767
+-----------
+               A     C     G     T    N
+R1_barcode                             
+0           1628  2940  1950  3255  169
+1           1708  3045  3037  2152    0
+-----------
+               A     C     G     T  N
+R2_barcode                           
+0           2020  2932  2222  2768  0
+1           1699  3101  2995  2141  6
+-----------
+           A   C  G     T  N
+R1_spacer                   
+0          6  13  8  9973  0
+-----------
+            A   C   G     T  N
+R2_spacer                     
+0          10  11  11  9967  1
+
+##########
+LargeMid_58_L005
+##########
+Total sequences: 10000
+Missing spacer: 81
+Bad barcodes: 126
+Passing barcodes: 9793
+-----------
+               A     C     G     T    N
+R1_barcode                             
+0           1643  2914  2051  3185  126
+1           1731  3128  2886  2174    0
+-----------
+               A     C     G     T  N
+R2_barcode                           
+0           2073  2914  2212  2720  0
+1           1728  3141  2906  2144  0
+-----------
+           A  C   G     T  N
+R1_spacer                   
+0          5  8  10  9977  0
+-----------
+            A   C   G     T  N
+R2_spacer                     
+0          16  26  14  9939  5
+
+##########
+LargeMid_61_L006
+##########
+Total sequences: 10000
+Missing spacer: 62
+Bad barcodes: 152
+Passing barcodes: 9786
+-----------
+               A     C     G     T    N
+R1_barcode                             
+0           1685  2936  2015  3156  146
+1           1696  2937  2904  2401    0
+-----------
+               A     C     G     T  N
+R2_barcode                           
+0           2035  2935  2157  2811  0
+1           1594  2989  3026  2323  6
+-----------
+            A   C   G     T  N
+R1_spacer                     
+0          10  11  10  9969  0
+-----------
+           A   C   G     T  N
+R2_spacer                    
+0          8  12  10  9965  5
+
