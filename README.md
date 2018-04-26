@@ -144,7 +144,7 @@ Bamfiles are generated and grouped according to type of error suppression (SSCS 
 ```
 Within a sample directory (e.g. LargeMid_56_L005), you will find the following files:
 
-[Please note the example below is for illustrative purposes only, as sample names and index files were removed for simplification. Order of directories and files were also altered to improve comprehension.]
+Please note the example below is for illustrative purposes only, as sample names and index files were removed for simplification. Order of directories and files were also altered to improve comprehension.
 ```
 .                                           Filetype
 ├── sscs
@@ -170,9 +170,9 @@ Within a sample directory (e.g. LargeMid_56_L005), you will find the following f
 └── time_tracker.txt                        Time log
 
 ```
-There's a lot of files and can be over whelming to deal with initially. The reason why we provide all the different outputs is to provide users with more flexibility for the different types of questions they're trying to answer. 
+Through each stage of consensus formation, duplicate reads are collapsed together and single reads are written as separate files. This allows rentention of all unique molecules, while providing users with easy data management for cross-comparisons between error suppression strategies. 
 
-To simplify your analysis, I would focus on SSCS+SC ("sscs.sc.sorted.bam") and DCS+SC ("dcs.sc.sorted.bam") as highlighted above with [*].
+To simplify analyses, it would be good to focus on SSCS+SC ("sscs.sc.sorted.bam") and DCS+SC ("dcs.sc.sorted.bam") as highlighted above with [*].
 
 
 ### Who do I talk to? ###
