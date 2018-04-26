@@ -172,7 +172,7 @@ Within a sample directory (e.g. LargeMid_56_L005), you will find the following f
 ```
 There's a lot of files and can be over whelming to deal with initially. The reason why we provide all the different outputs is to provide users with more flexibility for the different types of questions they're trying to answer. 
 
-[*] **To simplify your analysis, I would focus on SSCS+SC ("sscs.sc.sorted.bam") and DCS+SC ("dcs.sc.sorted.bam") for optimal consensus formation.** 
+To simplify your analysis, I would focus on SSCS+SC ("sscs.sc.sorted.bam") and DCS+SC ("dcs.sc.sorted.bam") as highlighted above with [*].
 
 
 ### Who do I talk to? ###
