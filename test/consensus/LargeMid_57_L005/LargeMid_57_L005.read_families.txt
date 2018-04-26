@@ -1,3 +1,0 @@
-family_size	frequency
-1	19542
-2	2
