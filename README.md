@@ -75,7 +75,7 @@ Given **fastq** as the input directory, *fastq_to_bam.sh* removes the spacer reg
 sh fastq_to_bam.sh -i ./../ConsensusCruncher/test/fastq -o ./../ConsensusCruncher/test -b 2 -s 1 -f T -r ./[PATH]/BWAIndex/genome.fa
 ```
 
-In the sample dataset, we utilized 2-bp barcodes and 1-bp spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter (-f) shuld be imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
+In the sample dataset, we utilized 2-bp barcodes and 1-bp spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter (-f) should be imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
 
 ```
 READ FROM SEQUENCER
