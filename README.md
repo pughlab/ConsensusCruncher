@@ -8,12 +8,12 @@ This pipeline requires the following dependencies:
 
 | Program | Version | Purpose                                    |
 | ------- | ------- | ------------------------------------------ |
-| Python3 | 3.5.1   | Consensus sequence pipeline                |
-| Numpy   | 1.11.0  | Python library for scientific computing    |
-| Pandas  | 0.19.2  | Python library for data analysis           |
-| Pysam   | 0.9.0   | Python interface for working with bamfiles |
-| Samtools| 1.3.1   | Sorting and indexing bamfiles              |
-| Picard  | 2.6.0   | Merging bamfiles                           |
+| [Python3](https://www.python.org/) | 3.5.1   | Consensus sequence pipeline                |
+| [Numpy](http://www.numpy.org/)   | 1.11.0  | Python library for scientific computing    |
+| [Pandas](https://pandas.pydata.org/)  | 0.19.2  | Python library for data analysis           |
+| [Pysam](https://pypi.org/project/pysam/#description)   | 0.9.0   | Python interface for working with bamfiles |
+| [Samtools](http://samtools.sourceforge.net/)| 1.3.1   | Sorting and indexing bamfiles              |
+| [Picard](https://broadinstitute.github.io/picard/)  | 2.6.0   | Merging bamfiles                           |
 | Java    | 8       | Used with Picard to merge bamfiles         |
 
 ### Configuration ###
