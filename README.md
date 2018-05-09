@@ -72,7 +72,9 @@ In order to create consensus sequences, we first need to process fastq files int
 Given **fastq** as the input directory, *fastq_to_bam.sh* removes the spacer region and extracts the barcode tag from each sequencing read into the header with *extract_barcode.py*.
 
 ```
-sh fastq_to_bam.sh -i ./../ConsensusCruncher/test/fastq -o ./../ConsensusCruncher/test -b 2 -s 1 -f T -r ./[PATH]/BWAIndex/genome.fa
+PATH="[insert path to ConsensusCruncher repo]"
+BWAPATH="[insert path to BWA index]"
+sh fastq_to_bam.sh -i ./$PATH/ConsensusCruncher/test/fastq -o ./$PATH/ConsensusCruncher/test -b 2 -s 1 -f T -r ./$BWAPATH/BWAIndex/genome.fa
 ```
 
 In the sample dataset, we utilized 2-bp barcodes and 1-bp spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter (-f) should be imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
