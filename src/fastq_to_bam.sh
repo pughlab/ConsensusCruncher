@@ -17,7 +17,10 @@
 ##    -r  Reference (BWA index) [MANDATORY]
 ##    -b  Barcode length [MANDATORY]
 ##    -s  Spacer length [MANDATORY]
-##    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
+##    -f  Spacer filter (e.g. "T" will filter out spacers that are non-T)
+##    -t  Indent length
+##    -d  Indent filter (e.g. "AC" will filter out indents that are not matching)
+##    -l  List of built-in barcodes
 ##    -q  qusb directory, default: output/qsub
 ##    -h  Show this message
 ##
@@ -48,7 +51,10 @@ cat << EOF
     -r  Reference (BWA index) [MANDATORY]
     -b  Barcode length [MANDATORY]
     -s  Spacer length [MANDATORY]
-    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
+    -f  Spacer filter (e.g. "T" will filter out spacers that are non-T)
+    -t  Indent length
+    -d  Indent filter (e.g. "AC" will filter out indents that are not matching)
+    -l  List of built-in barcodes
     -q  qusb directory, default: output/qsub
     -h  Show this message
 
@@ -66,7 +72,7 @@ EOF
 ################
 #    Set-up    #
 ################
-while getopts "hi:o:p:r:b:s:f:q:" OPTION
+while getopts "hi:o:p:r:b:s:f:t:d:l:q:" OPTION
 do
      case $OPTION in
          h)
@@ -94,6 +100,15 @@ do
          f)
              SPACERFILT=$OPTARG
              ;;
+         t)
+             INDENTLEN=$OPTARG
+             ;;
+         d)
+             INDENTFILT=$OPTARG
+             ;;
+         l)
+             BARCODELIST=$OPTARG
+             ;;
          q)
              QSUBDIR=$OPTARG
              ;;
@@ -118,6 +133,7 @@ fi
 module load python3/3.4.3
 module load samtools
 module load bwa
+# BWAINDEX="/mnt/work1/data/genomes/human/hg19/iGenomes/Sequence/BWAIndex/genome.fa"
 
 ##check necessary modules have been loaded
 tools="python bwa samtools"
@@ -215,9 +231,12 @@ for R1_file in $( ls $INPUT | grep R1); do
     # Change directory so tag stats file will be created in $TAGDIR
     cd $TAGDIR
 
+    # Current version is very simple and designed for Scott's MA-D UMIs (need to be amended for alternative scenarios)
     # Check if there's a spacer filter
     if [[ -z $SPACERFILT ]]; then
         echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
+    elif [[ -n $INDENTLEN ]]; then
+        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --ilen $INDENTLEN --ifilt $INDENTFILT --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
     else
         echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
     fi
