@@ -217,8 +217,8 @@ def main():
                                                                                                          good_barcode,
                                                                                                          nospacer))
         # Evaluate stats as %
-        stats.write('---INDENT---\n{} ({})\n-----------\n{} ({})\n\n'.format(r1_indent_counter.apply(lambda x: x / x.sum()),
-                                                                             r2_indent_counter.apply(lambda x: x / x.sum())))
+        stats.write('---INDENT---\n{} ({})\n-----------\n{} ({})\n\n'.format(r1_indent_counter.apply(lambda x: x / x.sum(), axis=1),
+                                                                             r2_indent_counter.apply(lambda x: x / x.sum(), axis=1)))
 
     else:
         stats.write('\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(readpair_count,
@@ -226,10 +226,10 @@ def main():
                                                                                                              bad_barcode,
                                                                                                              good_barcode))
 
-    stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_base_counter.apply(lambda x: x / x.sum()),
-                                                              r2_base_counter.apply(lambda x: x / x.sum())))
-    stats.write('---SPACER---\n{}\n-----------\n{}\n\n'.format(r1_spacer_counter.apply(lambda x: x / x.sum()),
-                                                               r2_spacer_counter.apply(lambda x: x / x.sum())))
+    stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_base_counter.apply(lambda x: x / x.sum(), axis=1),
+                                                              r2_base_counter.apply(lambda x: x / x.sum(), axis=1)))
+    stats.write('---SPACER---\n{}\n-----------\n{}\n\n'.format(r1_spacer_counter.apply(lambda x: x / x.sum(), axis=1),
+                                                               r2_spacer_counter.apply(lambda x: x / x.sum(), axis=1)))
 
     stats.close()
 
