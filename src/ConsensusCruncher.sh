@@ -4,9 +4,9 @@
 
 ##====================================================================================
 ##
-##  FILE:         DuplexPipeline.sh
+##  FILE:         ConsensusCruncher.sh
 ##
-##  USAGE:        DuplexPipeline.sh -i input_dir -o output_dir
+##  USAGE:        ConsensusCruncher.sh -i input_dir -o output_dir
 ##
 ##  OPTIONS:
 ##
@@ -50,9 +50,9 @@ usage()
 {
 cat << EOF
 
-  FILE:         DuplexPipeline.sh
+  FILE:         ConsensusCruncher.sh
 
-  USAGE:        DuplexPipeline.sh -i input_dir -o output_dir
+  USAGE:        ConsensusCruncher.sh -i input_dir -o output_dir
 
   OPTIONS:
 
