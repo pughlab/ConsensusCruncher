@@ -193,7 +193,7 @@ for R1_file in $( ls $INPUT | grep R1); do
     #  Set-up IDs  #
     ################
     R2_file=${R1_file//R1/R2}
-    filename=${R1_file//_R1/}
+    filename=${R1_file//R1/}
     filename=${filename//.fastq/}
 
     IFS='_' read -a fname_array<<<"$filename"  # Separate filename by "_"
@@ -244,7 +244,7 @@ for R1_file in $( ls $INPUT | grep R1); do
     #################
     #  Align reads  #
     #################
-    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $REF $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
+    echo -e "bwa mem -M -t4 -R @RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT $REF $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
 
     # Convert to BAM format and sort by positions
     echo -e "samtools view -bhS $BAMDIR/$filename.sam | samtools sort -@4 - $BAMDIR/$filename \n" >> $QSUBDIR/$filename.sh

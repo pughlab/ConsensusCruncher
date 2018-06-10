@@ -62,6 +62,11 @@ def main():
                         help="Input FASTQ file for Read 2 (unzipped)", required=True)
     parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", type=str,
                         required=True)
+    # parser.add_argument("--barcode", action="store", dest="barcode",
+    #                     help="Barcode pattern (N = random/barcode, X = fixed/spacer, A|C|G|T = filtered bases) \n"
+    #                          "e.g. XXNNXX means barcode flanked by 2 spacers on either side \n"
+    #                          "e.g. NNGT means barcode is followed by two spacers matching 'GT'",
+    #                     type=str, required=False)
     parser.add_argument("--blen", action="store", dest="blen", help="Barcode length", type=int, required=True)
     parser.add_argument("--slen", action="store", dest="slen", help="Spacer length (sequence between barcode and DNA)",
                         type=int, required=True)
@@ -75,6 +80,9 @@ def main():
                         required=False)
     parser.add_argument("--blist", action="store", dest="blist", type=str, help="List of correct barcodes",
                         required=False)
+    # parser.add_argument("--blistp", action="store", dest="blistp", type=str,
+    #                     help="Barcode pattern for list of barcodes (e.g. NNXX means 2 barcode bases followed by 2 spacers",
+    #                     required=False)
     args = parser.parse_args()
 
 
@@ -140,11 +148,14 @@ def main():
 
         # Isolate indent
         if args.ilen is not None:
-            r1_indent = r1_seq[args.blen:args.blen + args.ilen]
-            r2_indent = r2_seq[args.blen:args.blen + args.ilen]
+            r1_indent = r1_seq[0:args.ilen]
+            r2_indent = r2_seq[0:args.ilen]
 
             r1_seq = r1_seq[args.ilen:len(r1_seq)]
             r2_seq = r2_seq[args.ilen:len(r2_seq)]
+
+            r1_qual = r1_qual[args.ilen:len(r1_qual)]
+            r2_qual = r2_qual[args.ilen:len(r2_qual)]
 
             # Count indent bases
             for i in range(len(r1_indent)):
@@ -217,7 +228,7 @@ def main():
                                                                                                          good_barcode,
                                                                                                          nospacer))
         # Evaluate stats as %
-        stats.write('---INDENT---\n{} ({})\n-----------\n{} ({})\n\n'.format(r1_indent_counter.apply(lambda x: x / x.sum(), axis=1),
+        stats.write('---INDENT---\n{}\n-----------\n{}\n\n'.format(r1_indent_counter.apply(lambda x: x / x.sum(), axis=1),
                                                                              r2_indent_counter.apply(lambda x: x / x.sum(), axis=1)))
 
     else:
