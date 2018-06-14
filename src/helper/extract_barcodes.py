@@ -18,16 +18,13 @@
 # --read1 READ1         Input FASTQ file for Read 1 (unzipped)
 # --read2 READ2         Input FASTQ file for Read 2 (unzipped)
 # --outfile OUTFILE     Output FASTQ files for Read 1 and Read 2 using given filename
-# --blen BARCODELEN     Barcode length
-# --slen SPACERLEN      Spacer length (This region is removed and only the barcode will be added to the header)
-# --sfilt SPACERFILT    Filter that excludes reads without the specified base(s) in the spacer region
-# --ilen INDENTLEN      Indent length (This region is removed and only the barcode will be added to the header)
-# --ifilt INDENTFILT    Filter that excludes reads without the specified base(s) in the indent region
+# --bpattern BPATTERN   Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)
 # --blist BARCODELIST   List of correct barcodes
 #
-# Sequence design:
-# [Indent][Barcode][Spacer][DNA sequence]
-# [AT][NN][GCT][DNA]
+# Barcode design:
+# N = random / barcode bases
+# A | C | G | T = Fixed spacer bases
+# e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front, followed by 'GT'
 #
 # Inputs:
 # 1. A FASTQ file containing first-in-pair (Read 1) reads
@@ -49,10 +46,23 @@ import pandas as pd
 import numpy as np
 import sys
 
+#######################
+#    Helper Function    #
+#######################
+def find_all(a_str, sub):
+    """(str, str) -> int
+    Return index of substring in string.
+    """
+    start = 0
+    while True:
+        start = a_str.find(sub, start)
+        if start == -1: return
+        yield start
+        start += len(sub)
 
-###############################
-#        Main Function        #
-###############################
+#######################
+#    Main Function    #
+#######################
 def main():
     # Command-line parameters
     parser = ArgumentParser()
@@ -62,27 +72,12 @@ def main():
                         help="Input FASTQ file for Read 2 (unzipped)", required=True)
     parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", type=str,
                         required=True)
-    parser.add_argument("--barcode", action="store", dest="barcode",
-                        help="Barcode pattern (N = random/barcode, X = fixed/spacer, A|C|G|T = filtered bases) \n"
-                             "e.g. XXNNXX means barcode flanked by 2 spacers on either side \n"
-                             "e.g. NNGT means barcode is followed by two spacers matching 'GT'",
-                        type=str, required=False)
-    # parser.add_argument("--blen", action="store", dest="blen", help="Barcode length", type=int, required=True)
-    # parser.add_argument("--slen", action="store", dest="slen", help="Spacer length (sequence between barcode and DNA)",
-    #                     type=int, required=True)
-    # parser.add_argument("--sfilt", action="store", dest="sfilt", type=str,
-    #                     help="Spacer filter that excludes reads without the specified base(s) in the spacer region",
-    #                     required=False)
-    # parser.add_argument("--ilen", action="store", dest="ilen",
-    #                     help="Indent length (sequence between adapter and barcode)", type=int, required=False)
-    # parser.add_argument("--ifilt", action="store", dest="ifilt", type=str,
-    #                     help="Indent filter that excludes reads without the specified base(s) in the indent region",
-    #                     required=False)
+    parser.add_argument("--bpattern", action="store", dest="bpattern", type=str, required=False,
+                        help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases) \n"
+                             "e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front, "
+                             "followed by 'GT' \n")
     parser.add_argument("--blist", action="store", dest="blist", type=str, help="List of correct barcodes",
                         required=False)
-    # parser.add_argument("--blistp", action="store", dest="blistp", type=str,
-    #                     help="Barcode pattern for list of barcodes (e.g. NNXX means 2 barcode bases followed by 2 spacers",
-    #                     required=False)
     args = parser.parse_args()
 
     ######################
@@ -97,30 +92,42 @@ def main():
 
     # === Initialize counters ===
     readpair_count = 0
-    nospacer = 0
-    noindent = 0
+    bad_spacer = 0
     bad_barcode = 0
     good_barcode = 0
 
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
-    # Column in the following  corresponds to A, C, G, T, N
-    r1_spacer_counter = pd.DataFrame(0, index=np.arange(args.slen), columns=nuc_lst)
-    r2_spacer_counter = pd.DataFrame(0, index=np.arange(args.slen), columns=nuc_lst)
-    r1_base_counter = pd.DataFrame(0, index=np.arange(args.blen), columns=nuc_lst)
-    r2_base_counter = pd.DataFrame(0, index=np.arange(args.blen), columns=nuc_lst)
 
-    # Rename rows
-    r1_spacer_counter.index.names = ['R1_spacer']
-    r2_spacer_counter.index.names = ['R2_spacer']
-    r1_base_counter.index.names = ['R1_barcode']
-    r2_base_counter.index.names = ['R2_barcode']
+    # === Define barcodes ===
+    # Check if list of barcodes is provided
+    try:
+        args.blist
+    except NameError:
+        args.blist = None
 
-    # Check if there's indents
-    if args.ilen is not None:
-        r1_indent_counter = pd.DataFrame(0, index=np.arange(args.ilen), columns=nuc_lst)
-        r2_indent_counter = pd.DataFrame(0, index=np.arange(args.ilen), columns=nuc_lst)
-        r1_indent_counter.index_names = ['R1_indent']
-        r2_indent_counter.index_names = ['R2_indent']
+    if args.blist is not None:
+        blist = open(args.blist, "r").read().splitlines()
+        plen = len(blist[0])
+
+    # Check if barcode pattern is provided
+    try:
+        args.bpattern
+    except NameError:
+        args.bpattern = None
+
+    if args.bpattern is not None:
+        plen = len(args.bpattern)  # Pattern length
+        b_index = list(find_all(args.bpattern, 'N'))  # Index of random barcode bases
+        s_index = [x for x in list(range(0, plen)) if x not in b_index]  # Index of constant spacer bases
+        spacer = ''.join([args.bpattern[x] for x in s_index])
+
+    # Raise error if neither a barcode list or pattern is provided
+    if args.blist is None and args.bpattern is None:
+        raise ValueError("No barcode specifications inputted. Please specify barcode list or pattern.")
+
+    # Column in the following corresponds to A, C, G, T, N
+    r1_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
+    r2_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
 
     ######################
     #  Extract barcodes  #
@@ -137,110 +144,74 @@ def main():
         r2_seq = r2[1].rstrip()
         r2_qual = r2[3].rstrip()
 
-        # Isolate indent
-        if args.ilen is not None:
-            r1_indent = r1_seq[0:args.ilen]
-            r2_indent = r2_seq[0:args.ilen]
+        # Isolate barcode
+        r1_barcode = r1_seq[:plen]
+        r2_barcode = r2_seq[:plen]
 
-            r1_seq = r1_seq[args.ilen:len(r1_seq)]
-            r2_seq = r2_seq[args.ilen:len(r2_seq)]
+        # Count barcode bases
+        for i in range(plen):
+            r1_barcode_counter.iloc[i, nuc_lst.index(r1_barcode[i])] += 1
+            r2_barcode_counter.iloc[i, nuc_lst.index(r2_barcode[i])] += 1
 
-            r1_qual = r1_qual[args.ilen:len(r1_qual)]
-            r2_qual = r2_qual[args.ilen:len(r2_qual)]
+        # Extract barcode from sequence and quality scores
+        r1_seq = r1_seq[plen:]
+        r2_seq = r2_seq[plen:]
 
-            # Count indent bases
-            for i in range(len(r1_indent)):
-                r1_indent_counter.iloc[i, nuc_lst.index(r1_indent[i])] += 1
-                r2_indent_counter.iloc[i, nuc_lst.index(r2_indent[i])] += 1
+        r1_qual = r1_qual[plen:]
+        r2_qual = r2_qual[plen:]
 
-        # Isolate spacer
-        r1_spacer = r1_seq[args.blen:args.blen + args.slen]
-        r2_spacer = r2_seq[args.blen:args.blen + args.slen]
+        # Add barcode and read number to header
+        if args.bpattern is not None:
+            r1_barcode = ''.join([r1_barcode[x] for x in b_index])
+            r2_barcode = ''.join([r2_barcode[x] for x in b_index])
 
-        # Count spacer bases
-        for i in range(len(r1_spacer)):
-            r1_spacer_counter.iloc[i, nuc_lst.index(r1_spacer[i])] += 1
-            r2_spacer_counter.iloc[i, nuc_lst.index(r2_spacer[i])] += 1
+        r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_barcode, r2_barcode, "1")
+        r2_header = '{}|{}{}/{}'.format(r2_header.split(" ")[0], r1_barcode, r2_barcode, "2")
 
-        # Check spacer filter
-        if args.sfilt is not None and (r1_spacer != args.sfilt or r2_spacer != args.sfilt):
-            nospacer += 1
-        # Check indent filter
-        elif args.ifilt is not None and (r1_indent != args.ifilt or r2_indent != args.ifilt):
-            noindent += 1
-        else:
-            # Isolate barcodes
-            r1_barcode = r1_seq[:args.blen]
-            r2_barcode = r2_seq[:args.blen]
-
-            # Count barcode bases
-            for i in range(len(r1_barcode)):
-                r1_base_counter.iloc[i, nuc_lst.index(r1_barcode[i])] += 1
-                r2_base_counter.iloc[i, nuc_lst.index(r2_barcode[i])] += 1
-
-            if r1_barcode.count("N") == 0 and r2_barcode.count("N") == 0:
+        # Isolate barcode
+        if args.blist is not None:
+            if r1_barcode in blist and r2_barcode in blist:
                 good_barcode += 1
-                # Extract barcode from sequence and quality scores
-                r1_seq = r1_seq[args.blen + args.slen:]
-                r2_seq = r2_seq[args.blen + args.slen:]
+                # Write read to output file
+                r1_output.write('{}\n{}\n+\n{}\n'.format(r1_header, r1_seq, r1_qual))
+                r2_output.write('{}\n{}\n+\n{}\n'.format(r2_header, r2_seq, r2_qual))
+            else:
+                bad_barcode += 1
 
-                r1_qual = r1_qual[args.blen + args.slen:]
-                r2_qual = r2_qual[args.blen + args.slen:]
+        else:
+            r1_spacer = ''.join([r1_barcode[x] for x in s_index])
+            r2_spacer = ''.join([r2_barcode[x] for x in s_index])
 
-                # Add barcode and read number to header
-                r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_barcode, r2_barcode, "1")
-                r2_header = '{}|{}{}/{}'.format(r2_header.split(" ")[0], r1_barcode, r2_barcode, "2")
-
+            # Check if spacer is correct
+            if r1_spacer == spacer and r2_spacer == spacer:
                 # Write read to output file
                 r1_output.write('{}\n{}\n+\n{}\n'.format(r1_header, r1_seq, r1_qual))
                 r2_output.write('{}\n{}\n+\n{}\n'.format(r2_header, r2_seq, r2_qual))
 
             else:
-                bad_barcode += 1
+                bad_spacer += 1
 
     r1_output.close()
     r2_output.close()
 
     # System output
     sys.stderr.write("Total sequences: {}\n".format(readpair_count))
-    sys.stderr.write("Missing spacer: {}\n".format(nospacer))
-    sys.stderr.write("Missing indent: {}\n".format(noindent))
+    sys.stderr.write("Missing spacer: {}\n".format(bad_spacer))
     sys.stderr.write("Bad barcodes: {}\n".format(bad_barcode))
     sys.stderr.write("Passing barcodes: {}\n".format(good_barcode))
 
     # Output stats file
     stats.write("##########\n{}\n##########".format(args.outfile.split(sep="/")[-1]))
-
-    if args.ilen is not None:
-        stats.write(
-            '\nTotal sequences: {}\nMissing indent: {}\nBad barcodes: {}\nPassing barcodes: {}\nMissing spacer: {}\n'.format(readpair_count,
-                                                                                                         noindent,
-                                                                                                         bad_barcode,
-                                                                                                         good_barcode,
-                                                                                                         nospacer))
-        # Evaluate stats as %
-        stats.write('---INDENT---\n{}\n-----------\n{}\n\n'.format(r1_indent_counter.apply(lambda x: x / x.sum(), axis=1),
-                                                                             r2_indent_counter.apply(lambda x: x / x.sum(), axis=1)))
-
-    else:
-        stats.write('\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(readpair_count,
-                                                                                                             nospacer,
-                                                                                                             bad_barcode,
-                                                                                                             good_barcode))
-
-    stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_base_counter.apply(lambda x: x / x.sum(), axis=1),
-                                                              r2_base_counter.apply(lambda x: x / x.sum(), axis=1)))
-    stats.write('---SPACER---\n{}\n-----------\n{}\n\n'.format(r1_spacer_counter.apply(lambda x: x / x.sum(), axis=1),
-                                                               r2_spacer_counter.apply(lambda x: x / x.sum(), axis=1)))
+    stats.write(
+        '\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(readpair_count,
+                                                                                                     nospacer,
+                                                                                                     bad_barcode,
+                                                                                                     good_barcode))
+    stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_barcode_counter.apply(lambda x: x / x.sum(), axis=1),
+                                                              r2_barcode_counter.apply(lambda x: x / x.sum(), axis=1)))
 
     stats.close()
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
