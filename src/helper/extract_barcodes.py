@@ -44,7 +44,9 @@ from argparse import ArgumentParser
 from itertools import zip_longest
 import pandas as pd
 import numpy as np
+import re
 import sys
+
 
 #######################
 #    Helper Function    #
@@ -60,27 +62,32 @@ def find_all(a_str, sub):
         yield start
         start += len(sub)
 
+
 def create_nuc_dict(nuc_lst):
     """ (list) -> dict
-    Takes the nucleotide list and converts it to a dictionary of binary arrays
-    e.g. A => "A":[1, 0, 0, 0, 0]
+    Takes the nucleotide list and converts it to a dictionary of binary arrays.
+    e.g. A => {"A":[1, 0, 0, 0, 0]}
     """
     nuc_dict={}
     for nuc_x in nuc_lst:
-      nuc_arr = np.array([nuc_y == nuc_x for nuc_y in nuc_lst]).astype(int)
-      nuc_dict.update({nuc_x:nuc_arr})
+        nuc_arr = np.array([nuc_y == nuc_x for nuc_y in nuc_lst]).astype(int)
+        nuc_dict.update({nuc_x:nuc_arr})
     return nuc_dict
+
 
 def seq_to_mat(seq, nuc_dict):
     """ (string, dict) -> np.matrix
-    Converts a string of nucleotides to a matrix of binary nucleotides
+    Converts a string of nucleotides to a matrix of binary nucleotides.
     """
     nuc_map = [nuc_dict[each_nuc] for each_nuc in list(seq)]
     nuc_mat = np.asmatrix(nuc_map)
     return nuc_mat
 
+
 def parse_read(r, plen):
-    """ removes newlines from elements of a list """
+    """(list, int) -> str, str, str, str
+    Removes newlines from elements of a list and isolates barcode from DNA sequence.
+    """
     r_header = r[0].rstrip()
     r_seq_full = r[1].rstrip()
     r_qual = r[3].rstrip()[plen:]
@@ -89,6 +96,7 @@ def parse_read(r, plen):
     r_seq = r_seq_full[plen:]
     
     return r_header, r_barcode, r_seq, r_qual
+
 
 #######################
 #    Main Function    #
@@ -133,9 +141,18 @@ def main():
     if args.blist is not None:
         blist = open(args.blist, "r").read().splitlines()
         plen = len(blist[0])
+
+        # Check list for faulty barcodes
+        if re.search("[^ACGTN]", "".join(blist)) is not None:
+            raise ValueError("Invalid barcode list inputted. Please specify barcodes with A|C|G|T.")
     
     # Check if barcode pattern is provided
     if args.bpattern is not None:
+        # Ensure valid barcode pattern provided
+        if re.search("[^ACGTN]", args.bpattern) is not None:
+            raise ValueError("Invalid barcode pattern inputted. Please specify pattern with A|C|G|T = fixed, "
+                             "N = variable (e.g. 'ATNNGCT').")
+
         plen = len(args.bpattern)  # Pattern length
         b_index = list(find_all(args.bpattern, 'N'))  # Index of random barcode bases
         s_index = [x for x in list(range(0, plen)) if x not in b_index]  # Index of constant spacer bases
