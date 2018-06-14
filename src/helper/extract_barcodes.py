@@ -79,6 +79,13 @@ def seq_to_mat(seq, nuc_dict):
     nuc_mat = np.asmatrix(nuc_map)
     return nuc_mat
 
+def chomp(r):
+    """ removes newlines from elements of a list """
+    r_header = r[0].rstrip()
+    r_seq = r[1].rstrip()
+    r_qual = r[3].rstrip()
+    return r_header, r_seq, r_qual
+
 #######################
 #    Main Function    #
 #######################
@@ -146,22 +153,16 @@ def main():
         readpair_count += 1
 
         # Remove new line '\n' from str and separate using variables
-        r1_header = r1[0].rstrip()
-        r1_seq = r1[1].rstrip()
-        r1_qual = r1[3].rstrip()
-
-        r2_header = r2[0].rstrip()
-        r2_seq = r2[1].rstrip()
-        r2_qual = r2[3].rstrip()
-
+        r1_header, r1_seq, r1_qual = chomp(r1)
+        r2_header, r2_seq, r2_qual = chomp(r2)
+        
         # Isolate barcode
         r1_barcode = r1_seq[:plen]
         r2_barcode = r2_seq[:plen]
 
         # Count barcode bases
-        for i in range(plen):
-            r1_barcode_counter.iloc[i, nuc_lst.index(r1_barcode[i])] += 1
-            r2_barcode_counter.iloc[i, nuc_lst.index(r2_barcode[i])] += 1
+        r1_barcode_counter =+ seq_to_mat(r1_barcode, nuc_dict)
+        r2_barcode_counter =+ seq_to_mat(r2_barcode, nuc_dict)
 
         # Extract barcode from sequence and quality scores
         r1_seq = r1_seq[plen:]
