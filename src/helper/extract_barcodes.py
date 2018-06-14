@@ -79,12 +79,16 @@ def seq_to_mat(seq, nuc_dict):
     nuc_mat = np.asmatrix(nuc_map)
     return nuc_mat
 
-def chomp(r):
+def parse_read(r, plen):
     """ removes newlines from elements of a list """
     r_header = r[0].rstrip()
-    r_seq = r[1].rstrip()
-    r_qual = r[3].rstrip()
-    return r_header, r_seq, r_qual
+    r_seq_full = r[1].rstrip()
+    r_qual = r[3].rstrip()[plen:]
+    
+    r_barcode = r_seq_full[:plen]
+    r_seq = r_seq_full[plen:]
+    
+    return r_header, r_barcode, r_seq, r_qual
 
 #######################
 #    Main Function    #
@@ -153,31 +157,20 @@ def main():
         readpair_count += 1
 
         # Remove new line '\n' from str and separate using variables
-        r1_header, r1_seq, r1_qual = chomp(r1)
-        r2_header, r2_seq, r2_qual = chomp(r2)
-        
-        # Isolate barcode
-        r1_barcode = r1_seq[:plen]
-        r2_barcode = r2_seq[:plen]
+        r1_header, r1_barcode, r1_seq, r1_qual = parse_read(r1, plen)
+        r2_header, r2_barcode, r2_seq, r2_qual = parse_read(r2, plen)
 
         # Count barcode bases
-        r1_barcode_counter =+ seq_to_mat(r1_barcode, nuc_dict)
-        r2_barcode_counter =+ seq_to_mat(r2_barcode, nuc_dict)
-
-        # Extract barcode from sequence and quality scores
-        r1_seq = r1_seq[plen:]
-        r2_seq = r2_seq[plen:]
-
-        r1_qual = r1_qual[plen:]
-        r2_qual = r2_qual[plen:]
+        r1_barcode_counter += seq_to_mat(r1_barcode, nuc_dict)
+        r2_barcode_counter += seq_to_mat(r2_barcode, nuc_dict)
 
         # Add barcode and read number to header
         if args.bpattern is not None:
-            r1_barcode = ''.join([r1_barcode[x] for x in b_index])
-            r2_barcode = ''.join([r2_barcode[x] for x in b_index])
-
-        r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_barcode, r2_barcode, "1")
-        r2_header = '{}|{}{}/{}'.format(r2_header.split(" ")[0], r1_barcode, r2_barcode, "2")
+            r1_bc = ''.join([r1_barcode[x] for x in b_index])
+            r2_bc = ''.join([r2_barcode[x] for x in b_index])
+        
+        r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_bc, r2_bc, "1")
+        r2_header = '{}|{}{}/{}'.format(r2_header.split(" ")[0], r1_bc, r2_bc, "2")
 
         # Isolate barcode
         if args.blist is not None:
