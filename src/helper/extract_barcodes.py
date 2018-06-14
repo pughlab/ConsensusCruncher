@@ -60,6 +60,25 @@ def find_all(a_str, sub):
         yield start
         start += len(sub)
 
+def create_nuc_dict(nuc_lst):
+    """ (list) -> dict
+    Takes the nucleotide list and converts it to a dictionary of binary arrays
+    e.g. A => "A":[1, 0, 0, 0, 0]
+    """
+    nuc_dict={}
+    for nuc_x in nuc_lst:
+      nuc_arr = np.array([nuc_y == nuc_x for nuc_y in nuc_lst]).astype(int)
+      nuc_dict.update({nuc_x:nuc_arr})
+    return nuc_dict
+
+def seq_to_mat(seq, nuc_dict):
+    """ (string, dict) -> np.matrix
+    Converts a string of nucleotides to a matrix of binary nucleotides
+    """
+    nuc_map = [nuc_dict[each_nuc] for each_nuc in list(seq)]
+    nuc_mat = np.asmatrix(nuc_map)
+    return nuc_mat
+
 #######################
 #    Main Function    #
 #######################
@@ -70,14 +89,14 @@ def main():
                         help="Input FASTQ file for Read 1 (unzipped)", required=True)
     parser.add_argument("--read2", action="store", dest="read2", type=str,
                         help="Input FASTQ file for Read 2 (unzipped)", required=True)
-    parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", type=str,
-                        required=True)
-    parser.add_argument("--bpattern", action="store", dest="bpattern", type=str, required=False,
+    parser.add_argument("--outfile", action="store", dest="outfile", help="Absolute path to output SSCS BAM file",
+                        type=str, required=True)
+    parser.add_argument("--bpattern", action="store", dest="bpattern", type=str, required=False, default=None,
                         help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases) \n"
                              "e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front, "
                              "followed by 'GT' \n")
     parser.add_argument("--blist", action="store", dest="blist", type=str, help="List of correct barcodes",
-                        required=False)
+                        default=None, required=False)
     args = parser.parse_args()
 
     ######################
@@ -89,32 +108,22 @@ def main():
     r1_output = open('{}_barcode_R1.fastq'.format(args.outfile), "w")
     r2_output = open('{}_barcode_R2.fastq'.format(args.outfile), "w")
     stats = open('{}/barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
-
+    
     # === Initialize counters ===
     readpair_count = 0
     bad_spacer = 0
     bad_barcode = 0
     good_barcode = 0
-
+    
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
 
     # === Define barcodes ===
     # Check if list of barcodes is provided
-    try:
-        args.blist
-    except NameError:
-        args.blist = None
-
     if args.blist is not None:
         blist = open(args.blist, "r").read().splitlines()
         plen = len(blist[0])
-
+    
     # Check if barcode pattern is provided
-    try:
-        args.bpattern
-    except NameError:
-        args.bpattern = None
-
     if args.bpattern is not None:
         plen = len(args.bpattern)  # Pattern length
         b_index = list(find_all(args.bpattern, 'N'))  # Index of random barcode bases
@@ -126,6 +135,7 @@ def main():
         raise ValueError("No barcode specifications inputted. Please specify barcode list or pattern.")
 
     # Column in the following corresponds to A, C, G, T, N
+    nuc_dict = create_nuc_dict(nuc_lst)
     r1_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
     r2_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
 
