@@ -2,7 +2,7 @@
 
 ###############################################################
 #
-#                       Barcode Extractor
+#                       Extract Barcodes
 #
 ###############################################################
 # Function:
@@ -62,37 +62,28 @@ def main():
                         help="Input FASTQ file for Read 2 (unzipped)", required=True)
     parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", type=str,
                         required=True)
-    # parser.add_argument("--barcode", action="store", dest="barcode",
-    #                     help="Barcode pattern (N = random/barcode, X = fixed/spacer, A|C|G|T = filtered bases) \n"
-    #                          "e.g. XXNNXX means barcode flanked by 2 spacers on either side \n"
-    #                          "e.g. NNGT means barcode is followed by two spacers matching 'GT'",
-    #                     type=str, required=False)
-    parser.add_argument("--blen", action="store", dest="blen", help="Barcode length", type=int, required=True)
-    parser.add_argument("--slen", action="store", dest="slen", help="Spacer length (sequence between barcode and DNA)",
-                        type=int, required=True)
-    parser.add_argument("--sfilt", action="store", dest="sfilt", type=str,
-                        help="Spacer filter that excludes reads without the specified base(s) in the spacer region",
-                        required=False)
-    parser.add_argument("--ilen", action="store", dest="ilen",
-                        help="Indent length (sequence between adapter and barcode)", type=int, required=False)
-    parser.add_argument("--ifilt", action="store", dest="ifilt", type=str,
-                        help="Indent filter that excludes reads without the specified base(s) in the indent region",
-                        required=False)
+    parser.add_argument("--barcode", action="store", dest="barcode",
+                        help="Barcode pattern (N = random/barcode, X = fixed/spacer, A|C|G|T = filtered bases) \n"
+                             "e.g. XXNNXX means barcode flanked by 2 spacers on either side \n"
+                             "e.g. NNGT means barcode is followed by two spacers matching 'GT'",
+                        type=str, required=False)
+    # parser.add_argument("--blen", action="store", dest="blen", help="Barcode length", type=int, required=True)
+    # parser.add_argument("--slen", action="store", dest="slen", help="Spacer length (sequence between barcode and DNA)",
+    #                     type=int, required=True)
+    # parser.add_argument("--sfilt", action="store", dest="sfilt", type=str,
+    #                     help="Spacer filter that excludes reads without the specified base(s) in the spacer region",
+    #                     required=False)
+    # parser.add_argument("--ilen", action="store", dest="ilen",
+    #                     help="Indent length (sequence between adapter and barcode)", type=int, required=False)
+    # parser.add_argument("--ifilt", action="store", dest="ifilt", type=str,
+    #                     help="Indent filter that excludes reads without the specified base(s) in the indent region",
+    #                     required=False)
     parser.add_argument("--blist", action="store", dest="blist", type=str, help="List of correct barcodes",
                         required=False)
     # parser.add_argument("--blistp", action="store", dest="blistp", type=str,
     #                     help="Barcode pattern for list of barcodes (e.g. NNXX means 2 barcode bases followed by 2 spacers",
     #                     required=False)
     args = parser.parse_args()
-
-
-    # Current code is acceptable for UMI designs thus far (XXNNXXX); however, pattern definition is needed if more complex
-    # barcodes are used (NNXXNNXX)
-    # X = fixed bases
-    # N = random bases
-
-    # This is more applicable for methods that have barcodes added to sequencing adapters because barcodes need to be
-    # removed before demultiplexing
 
     ######################
     #       SETUP        #
