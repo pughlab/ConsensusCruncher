@@ -4,9 +4,9 @@
 
 ##====================================================================================
 ##
-##  FILE:         DuplexPipeline.sh
+##  FILE:         ConsensusCruncher.sh
 ##
-##  USAGE:        DuplexPipeline.sh -i input_dir -o output_dir
+##  USAGE:        ConsensusCruncher.sh -i input_dir -o output_dir
 ##
 ##  OPTIONS:
 ##
@@ -50,9 +50,9 @@ usage()
 {
 cat << EOF
 
-  FILE:         DuplexPipeline.sh
+  FILE:         ConsensusCruncher.sh
 
-  USAGE:        DuplexPipeline.sh -i input_dir -o output_dir
+  USAGE:        ConsensusCruncher.sh -i input_dir -o output_dir
 
   OPTIONS:
 
@@ -196,9 +196,9 @@ OUTPUT=$OUTPUT/consensus
 [ -d $QSUBDIR ] || mkdir $QSUBDIR
 
 
-####################
-#  Duplex Pipeline #
-####################
+#####################
+# ConsensusCruncher #
+#####################
 for bamfile in $(ls $INPUT | grep bam | grep -v bai); do
     ###############
     #  Sample ID  #
@@ -259,22 +259,22 @@ for bamfile in $(ls $INPUT | grep bam | grep -v bai); do
             echo -e "python3 $code_dir/singleton_correction.py --singleton $identifier.singleton.sorted.bam --bedfile $BEDFILE\n" >> $QSUBDIR/$identifier.sh
         fi
         # sort and index Singletons Correction by SSCS
-        echo -e "samtools view -bu $identifier.sscs.rescue.bam | samtools sort - $identifier.sscs.rescue.sorted\n" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.sscs.rescue.sorted.bam\n" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.sscs.rescue.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.sscs.correction.bam | samtools sort - $identifier.sscs.correction.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.sscs.correction.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.sscs.correction.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index Singletons Correction by Singletons
-        echo -e "samtools view -bu $identifier.singleton.rescue.bam | samtools sort - $identifier.singleton.rescue.sorted\n" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.singleton.rescue.sorted.bam\n" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.singleton.rescue.bam\n" >> $QSUBDIR/$identifier.sh
-        # sort and index remaining singletons
-        echo -e "samtools view -bu $identifier.rescue.remaining.bam | samtools sort - $identifier.rescue.remaining.sorted\n" >> $QSUBDIR/$identifier.sh
-        echo -e "samtools index $identifier.rescue.remaining.sorted.bam\n" >> $QSUBDIR/$identifier.sh
-        echo -e "rm $identifier.rescue.remaining.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools view -bu $identifier.singleton.correction.bam | samtools sort - $identifier.singleton.correction.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.singleton.correction.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.singleton.correction.bam\n" >> $QSUBDIR/$identifier.sh
+        # sort and index remaining singletons that are uncorrected
+        echo -e "samtools view -bu $identifier.uncorrected.bam | samtools sort - $identifier.uncorrected.sorted\n" >> $QSUBDIR/$identifier.sh
+        echo -e "samtools index $identifier.uncorrected.sorted.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "rm $identifier.uncorrected.bam\n" >> $QSUBDIR/$identifier.sh
 
         #############
         # SSCS + SC #
         #############
-        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.rescue.sorted.bam I=$identifier.singleton.rescue.sorted.bam O=$identifier.sscs.sc.bam\n" >> $QSUBDIR/$identifier.sh
+        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.correction.sorted.bam I=$identifier.singleton.correction.sorted.bam O=$identifier.sscs.sc.bam\n" >> $QSUBDIR/$identifier.sh
         echo -e "samtools view -bu $identifier.sscs.sc.bam | samtools sort - $identifier.sscs.sc.sorted\n" >> $QSUBDIR/$identifier.sh
         echo -e "samtools index $identifier.sscs.sc.sorted.bam\n" >> $QSUBDIR/$identifier.sh
         echo -e "rm $identifier.sscs.sc.bam\n" >> $QSUBDIR/$identifier.sh
@@ -300,15 +300,15 @@ for bamfile in $(ls $INPUT | grep bam | grep -v bai); do
         ########################
         # All Unique Molecules #
         ########################
-        # === SSCS + SC + remaining singletons ===
-        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.rescue.sorted.bam I=$identifier.singleton.rescue.sorted.bam I=$identifier.rescue.remaining.sorted.bam O=$identifier.all.unique.sscs.bam\n" >> $QSUBDIR/$identifier.sh
+        # === SSCS + SC + uncorrected singletons ===
+        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.sscs.sorted.bam I=$identifier.sscs.correction.sorted.bam I=$identifier.singleton.correction.sorted.bam I=$identifier.uncorrected.sorted.bam O=$identifier.all.unique.sscs.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index all unique SSCS molecules
         echo -e "samtools view -bu $identifier.all.unique.sscs.bam | samtools sort - $identifier.all.unique.sscs.sorted\n" >> $QSUBDIR/$identifier.sh
         echo -e "samtools index $identifier.all.unique.sscs.sorted.bam\n" >> $QSUBDIR/$identifier.sh
         echo -e "rm $identifier.all.unique.sscs.bam\n" >> $QSUBDIR/$identifier.sh
 
-        # === DCS (SSCS_SC) + SSCS SC singletons + remaining singletons ===
-        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.dcs.sc.sorted.bam I=$identifier.sscs.sc.singleton.sorted.bam I=$identifier.rescue.remaining.sorted.bam O=$identifier.all.unique.dcs.bam\n" >> $QSUBDIR/$identifier.sh
+        # === DCS (SSCS_SC) + SSCS SC singletons + uncorrected singletons ===
+        echo -e "java -jar $picard_dir/picard.jar MergeSamFiles I=$identifier.dcs.sc.sorted.bam I=$identifier.sscs.sc.singleton.sorted.bam I=$identifier.uncorrected.sorted.bam O=$identifier.all.unique.dcs.bam\n" >> $QSUBDIR/$identifier.sh
         # sort and index all unique DCS molecules
         echo -e "samtools view -bu $identifier.all.unique.dcs.bam | samtools sort - $identifier.all.unique.dcs.sorted\n" >> $QSUBDIR/$identifier.sh
         echo -e "samtools index $identifier.all.unique.dcs.sorted.bam\n" >> $QSUBDIR/$identifier.sh
@@ -328,7 +328,7 @@ for bamfile in $(ls $INPUT | grep bam | grep -v bai); do
         # SSCS + SC
         echo -e "mv $identifier.all.unique.sscs* sscs_SC\n" >> $QSUBDIR/$identifier.sh
         echo -e "mv $identifier.sscs.sc* sscs_SC\n" >> $QSUBDIR/$identifier.sh
-        echo -e "mv $identifier.*rescue* sscs_SC\n" >> $QSUBDIR/$identifier.sh
+        echo -e "mv $identifier.*correction* sscs_SC\n" >> $QSUBDIR/$identifier.sh
 
     fi
 

@@ -6,20 +6,20 @@
 ##
 ##  FILE:         fastq_to_bam.sh
 ##
-##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
-##                                -r REF
+##  USAGE:        fastq_to_bam.sh --input INPUTDIR --output OUTPUTDIR --project PROJECT
+#                                 --barcode 2 --spacer 1 --filter T --ref REF
 ##
 ##  OPTIONS:
 ##
-##    -i  Input directory [MANDATORY]
-##    -o  Output project directory [MANDATORY]
-##    -p  Project name [MANDATORY]
-##    -r  Reference (BWA index) [MANDATORY]
-##    -b  Barcode length [MANDATORY]
-##    -s  Spacer length [MANDATORY]
-##    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
-##    -q  qusb directory, default: output/qsub
-##    -h  Show this message
+##    -i, --input    Input directory [MANDATORY]
+##    -o, --output   Output project directory [MANDATORY]
+##    -p, --project  Project name [MANDATORY]
+##    -r, --ref      Reference (BWA index) [MANDATORY]
+##    -b, --barcode  Barcode length [MANDATORY]
+##    -s, --spacer   Spacer length [MANDATORY]
+##    -f, --filter   Spacer Filter (e.g. "T" will filter out spacers that are non-T)
+##    -q, --qsub     qusb directory, default: output/qsub
+##    -h, --help     Show this message
 ##
 ##  DESCRIPTION:
 ##
@@ -30,27 +30,27 @@
 ##  project folder.
 ##
 ##====================================================================================
-
+# Help command output
 usage()
 {
 cat << EOF
 
   FILE:         fastq_to_bam.sh
 
-  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
-                                -r REF
+  USAGE:        fastq_to_bam.sh --input INPUTDIR --output OUTPUTDIR --project PROJECT
+                                --barcode 2 --spacer 1 --filter T --ref REF
 
   OPTIONS:
 
-    -i  Input directory [MANDATORY]
-    -o  Output project directory [MANDATORY]
-    -p  Project name [MANDATORY]
-    -r  Reference (BWA index) [MANDATORY]
-    -b  Barcode length [MANDATORY]
-    -s  Spacer length [MANDATORY]
-    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
-    -q  qusb directory, default: output/qsub
-    -h  Show this message
+    -i, --input    Input directory [MANDATORY]
+    -o, --output   Output project directory [MANDATORY]
+    -p, --project  Project name [MANDATORY]
+    -r, --ref      Reference (BWA index) [MANDATORY]
+    -b, --barcode  Barcode length [MANDATORY]
+    -s, --spacer   Spacer length [MANDATORY]
+    -f, --filter   Spacer Filter (e.g. "T" will filter out spacers that are non-T)
+    -q, --qsub     qusb directory, default: output/qsub
+    -h, --help     Show this message
 
   DESCRIPTION:
 
@@ -66,6 +66,45 @@ EOF
 ################
 #    Set-up    #
 ################
+# Error message
+error(){
+    echo "`cmd`: invalid option -- '$1'";
+    echo "Try '`cmd` -h' for more information.";
+    exit 1;
+}
+
+
+opts="hi:o:p:r:b:s:f::q"
+
+# There's two passes here: first pass handles long options, second pass uses 'getopt" to canonicalize short options
+for pass in 1 2; do
+    while [ -n "$OPTION" ]; do
+        case $OPTION in
+            --) shift; break;;
+            -*) case $OPTION in
+                -h|--help)
+                            usage
+                            exit 1
+                            ;;
+                -i|--input)
+                            INPUT=$OPTARG
+                            ;;
+
+            *) if [ $pass -eq 1 ]; then ARGS="$ARGS $1";
+               else error $1; fi;;
+        esac
+        shift
+    done
+
+    if [ $pass -eq 1 ]
+    then
+        ARGS='getopt $opts $ARGS'
+        if [$? != 0]; then usage; exit; fi; set -- $ARGS
+    fi
+done
+
+
+
 while getopts "hi:o:p:r:b:s:f:q:" OPTION
 do
      case $OPTION in
