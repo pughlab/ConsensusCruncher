@@ -2,18 +2,21 @@
 
 ConsensusCruncher is a tool that suppresses errors in next-generation sequencing data by using unique molecular identifers (UMIs) to amalgamate reads derived from the same DNA template into a consensus sequence.
 
+## Overview ##
+<img src="https://user-images.githubusercontent.com/13406244/39268149-03b4c12a-489d-11e8-8011-f85ec8a82f39.png" width="50%" height="50%">
+
 ## Quick start ##
 ### Dependencies ###
 This pipeline requires the following dependencies:
 
 | Program | Version | Purpose                                    |
 | ------- | ------- | ------------------------------------------ |
-| Python3 | 3.5.1   | Consensus sequence pipeline                |
-| Numpy   | 1.11.0  | Python library for scientific computing    |
-| Pandas  | 0.19.2  | Python library for data analysis           |
-| Pysam   | 0.9.0   | Python interface for working with bamfiles |
-| Samtools| 1.3.1   | Sorting and indexing bamfiles              |
-| Picard  | 2.6.0   | Merging bamfiles                           |
+| [Python3](https://www.python.org/) | 3.5.1   | Consensus sequence pipeline                |
+| [Numpy](http://www.numpy.org/)   | 1.11.0  | Python library for scientific computing    |
+| [Pandas](https://pandas.pydata.org/)  | 0.19.2  | Python library for data analysis           |
+| [Pysam](https://pypi.org/project/pysam/#description)   | 0.9.0   | Python interface for working with bamfiles |
+| [Samtools](http://samtools.sourceforge.net/)| 1.3.1   | Sorting and indexing bamfiles              |
+| [Picard](https://broadinstitute.github.io/picard/)  | 2.6.0   | Merging bamfiles                           |
 | Java    | 8       | Used with Picard to merge bamfiles         |
 
 ### Configuration ###
@@ -49,33 +52,19 @@ with SSCS to form SSCS + SC, and further collapsed to form DCS + SC. Finally,
 files containing all unique molecules (a.k.a. no duplicates) are created for SSCS
 and DCS.
 
-## How it works ##
-Unique molecular identifiers (UMIs) composed of molecular barcodes and sequence features are used aggregate reads derived from the same strand of a template molecule. Amalgamation of such reads into single strand consensus sequences (SSCS) removes discordant bases, which effectively eliminates polymerase and sequencer errors. Complementary SSCSs can be subsequently combined to form a duplex consensus sequence (DCS), which eliminates asymmetric strand artefacts such as those that develop from oxidative damage. 
-
-Conventional UMI-based strategies rely on redundant sequencing from both template strands to form consensus sequences and cannot error suppress single reads (singleton). We enable singleton correction using complementary duplex reads in the absence of redundant sequencing. 
-
-## Overview ##
-<img src="https://user-images.githubusercontent.com/13406244/39268149-03b4c12a-489d-11e8-8011-f85ec8a82f39.png" width="50%" height="50%">
-
-**ConsensusCruncher schematic:**
-* An uncollapsed bamfile is first processed through SSCS_maker.py to create an error-suppressed single-strand 
-consensus sequence (SSCS) bamfile and an uncorrected singleton bamfile. 
-* The singletons can be corrected through singleton_correction.py, which error suppress singletons with its complementary SSCS or singleton read. 
-* SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with corrected singletons to create
-an expanded pool of DCS reads (Figure illustrates singleton correction merged work flow).
-
-
 ## Example ##
-In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the test folder.
+In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the [test folder](https://github.com/pughlab/ConsensusCruncher/tree/master/test/fastq).
 
 ### Fastqs to Bams ###
 Given **fastq** as the input directory, *fastq_to_bam.sh* removes the spacer region and extracts the barcode tag from each sequencing read into the header with *extract_barcode.py*.
 
 ```
-sh fastq_to_bam.sh -i ./../ConsensusCruncher/test/fastq -o ./../ConsensusCruncher/test -b 2 -s 1 -f T -r ./[PATH]/BWAIndex/genome.fa
+PATH="[insert path to ConsensusCruncher repo]"
+BWAPATH="[insert path to BWA index]"
+sh fastq_to_bam.sh -i ./$PATH/ConsensusCruncher/test/fastq -o ./$PATH/ConsensusCruncher/test -b 2 -s 1 -f T -r ./$BWAPATH/BWAIndex/genome.fa
 ```
 
-In the sample dataset, we utilized 2-bp barcodes and 1-bp spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter (-f) shuld be imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
+In the sample dataset, we utilized 2-bp barcodes and 1-bp spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter (-f) should be imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
 
 ```
 READ FROM SEQUENCER
@@ -174,6 +163,18 @@ Through each stage of consensus formation, duplicate reads are collapsed togethe
 
 To simplify analyses, it would be good to focus on SSCS+SC ("sscs.sc.sorted.bam") and DCS+SC ("dcs.sc.sorted.bam") as highlighted above with [*].
 
+## How it works ##
+Unique molecular identifiers (UMIs) composed of molecular barcodes and sequence features are used aggregate reads derived from the same strand of a template molecule. Amalgamation of such reads into single strand consensus sequences (SSCS) removes discordant bases, which effectively eliminates polymerase and sequencer errors. Complementary SSCSs can be subsequently combined to form a duplex consensus sequence (DCS), which eliminates asymmetric strand artefacts such as those that develop from oxidative damage. 
+
+Conventional UMI-based strategies rely on redundant sequencing from both template strands to form consensus sequences and cannot error suppress single reads (singleton). We enable singleton correction using complementary duplex reads in the absence of redundant sequencing. 
+
+**ConsensusCruncher schematic:**
+* An uncollapsed bamfile is first processed through SSCS_maker.py to create an error-suppressed single-strand 
+consensus sequence (SSCS) bamfile and an uncorrected singleton bamfile. 
+* The singletons can be corrected through singleton_correction.py, which error suppress singletons with its complementary SSCS or singleton read. 
+* SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with corrected singletons to create
+an expanded pool of DCS reads (Figure illustrates singleton correction merged work flow).
+
 
 ### Who do I talk to? ###
-* Repo owner or admin (Nina T. Wang)
+* Nina Wang (nina.tt.wang@gmail.com), Trevor Pugh (Trevor.Pugh@uhn.ca), Scott Bratman (Scott.Bratman@rmp.uhn.ca)
