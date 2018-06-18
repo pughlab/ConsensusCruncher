@@ -6,7 +6,7 @@
 ##
 ##  FILE:         fastq_to_bam.sh
 ##
-##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
+##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b BPATTERN
 ##                                -r REF
 ##
 ##  OPTIONS:
@@ -15,15 +15,21 @@
 ##    -o  Output project directory [MANDATORY]
 ##    -p  Project name [MANDATORY]
 ##    -r  Reference (BWA index) [MANDATORY]
-##    -b  Barcode length [MANDATORY]
-##    -s  Spacer length [MANDATORY]
-##    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
+##    -b  Barcode pattern [MANDATORY; unless barcode list provided (you can input both list and pattern)]
+##    -l  Barcode list [MANDATORY; unless barcode pattern provided (you can input both list and pattern)]
 ##    -q  qusb directory, default: output/qsub
 ##    -h  Show this message
 ##
-##  DESCRIPTION:
+##  BARCODE DESIGN:
+##  You can input either a barcode list or barcode pattern or both. If both are provided, barcodes will first be matched
+##  with the list and then the constant spacer bases will be removed before the barcode is added to the header.
 ##
-##  This script extracts molecular barcode tags and removes spacers from unzipped FASTQ
+##  N = random / barcode bases
+##  A | C | G | T = constant spacer bases
+##  e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front and 'GT' behind.
+##
+##  DESCRIPTION:
+##  This script extracts molecular barcode tags and removes constant spacers from unzipped FASTQ
 ##  files found in the input directory (file names must contain "R1" or "R2"). Barcode
 ##  extracted FASTQ files are written to the 'fastq_tag' directory and are subsequently
 ##  aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
@@ -37,7 +43,7 @@ cat << EOF
 
   FILE:         fastq_to_bam.sh
 
-  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b 2 -s 1 -f T
+  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b BPATTERN
                                 -r REF
 
   OPTIONS:
@@ -46,15 +52,21 @@ cat << EOF
     -o  Output project directory [MANDATORY]
     -p  Project name [MANDATORY]
     -r  Reference (BWA index) [MANDATORY]
-    -b  Barcode length [MANDATORY]
-    -s  Spacer length [MANDATORY]
-    -f  Spacer Filter (e.g. "T" will filter out spacers that are non-T)
+    -b  Barcode pattern [MANDATORY; unless barcode list provided (you can input both list and pattern)]
+    -l  Barcode list [MANDATORY; unless barcode pattern provided (you can input both list and pattern)]
     -q  qusb directory, default: output/qsub
     -h  Show this message
 
-  DESCRIPTION:
+  BARCODE DESIGN:
+  You can input either a barcode list or barcode pattern or both. If both are provided, barcodes will first be matched
+  with the list and then the constant spacer bases will be removed before the barcode is added to the header.
 
-  This script extracts molecular barcode tags and removes spacers from unzipped FASTQ
+  N = random / barcode bases
+  A | C | G | T = constant spacer bases
+  e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front and 'GT' behind.
+
+  DESCRIPTION:
+  This script extracts molecular barcode tags and removes constant spacers from unzipped FASTQ
   files found in the input directory (file names must contain "R1" or "R2"). Barcode
   extracted FASTQ files are written to the 'fastq_tag' directory and are subsequently
   aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
@@ -66,7 +78,7 @@ EOF
 ################
 #    Set-up    #
 ################
-while getopts "hi:o:p:r:b:s:f:q:" OPTION
+while getopts "hi:o:p:r:b:l:q:" OPTION
 do
      case $OPTION in
          h)
@@ -86,13 +98,10 @@ do
              REF=$OPTARG
              ;;
          b)
-             BARCODELEN=$OPTARG
+             BPATTERN=$OPTARG
              ;;
-         s)
-             SPACERLEN=$OPTARG
-             ;;
-         f)
-             SPACERFILT=$OPTARG
+         l)
+             BLIST=$OPTARG
              ;;
          q)
              QSUBDIR=$OPTARG
@@ -104,7 +113,7 @@ do
      esac
 done
 
-if [[ -z $INPUT ]] || [[ -z $OUTPUT ]] || [[ -z $PROJECT ]] || [[ -z $REF ]] || [[ -z $BARCODELEN ]] || [[ -z $SPACERLEN ]]
+if [[ -z $INPUT ]] || [[ -z $OUTPUT ]] || [[ -z $PROJECT ]] || [[ -z $REF ]] || [[ -z $BPATTERN ]] && [[ -z $BLIST ]]
 then
      usage
      exit 1
@@ -118,6 +127,23 @@ fi
 module load python3/3.4.3
 module load samtools
 module load bwa
+
+##################
+# Error Checking #
+##################
+## Check proper barcode design provided
+# Barcode pattern
+if ! [[ "$BPATTERN" =~ ^(A|C|G|T|N)*$ ]]; then
+    echo "Error: invalid barcode pattern containing characters other than A, C, G, T, and N."
+    exit 1
+fi
+
+# Barcode list (check if list contains appropriate barcodes)
+bad_barcodes=$(grep -v '^[ACGTN]*$' $BLIST)
+if [[ $bad_barcodes ]]; then
+    echo "Error: barcode list contains invalid patterns (Each barcode should be comprised of A, C, G, T, or N)."
+    exit 1
+fi
 
 ##check necessary modules have been loaded
 tools="python bwa samtools"
@@ -142,7 +168,7 @@ do
 done
 
 ##check necessary variables have been set
-variables="REF"
+variables="REF"  # /mnt/work1/data/genomes/human/hg19/iGenomes/Sequence/WholeGenomeFasta/genome.fa
 for i in $variables; do
     if [[ -z ${!i} ]]; then
         echo "Please set variable $i"
@@ -152,8 +178,9 @@ for i in $variables; do
     fi
 done
 
-# Set code directory
-code_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Set code directory (NEEDS IMPROVEMENT* should be set to location of code)
+#code_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+code_dir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 
 ################
@@ -186,7 +213,8 @@ for R1_file in $( ls $INPUT | grep R1); do
     barcode_i="$(expr $lane_i - 1)"
     barcode=${fname_array[$barcode_i]}
 
-    echo -e "#/bin/bash\n#$ -S /bin/bash\n#$ -cwd\n\nmodule load $python_version\nmodule load $bwa_version\nmodule load $samtools_version\n" > $QSUBDIR/$filename.sh
+    echo -e "#/bin/bash\n#$ -S /bin/bash\n#$ -cwd\n\nmodule load $python_version\nmodule load $bwa_version\n
+    module load $samtools_version\n" > $QSUBDIR/$filename.sh
 
     #################
     #  Unzip files  #
@@ -215,17 +243,23 @@ for R1_file in $( ls $INPUT | grep R1); do
     # Change directory so tag stats file will be created in $TAGDIR
     cd $TAGDIR
 
-    # Check if there's a spacer filter
-    if [[ -z $SPACERFILT ]]; then
-        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN \n" >> $QSUBDIR/$filename.sh
+    # Check if barcode list or pattern is provided
+    if [[ -n $BLIST ]] && [[ -n $BPATTERN ]]; then
+        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
+        --bpattern $BPATTERN --blist $BLIST \n" >> $QSUBDIR/$filename.sh
+    elif [[ -n $BLIST ]]; then
+        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
+        --blist $BLIST \n" >> $QSUBDIR/$filename.sh
     else
-        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename --blen $BARCODELEN --slen $SPACERLEN --sfilt $SPACERFILT \n" >> $QSUBDIR/$filename.sh
+        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
+        --bpattern $BPATTERN\n" >> $QSUBDIR/$filename.sh
     fi
 
     #################
     #  Align reads  #
     #################
-    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $REF $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
+    echo -e "bwa mem -M -t4 -R '@RG\tID:1\tSM:$filename\tPL:Illumina\tPU:$barcode.$lane\tLB:$PROJECT' $REF
+    $TAGDIR/$filename'_barcode_R1.fastq' $TAGDIR/$filename'_barcode_R2.fastq' > $BAMDIR/$filename.sam \n" >>$QSUBDIR/$filename.sh
 
     # Convert to BAM format and sort by positions
     echo -e "samtools view -bhS $BAMDIR/$filename.sam | samtools sort -@4 - $BAMDIR/$filename \n" >> $QSUBDIR/$filename.sh
