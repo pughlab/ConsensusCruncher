@@ -168,7 +168,7 @@ do
 done
 
 # Set script directory
-code_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+code_dir="$( cd "$(dirname "$0")" ; pwd -P )"
 code_dir=$code_dir/helper
 
 ###############
