@@ -24,7 +24,7 @@
 # Barcode design:
 # N = random / barcode bases
 # A | C | G | T = Fixed spacer bases
-# e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front, followed by 'GT'
+# e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front and 'GT' behind
 #
 # Inputs:
 # 1. A FASTQ file containing first-in-pair (Read 1) reads
@@ -55,12 +55,8 @@ def find_all(a_str, sub):
     """(str, str) -> int
     Return index of substring in string.
     """
-    start = 0
-    while True:
-        start = a_str.find(sub, start)
-        if start == -1: return
-        yield start
-        start += len(sub)
+    sub_index=[i for i, x in enumerate(list(a_str)) if x==sub]    
+    return sub_index
 
 
 def create_nuc_dict(nuc_lst):
@@ -68,7 +64,7 @@ def create_nuc_dict(nuc_lst):
     Takes the nucleotide list and converts it to a dictionary of binary arrays.
     e.g. A => {"A":[1, 0, 0, 0, 0]}
     """
-    nuc_dict={}
+    nuc_dict = {}
     for nuc_x in nuc_lst:
         nuc_arr = np.array([nuc_y == nuc_x for nuc_y in nuc_lst]).astype(int)
         nuc_dict.update({nuc_x:nuc_arr})
@@ -126,7 +122,7 @@ def main():
     read2 = open(args.read2, "r")
     r1_output = open('{}_barcode_R1.fastq'.format(args.outfile), "w")
     r2_output = open('{}_barcode_R2.fastq'.format(args.outfile), "w")
-    stats = open('{}/barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
+    stats = open('{}_barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
     
     # === Initialize counters ===
     readpair_count = 0
@@ -189,7 +185,7 @@ def main():
         r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_bc, r2_bc, "1")
         r2_header = '{}|{}{}/{}'.format(r2_header.split(" ")[0], r1_bc, r2_bc, "2")
 
-        # Isolate barcode
+        # Isolate barcode from sequence
         if args.blist is not None:
             if r1_barcode in blist and r2_barcode in blist:
                 good_barcode += 1
