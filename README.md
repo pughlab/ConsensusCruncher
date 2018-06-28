@@ -19,6 +19,8 @@ This pipeline requires the following dependencies:
 | [Picard](https://broadinstitute.github.io/picard/)  | 2.6.0   | Merging bamfiles                           |
 | Java    | 8       | Used with Picard to merge bamfiles         |
 
+All required python libraries can be installed with '''pip install -r requirements.txt'''
+
 ### Configuration ###
 Set up fastq_to_bam.sh and ConsensusCruncher.sh with appropriate configurations:
 1. **Cluster**: Current settings are set-up for Sun Grid Engine HPC clusters. Depending 
