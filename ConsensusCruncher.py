@@ -49,6 +49,10 @@
 import os
 import sys
 import re
+import argparse
+# import extract_barcodes
+import configparser
+# from configobj import ConfigObj
 
 ####################
 # Helper functions #
@@ -60,6 +64,7 @@ def check_barcode(bpattern):
     :param bpattern(str): the sequence of a barcode, e.g. 'ATNNCGT'
     :return:
     """
+
 
 
 def fastq2bam(args):
@@ -84,22 +89,17 @@ def fastq2bam(args):
     :param args:
 
     """
-    # Check if either barcode pattern or list is set. At least one must be provided.
-
-
-    # Check proper barcode design provided for barcode pattern
-    try:
-        if re.findall(r'[^A|C|G|T|N]', args.bpattern):
-            raise ValueError
-    except ValueError:
-        print("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
-
-    # Create directory (check if dir exists and permissions to write)
+    # Create directory for barcode extracted FASTQ files and BAM files
     fastq_dir = '{}/fastq_tag'.format(args.f_output)
     bam_dir = '{}/bamfiles'.format(args.f_output)
+    # Check if dir exists and there's permission to write
     if not os.path.exists(fastq_dir) and not os.path.exists(bam_dir) and os.access(args.f_output, os.W_OK):
         os.makedirs(fastq_dir)
         os.makedirs(bam_dir)
+
+    # Setup variables
+    # if args.blist is not None and args.bpattern is not None:
+
 
 
 
@@ -127,46 +127,54 @@ def consensus(args):
 if __name__ == '__main__':
     # Mode parser
     main_p = argparse.ArgumentParser()
-    subp = main_p.add_subparsers(help='sub-command help')
+    sub = main_p.add_subparsers(help='sub-command help', dest='subparser_name')
+    sub.required = True
 
     #############
     # fastq2bam #
     #############
     # Help messages
-    mode_fastq2bam_help = "Extract molecular barcodes from paired-end sequencing reads using a barcode list" \
-                          "pattern, or the two combined. Remove constant spacer bases and combine paired" \
-                          "barcodes before adding to the header of each read in FASTQ files.\n" \
-                          "Barcode-extracted FASTQ files are written to the 'fastq_tag' directory and are" \
-                          "subsequenntly aligned with BWA. BAM files are written to a 'bamfile' directory" \
-                          "under the specified project folder.\n" \
-                          "BARCODE DESIGN:" \
-                          "You can input either a barcode list or barcode pattern or both. If both are provided," \
-                          "barcodes will first be matched with the list and then the constant spacer bases will" \
-                          "be removed before the barcode is added to the header.\n" \
-                          "N = random barcode bases" \
-                          " A | C | G | T = constant spacer bases" \
-                          "e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front and 'GT' behind."
-
+    mode_fastq2bam_help = "Extract molecular barcodes from paired-end sequencing reads using a barcode list and/or " \
+                          "a barcode pattern."
     # Set args
-    subp_p = subp.add_parser('fastq2bam', help=mode_fastq2bam_help)
-    subp_p.add_argument('-i', dest='f_input', required=True, type=str,
-                        help='Input FASTQ directory (Note: filenames must contain R1/R2 to differentiate paired-end '
-                             'reads).')
-    subp_p.add_argument('-o', dest='f_output', help='Output project directory for new folders and files to be created.',
-                        required=True, type=str)
-    subp_p.add_argument('-r', dest='ref', help='Reference (BWA index).', required=TRUE, type=str)
-    subp_p.add_argument('-b', dest='bpattern', type=str,
-                        help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases).")
-    subp_p.add_argument('-l', dest='blist', type=str,
-                        help='List of barcodes (Text file with unique barcodes on each line).')
-    subp_p.set_defaults(func=fastq2bam)
+    sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help)
+    sub_a.add_argument('-c', '--config', metavar="FILE", type=str, default=None,
+                       help="Specify config file. Commandline option overrides config file (Use config template).")
 
+    args, remaining_args = sub_a.parse_known_args()
+
+    defaults = {"fastqs":"default"}
+
+    if args.config:
+        config = configparser.ConfigParser()
+        config.read([args.config])
+        defaults.update(dict(config.items("fastq2bam")))
+
+        # sub_a = argparse.ArgumentParser(parents=[config])
+        # sub_a.set_defaults(**defaults)
+
+    # Parse commandline arguments
+    sub_a.add_argument('-f', '--fastqs', dest='f_input', metavar="FASTQ", type=str, nargs=2,
+                        help='Two paired-end FASTQ files.')
+    sub_a.add_argument('-o', '--output', dest='f_output', metavar="OUTPUT_DIR", type=str,
+                       help="Output directory, where barcode extracted FASTQ and BAM files will be placed in "
+                            "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they "
+                            "do not exist).")
+    sub_a.add_argument('-r', '--ref', metavar="REF", help='Reference (BWA index).', type=str)
+    sub_a.add_argument('-b', '--bpattern', metavar="BARCODE_PATTERN", type=str, default=None,
+                        help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases).")
+    sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, default=None,
+                       help='List of barcodes (Text file with unique barcodes on each line).')
+    sub_a.set_defaults(func=fastq2bam)
+
+    if args.config:
+        sub_a.parse_args(remaining_args)
 
     #############
     # consensus #
     #############
     # Help messages
-    bedfile_help = "Bedfile, default: cytoBand.txt" \
+    bedfile_help = "Bedfile, default: cytoBand.txt. " \
                    "WARNING: It is HIGHLY RECOMMENDED that you use the default cytoBand.txt and" \
                    "not to include your own bedfile. This option is mainly intended for non-human" \
                    "genomes, where a separate bedfile is needed for data segmentation. If you do" \
@@ -175,27 +183,49 @@ if __name__ == '__main__':
                    "data set, you may choose to turn off this option with '-b OFF' and process the" \
                    "data all at once (Division of data is only required for large data sets to offload" \
                    "the memory burden)."
+    consensus_help = "Almalgamate duplicate reads in BAM files into single-strand consensus sequences (SSCS) and " \
+                     "duplex consensus sequences (DCS). Single reads with complementary duplex strands can also be " \
+                     "corrected with 'Singleton Correction'."
+
     # Determine code directory
-    code_dir
+    code_dir = os.path.join(os.path.dirname(__file__))
+    print(code_dir)
 
     # Set args
-    subp_p = subp.add_parser('consensus', help=)
-    subp_p.add_argument('-i', dest='c_input', help='Input directory.', required=True, type = str)
-    subp_p.add_argument('-o', dest='c_output', help="Output project directory for new files and folders to be created.",
-                        required=True, type=str)
-    subp_p.add_argument('-s', dest='singcor', help="Singleton correction, default: True.",
-                        default=True, action='store', choices=[True, False], type=bool)
-    subp_p.add_argument('-b', dest='bedfile', help=bedfile_help, default='{}/cytoband.txt'.format(code_dir), type=str)
-    subp_p.add_argument('-c', dest='cutoff', default=0.7, type=float,
-                        help="Consensus cut-off, default: 0.7 (70% of reads must have the same base to form a "
-                             "consensus).")
-    subp_p.set_defaults(func=consensus)
+    sub_b = sub.add_parser('consensus', help=consensus_help)
+    sub_b.add_argument('-i', '--input', dest='c_input', help='Input directory.', required=True, type=str)
+    sub_b.add_argument('-o', '--output', dest='c_output', required=True, type=str,
+                       help="Output project directory for new files and folders to be created.")
+    sub_b.add_argument('-s', '--scorrect', help="Singleton correction, default: True.", default=True,
+                       choices=[True, False], type=bool)
+    sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default='{}/cytoband.txt'.format(code_dir), type=str)
+    sub_b.add_argument('-c', '--cutoff', default=0.7, type=float,
+                       help="Consensus cut-off, default: 0.7 (70%% of reads must have the same base to form a "
+                            "consensus).")
+    sub_b.add_argument('--cleanup', help="Remove intermediate files.")
+    sub_b.set_defaults(func=consensus)
 
     # Parse args
     args = main_p.parse_args()
 
+    if args.config is None and (args.f_input is None or args.f_output is None or args.ref is None):
+        sub_a.error("Command line arguments must be provided if config file is not present.")
+
+    # Check if either barcode pattern or list is set. At least one must be provided.
     if args.bpattern is None and args.blist is None:
-        args.error("At least one of -b or -l required.")
+        sub_a.error("At least one of -b or -l required.")
+    # Check proper barcode design provided for barcode pattern
+    elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
+        raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
+    # Check list for faulty barcodes in list
+    elif args.blist is not None:
+        blist = open(args.blist, "r").read().splitlines()
+        if re.search("[^ACGTN]", "".join(blist)) is not None:
+            raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
+        else:
+            args.func(args)
     else:
         args.func(args)
+
+
 
