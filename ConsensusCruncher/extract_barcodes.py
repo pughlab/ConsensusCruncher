@@ -90,13 +90,12 @@ def extract_barcode(read, plen):
     :type read: object
     :param plen: The length of the barcode.
     :type plen: num
-    :returns: elements of read with barcode isolated.
+    :returns: A SeqIO object with barcode removed and a barcode string.
     """
     barcode = read.seq[:plen]
-    seq = read.seq[plen:]
-    qual = read.letter_annotations["phred_quality"][plen:]
+    read_b = read[plen:]
 
-    return read.id, barcode, seq, qual
+    return read_b, barcode
 
 
 #######################
@@ -184,8 +183,8 @@ def main():
         assert r1.id == r2.id
 
         # Remove new line '\n' from str and separate using variables
-        r1_header, r1_barcode, r1_seq, r1_qual = extract_barcode(r1, plen)
-        r2_header, r2_barcode, r2_seq, r2_qual = extract_barcode(r2, plen)
+        r1, r1_barcode = extract_barcode(r1, plen)
+        r2, r2_barcode = extract_barcode(r2, plen)
 
         # Count barcode bases
         r1_barcode_counter += seq_to_mat(r1_barcode, nuc_dict)
@@ -195,17 +194,19 @@ def main():
         if args.bpattern is not None:
             r1_bc = ''.join([r1_barcode[x] for x in b_index])
             r2_bc = ''.join([r2_barcode[x] for x in b_index])
-        
-        r1_header = '{}|{}{}/{}'.format(r1_header.split(" ")[0], r1_bc, r2_bc, "1")
-        r2_header = '{}|{}{}/{}'.format(r2_header.split(" ")[0], r1_bc, r2_bc, "2")
+
+        r1.id = '{}|{}{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
+        r2.id = '{}|{}{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
+        r1.description = r1.id
+        r2.description = r2.id
 
         # Isolate barcode from sequence
         if args.blist is not None:
             if r1_barcode in blist and r2_barcode in blist:
                 good_barcode += 1
                 # Write read to output file
-                r1_output.write('{}\n{}\n+\n{}\n'.format(r1_header, r1_seq, r1_qual))
-                r2_output.write('{}\n{}\n+\n{}\n'.format(r2_header, r2_seq, r2_qual))
+                SeqIO.write(r1, r1_output, "fastq")
+                SeqIO.write(r2, r2_output, "fastq")
             else:
                 bad_barcode += 1
 
@@ -217,9 +218,8 @@ def main():
             if r1_spacer == spacer and r2_spacer == spacer:
                 good_barcode += 1
                 # Write read to output file
-                r1_output.write('{}\n{}\n+\n{}\n'.format(r1_header, r1_seq, r1_qual))
-                r2_output.write('{}\n{}\n+\n{}\n'.format(r2_header, r2_seq, r2_qual))
-
+                SeqIO.write(r1, r1_output, "fastq")
+                SeqIO.write(r2, r2_output, "fastq")
             else:
                 bad_spacer += 1
 
