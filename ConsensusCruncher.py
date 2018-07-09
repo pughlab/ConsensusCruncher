@@ -54,18 +54,6 @@ import argparse
 import configparser
 # from configobj import ConfigObj
 
-####################
-# Helper functions #
-####################
-def check_barcode(bpattern):
-    """
-    Check barcodes only contain A, C, G, T, and N bases.
-
-    :param bpattern(str): the sequence of a barcode, e.g. 'ATNNCGT'
-    :return:
-    """
-
-
 
 def fastq2bam(args):
     """
@@ -90,15 +78,15 @@ def fastq2bam(args):
 
     """
     # Create directory for barcode extracted FASTQ files and BAM files
-    fastq_dir = '{}/fastq_tag'.format(args.f_output)
-    bam_dir = '{}/bamfiles'.format(args.f_output)
+    fastq_dir = '{}/fastq_tag'.format(args.output)
+    bam_dir = '{}/bamfiles'.format(args.output)
     # Check if dir exists and there's permission to write
-    if not os.path.exists(fastq_dir) and not os.path.exists(bam_dir) and os.access(args.f_output, os.W_OK):
+    if not os.path.exists(fastq_dir) and not os.path.exists(bam_dir) and os.access(args.output, os.W_OK):
         os.makedirs(fastq_dir)
         os.makedirs(bam_dir)
 
     # Setup variables
-    # if args.blist is not None and args.bpattern is not None:
+    if args.blist is not None and args.bpattern is not None:
 
 
 
@@ -136,39 +124,49 @@ if __name__ == '__main__':
     # Help messages
     mode_fastq2bam_help = "Extract molecular barcodes from paired-end sequencing reads using a barcode list and/or " \
                           "a barcode pattern."
+    fastq_help = "Two paired-end FASTQ files."
+    output_help = "Output directory, where barcode extracted FASTQ and BAM files will be placed in " \
+                  "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they " \
+                  "do not exist)."
+    ref_help = "Reference (BWA index)."
+    bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
+    blist_help = "List of barcodes (Text file with unique barcodes on each line)."
+
     # Set args
     sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help)
-    sub_a.add_argument('-c', '--config', metavar="FILE", type=str, default=None,
+    sub_a.add_argument('-c', '--config', default=None,
                        help="Specify config file. Commandline option overrides config file (Use config template).")
 
     args, remaining_args = sub_a.parse_known_args()
 
-    defaults = {"fastqs":"default"}
-
     if args.config:
+        defaults = {"fastqs": fastq_help,
+                    "output": output_help,
+                    "ref": ref_help,
+                    "bpattern": bpattern_help,
+                    "blist": blist_help}
+
         config = configparser.ConfigParser()
-        config.read([args.config])
+        config.read(args.config)
         defaults.update(dict(config.items("fastq2bam")))
 
-        # sub_a = argparse.ArgumentParser(parents=[config])
-        # sub_a.set_defaults(**defaults)
+        # Add config file args
+        sub_a.set_defaults(**defaults)
 
     # Parse commandline arguments
-    sub_a.add_argument('-f', '--fastqs', dest='f_input', metavar="FASTQ", type=str, nargs=2,
-                        help='Two paired-end FASTQ files.')
-    sub_a.add_argument('-o', '--output', dest='f_output', metavar="OUTPUT_DIR", type=str,
-                       help="Output directory, where barcode extracted FASTQ and BAM files will be placed in "
-                            "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they "
-                            "do not exist).")
-    sub_a.add_argument('-r', '--ref', metavar="REF", help='Reference (BWA index).', type=str)
+    sub_a.add_argument('-f', '--fastqs', dest='fastqs', metavar="FASTQ", type=str, nargs=2,
+                        help=fastq_help)
+    sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str,
+                       help=output_help)
+    sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
     sub_a.add_argument('-b', '--bpattern', metavar="BARCODE_PATTERN", type=str, default=None,
-                        help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases).")
+                        help=bpattern_help)
     sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, default=None,
-                       help='List of barcodes (Text file with unique barcodes on each line).')
+                       help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
     if args.config:
-        sub_a.parse_args(remaining_args)
+        sub_a.parse_known_args(remaining_args)
 
     #############
     # consensus #
@@ -208,7 +206,7 @@ if __name__ == '__main__':
     # Parse args
     args = main_p.parse_args()
 
-    if args.config is None and (args.f_input is None or args.f_output is None or args.ref is None):
+    if args.config is None and (args.fastqs is None or args.output is None or args.ref is None):
         sub_a.error("Command line arguments must be provided if config file is not present.")
 
     # Check if either barcode pattern or list is set. At least one must be provided.
