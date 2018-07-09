@@ -41,7 +41,9 @@
 #    Modules   #
 ################
 from argparse import ArgumentParser
-from itertools import zip_longest
+from gzip import open as gzopen
+from Bio import SeqIO
+import zipfile
 import pandas as pd
 import numpy as np
 import re
@@ -80,18 +82,21 @@ def seq_to_mat(seq, nuc_dict):
     return nuc_mat
 
 
-def parse_read(r, plen):
-    """(list, int) -> str, str, str, str
-    Removes newlines from elements of a list and isolates barcode from DNA sequence.
+def extract_barcode(read, plen):
     """
-    r_header = r[0].rstrip()
-    r_seq_full = r[1].rstrip()
-    r_qual = r[3].rstrip()[plen:]
-    
-    r_barcode = r_seq_full[:plen]
-    r_seq = r_seq_full[plen:]
-    
-    return r_header, r_barcode, r_seq, r_qual
+    Extract barcode from Seq and Phred quality.
+
+    :param read: A SeqIO object.
+    :type read: object
+    :param plen: The length of the barcode.
+    :type plen: num
+    :returns: elements of read with barcode isolated.
+    """
+    barcode = read.seq[:plen]
+    seq = read.seq[plen:]
+    qual = read.letter_annotations["phred_quality"][plen:]
+
+    return read.id, barcode, seq, qual
 
 
 #######################
@@ -118,8 +123,14 @@ def main():
     #       SETUP        #
     ######################
     # === Initialize input and output files ===
-    read1 = open(args.read1, "r")
-    read2 = open(args.read2, "r")
+    # Check if file is zipped
+    if zipfile.is_zipfile(args.read1):
+        read1 = SeqIO.parse(gzopen(args.read1, "rt"), "fastq")
+        read2 = SeqIO.parse(gzopen(args.read2, "rt"), "fastq")
+    else:
+        read1 = SeqIO.parse(open(args.read1, "rU"), "fastq")
+        read2 = SeqIO.parse(open(args.read2, "rU"), "fastq")
+
     r1_output = open('{}_barcode_R1.fastq'.format(args.outfile), "w")
     r2_output = open('{}_barcode_R2.fastq'.format(args.outfile), "w")
     stats = open('{}_barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
@@ -136,7 +147,7 @@ def main():
     # Check if list of barcodes is provided
     if args.blist is not None:
         blist = open(args.blist, "r").read().splitlines()
-        plen = len(blist[0])
+        plen = len(blist[0])  # Length of barcode
 
         # Check list for faulty barcodes
         if re.search("[^ACGTN]", "".join(blist)) is not None:
@@ -166,12 +177,15 @@ def main():
     ######################
     #  Extract barcodes  #
     ######################
-    for r1, r2 in zip(zip_longest(*[read1] * 4), zip_longest(*[read2] * 4)):
+    for r1, r2 in zip(read1, read2):
         readpair_count += 1
 
+        # Check if R1 and R2 matches
+        assert r1.id == r2.id
+
         # Remove new line '\n' from str and separate using variables
-        r1_header, r1_barcode, r1_seq, r1_qual = parse_read(r1, plen)
-        r2_header, r2_barcode, r2_seq, r2_qual = parse_read(r2, plen)
+        r1_header, r1_barcode, r1_seq, r1_qual = extract_barcode(r1, plen)
+        r2_header, r2_barcode, r2_seq, r2_qual = extract_barcode(r2, plen)
 
         # Count barcode bases
         r1_barcode_counter += seq_to_mat(r1_barcode, nuc_dict)
@@ -201,6 +215,7 @@ def main():
 
             # Check if spacer is correct
             if r1_spacer == spacer and r2_spacer == spacer:
+                good_barcode += 1
                 # Write read to output file
                 r1_output.write('{}\n{}\n+\n{}\n'.format(r1_header, r1_seq, r1_qual))
                 r2_output.write('{}\n{}\n+\n{}\n'.format(r2_header, r2_seq, r2_qual))
@@ -221,7 +236,7 @@ def main():
     stats.write("##########\n{}\n##########".format(args.outfile.split(sep="/")[-1]))
     stats.write(
         '\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(readpair_count,
-                                                                                                     nospacer,
+                                                                                                     bad_spacer,
                                                                                                      bad_barcode,
                                                                                                      good_barcode))
     stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_barcode_counter.apply(lambda x: x / x.sum(), axis=1),
