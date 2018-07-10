@@ -47,10 +47,10 @@
 # ===================================================================================
 
 import os
-import sys
 import re
 import argparse
 import configparser
+import subprocess
 
 
 def fastq2bam(args):
@@ -75,27 +75,45 @@ def fastq2bam(args):
     fastq_dir = '{}/fastq_tag'.format(args.output)
     bam_dir = '{}/bamfiles'.format(args.output)
     # Check if dir exists and there's permission to write
-    if not os.path.exists(fastq_dir) and not os.path.exists(bam_dir) and os.access(args.output, os.W_OK):
+    if not os.path.exists(fastq_dir) and os.access(args.output, os.W_OK):
         os.makedirs(fastq_dir)
+    if not os.path.exists(bam_dir) and os.access(args.output, os.W_OK):
         os.makedirs(bam_dir)
 
     args.fastqs = args.fastqs.split()
     filename = os.path.basename(args.fastqs[0]).split(args.name, 1)[0]
 
+    outfile = "{}/{}".format(fastq_dir, filename)
+
     # Extract barcodes into header of FASTQ
     if args.blist is not None and args.bpattern is not None:
-        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {}/{} --bpattern {} "
-                  "--blist {}".format(code_dir, args.fastqs[0], args.fastqs[1], fastq_dir, filename,
+        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
+                  "--blist {}".format(code_dir, args.fastqs[0], args.fastqs[1], outfile,
                                       args.bpattern, args.blist))
     elif args.blist is None:
-        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {}/{} --bpattern {}".format(
-            code_dir, args.fastqs[0], args.fastqs[1], fastq_dir, filename, args.bpattern))
+        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
+            code_dir, args.fastqs[0], args.fastqs[1], outfile, args.bpattern))
     else:
-        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {}/{} --blist {}".format(
-            code_dir, args.fastqs[0], args.fastqs[1], fastq_dir, filename, args.blist))
+        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
+            code_dir, args.fastqs[0], args.fastqs[1], outfile, args.blist))
 
     # BWA align sequences
+    # bwa_args = "{}/bwa mem - M - t4 - R @RG\tID:1\tSM:{}\tPL:Illumina {} {}_barcode_R1.fastq {}_barcode_R2.fastq | " \
+    #            "{}/samtools view -bhS - | {}/samtools sort - ".format(args.bwa, filename, args.ref, outfile,
+    #                                                                            outfile, args.samtools, args.samtools)
 
+    bwa_args = "{}/bwa mem -M -t4 -R '@RG\tID:1\tSM:{}\tPL:Illumina\tPU' {} {}_barcode_R1.fastq {}_barcode_R2.fastq".format(
+        args.bwa, filename, args.ref, outfile, outfile)
+
+    print(bwa_args.split(' '))
+
+    subprocess.call(bwa_args.split(' '), stderr=subprocess.PIPE,
+                    stdout=open('{}/{}.bam'.format(bam_dir, filename), 'w'), shell=True)
+
+    sort_bam = "{}/samtools index {}/{}".format(args.samtools, bam_dir, filename)
+    subprocess.call(sort_bam.split(' '), stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+    # os.system("bwa mem - M - t4 - R @RG\tID:1\tSM:{}\tPL:Illumina {} {}_barcode_R1.fastq {}_barcode_R2.fastq > "
+    #           "{}/{}.sam".format(filename, args.ref, outfile, outfile, bam_dir, filename))
 
 
 def consensus(args):
@@ -134,6 +152,8 @@ if __name__ == '__main__':
                   "do not exist)."
     filename_help = "Output filename. If none provided, default will extract output name by taking everything left of" \
                     " '_R'."
+    bwa_help = "Path to executable bwa."
+    samtools_help = "Path to executable samtools"
     ref_help = "Reference (BWA index)."
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
     blist_help = "List of barcodes (Text file with unique barcodes on each line)."
@@ -149,7 +169,9 @@ if __name__ == '__main__':
         defaults = {"fastqs": fastq_help,
                     "output": output_help,
                     "name": "_R",
+                    "bwa": bwa_help,
                     "ref": ref_help,
+                    "samtools": samtools_help,
                     "bpattern": None,
                     "blist": None}
 
@@ -166,8 +188,10 @@ if __name__ == '__main__':
     sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str,
                        help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
+    sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
-    sub_a.add_argument('-b', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help)
+    sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
+    sub_a.add_argument('-p', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help)
     sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
