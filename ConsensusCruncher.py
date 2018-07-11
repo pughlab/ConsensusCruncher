@@ -47,10 +47,11 @@
 # ===================================================================================
 
 import os
+import sys
 import re
 import argparse
 import configparser
-import subprocess
+from subprocess import Popen, PIPE, call
 
 
 def fastq2bam(args):
@@ -87,33 +88,31 @@ def fastq2bam(args):
 
     # Extract barcodes into header of FASTQ
     if args.blist is not None and args.bpattern is not None:
-        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
+        os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
                   "--blist {}".format(code_dir, args.fastqs[0], args.fastqs[1], outfile,
                                       args.bpattern, args.blist))
     elif args.blist is None:
-        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
+        os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
             code_dir, args.fastqs[0], args.fastqs[1], outfile, args.bpattern))
     else:
-        os.system("python {}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
+        os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
             code_dir, args.fastqs[0], args.fastqs[1], outfile, args.blist))
 
-    # BWA align sequences
-    # bwa_args = "{}/bwa mem - M - t4 - R @RG\tID:1\tSM:{}\tPL:Illumina {} {}_barcode_R1.fastq {}_barcode_R2.fastq | " \
-    #            "{}/samtools view -bhS - | {}/samtools sort - ".format(args.bwa, filename, args.ref, outfile,
-    #                                                                            outfile, args.samtools, args.samtools)
+    # Align reads with BWA mem
+    bwa_cmd = args.bwa + ' mem -M -t4 -R'
+    bwa_id = "@RG\tID:1\tSM:" + filename + "\tPL:Illumina"
+    bwa_args = '{} {}_barcode_R1.fastq {}_barcode_R2.fastq'.format(args.ref, outfile, outfile)
 
-    bwa_args = "{}/bwa mem -M -t4 -R '@RG\tID:1\tSM:{}\tPL:Illumina\tPU' {} {}_barcode_R1.fastq {}_barcode_R2.fastq".format(
-        args.bwa, filename, args.ref, outfile, outfile)
+    bwa = Popen(bwa_cmd.split(' ') + [bwa_id] + bwa_args.split(' '), stdout=PIPE)
+    # Sort BAM
+    sam1 = Popen((args.samtools + ' view -bhS -').split(' '), stdin=bwa.stdout, stdout=PIPE)
+    sam2 = Popen((args.samtools + ' sort -').split(' '), stdin=sam1.stdout,
+                 stdout=open('{}/{}.bam'.format(bam_dir, filename), 'w'))
+    sam2.communicate()
 
-    print(bwa_args.split(' '))
-
-    subprocess.call(bwa_args.split(' '), stderr=subprocess.PIPE,
-                    stdout=open('{}/{}.bam'.format(bam_dir, filename), 'w'), shell=True)
-
-    sort_bam = "{}/samtools index {}/{}".format(args.samtools, bam_dir, filename)
-    subprocess.call(sort_bam.split(' '), stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
-    # os.system("bwa mem - M - t4 - R @RG\tID:1\tSM:{}\tPL:Illumina {} {}_barcode_R1.fastq {}_barcode_R2.fastq > "
-    #           "{}/{}.sam".format(filename, args.ref, outfile, outfile, bam_dir, filename))
+    # Index BAM
+    index_bam = "{} index {}/{}.bam".format(args.samtools, bam_dir, filename)
+    call(index_bam.split(' '))
 
 
 def consensus(args):
@@ -137,15 +136,22 @@ def consensus(args):
 if __name__ == '__main__':
     # Mode parser
     main_p = argparse.ArgumentParser()
+    main_p.add_argument('-c', '--config', default=None,
+                       help="Specify config file. Commandline option overrides config file (Use config template).")
     sub = main_p.add_subparsers(help='sub-command help', dest='subparser_name')
-    sub.required = True
 
-    #############
-    # fastq2bam #
-    #############
-    # Help messages
+    # Mode help messages
     mode_fastq2bam_help = "Extract molecular barcodes from paired-end sequencing reads using a barcode list and/or " \
                           "a barcode pattern."
+    mode_consensus_help = "Almalgamate duplicate reads in BAM files into single-strand consensus sequences (SSCS) and" \
+                          " duplex consensus sequences (DCS). Single reads with complementary duplex strands can also" \
+                          " be corrected with 'Singleton Correction'."
+
+    # Add subparsers
+    sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help, add_help=False)
+    sub_b = sub.add_parser('consensus', help=mode_consensus_help, add_help=False)
+
+    # Arg help messages
     fastq_help = "Two paired-end FASTQ files."
     output_help = "Output directory, where barcode extracted FASTQ and BAM files will be placed in " \
                   "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they " \
@@ -157,15 +163,18 @@ if __name__ == '__main__':
     ref_help = "Reference (BWA index)."
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
     blist_help = "List of barcodes (Text file with unique barcodes on each line)."
+    bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
+                   "cytoBand.txt and not to include your own bedfile. This option is mainly intended for non-human " \
+                   "genomes, where a separate bedfile is needed for data segmentation. If you do choose to use your " \
+                   "own bedfile, please format with the bed_separator.R tool. For small or non-human genomes where " \
+                   "cytobands cannot be used for segmenting the data set, you may choose to turn off this option with" \
+                   " '-b OFF' and process the data all at once (Division of data is only required for large data sets" \
+                   " to offload the memory burden)."
 
-    # Set args
-    sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help)
-    sub_a.add_argument('-c', '--config', default=None,
-                       help="Specify config file. Commandline option overrides config file (Use config template).")
+    # Set args for 'fastq2bam' mode
+    sub_args, remaining_args = main_p.parse_known_args()
 
-    args, remaining_args = sub_a.parse_known_args()
-
-    if args.config:
+    if sub_args.config is not None:
         defaults = {"fastqs": fastq_help,
                     "output": output_help,
                     "name": "_R",
@@ -176,17 +185,15 @@ if __name__ == '__main__':
                     "blist": None}
 
         config = configparser.ConfigParser()
-        config.read(args.config)
+        config.read(sub_args.config)
         defaults.update(dict(config.items("fastq2bam")))
 
         # Add config file args
         sub_a.set_defaults(**defaults)
 
     # Parse commandline arguments
-    sub_a.add_argument('-f', '--fastqs', dest='fastqs', metavar="FASTQ", type=str, nargs=2,
-                        help=fastq_help)
-    sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str,
-                       help=output_help)
+    sub_a.add_argument('-f', '--fastqs', dest='fastqs', metavar="FASTQ", type=str, nargs=2, help=fastq_help)
+    sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str, help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
@@ -195,31 +202,13 @@ if __name__ == '__main__':
     sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
-    if args.config:
-        sub_a.parse_known_args(remaining_args)
-
-    #############
-    # consensus #
-    #############
-    # Help messages
-    bedfile_help = "Bedfile, default: cytoBand.txt. " \
-                   "WARNING: It is HIGHLY RECOMMENDED that you use the default cytoBand.txt and" \
-                   "not to include your own bedfile. This option is mainly intended for non-human" \
-                   "genomes, where a separate bedfile is needed for data segmentation. If you do" \
-                   "choose to use your own bedfile, please format with the bed_separator.R tool.\n" \
-                   "For small or non-human genomes where cytobands cannot be used for segmenting the"\
-                   "data set, you may choose to turn off this option with '-b OFF' and process the" \
-                   "data all at once (Division of data is only required for large data sets to offload" \
-                   "the memory burden)."
-    consensus_help = "Almalgamate duplicate reads in BAM files into single-strand consensus sequences (SSCS) and " \
-                     "duplex consensus sequences (DCS). Single reads with complementary duplex strands can also be " \
-                     "corrected with 'Singleton Correction'."
+    # if args.config:
+    #     sub_a.parse_known_args(remaining_args)
 
     # Determine code directory
-    code_dir = os.path.join(os.path.dirname(__file__))
+    code_dir = os.path.dirname(os.path.realpath(__file__))
 
-    # Set args
-    sub_b = sub.add_parser('consensus', help=consensus_help)
+    # Set args for 'consensus' mode
     sub_b.add_argument('-i', '--input', dest='c_input', help='Input directory.', required=True, type=str)
     sub_b.add_argument('-o', '--output', dest='c_output', required=True, type=str,
                        help="Output project directory for new files and folders to be created.")
@@ -235,24 +224,25 @@ if __name__ == '__main__':
     # Parse args
     args = main_p.parse_args()
 
-    if args.config is None and (args.fastqs is None or args.output is None or args.ref is None):
-        sub_a.error("Command line arguments must be provided if config file is not present.")
+    if args.subparser_name is not None:
+        if args.config is None and (args.fastqs is None or args.output is None or args.ref is None):
+            sub_a.error("Command line arguments must be provided if config file is not present.")
 
-    # Check if either barcode pattern or list is set. At least one must be provided.
-    if args.bpattern is None and args.blist is None:
-        sub_a.error("At least one of -b or -l required.")
-    # Check proper barcode design provided for barcode pattern
-    elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
-        raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
-    # Check list for faulty barcodes in list
-    elif args.blist is not None:
-        blist = open(args.blist, "r").read().splitlines()
-        if re.search("[^ACGTN]", "".join(blist)) is not None:
-            raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
+        # Check if either barcode pattern or list is set. At least one must be provided.
+        if args.bpattern is None and args.blist is None:
+            sub_a.error("At least one of -b or -l required.")
+        # Check proper barcode design provided for barcode pattern
+        elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
+            raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
+        # Check list for faulty barcodes in list
+        elif args.blist is not None:
+            blist = open(args.blist, "r").read().splitlines()
+            if re.search("[^ACGTN]", "".join(blist)) is not None:
+                raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
+            else:
+                args.func(args)
         else:
             args.func(args)
     else:
-        args.func(args)
-
-
+        main_p.print_help()
 
