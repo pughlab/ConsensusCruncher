@@ -26,12 +26,12 @@
 # 2. A BED file containing coordinates subdividing the entire ref genome for more manageable data processing
 #
 # Outputs:
-# 1. A BAM file containing paired singletons error corrected by its complementary SSCS - "sscs.rescue.bam"
-# 2. A BAM file containing paired singletons error corrected by its complementary singleton - "singleton.rescue.bam"
-# 3. A BAM file containing the remaining singletons that cannot be rescued as its missing a complementary strand -
-#    "rescue.remaining.bam"
+# 1. A BAM file containing paired singletons error corrected by its complementary SSCS - "sscs.correction.bam"
+# 2. A BAM file containing paired singletons error corrected by its complementary singleton - "singleton.correction.bam"
+# 3. A BAM file containing the remaining singletons that cannot be corrected as its missing a complementary strand -
+#    "uncorrected.bam"
 # 4. A text file containing summary statistics (Total singletons, Singleton Correction by SSCS, % Singleton Correction by SSCS,
-#    Singleton Correction by Singletons, % Singleton Correction by Singletons, Singleton remaining (not corrected))
+#    Singleton Correction by Singletons, % Singleton Correction by Singletons, Uncorrected Singletons)
 #    - "stats.txt" (Stats pended to same stats file as SSCS)
 #
 # Concepts:
@@ -61,7 +61,6 @@ from consensus_helper import *
 def duplex_consensus(read1, read2):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) ->
     pysam.calignedsegment.AlignedSegment
-
     Return consensus of complementary reads with N for inconsistent bases.
     """
     consensus_seq = ''
@@ -85,11 +84,9 @@ def duplex_consensus(read1, read2):
     return consensus_seq, consensus_qual
 
 
-def strand_rescue(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
+def strand_correction(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
     """(str, str, dict, dict) -> Pysam.AlignedSegment
-
-    Return 'rescued/corrected' singleton using complement read from opposite strand (either found in SSCS or singleton).
-
+    Return 'corrected' singleton using complement read from opposite strand (either found in SSCS or singleton).
     Quality score calculated from singleton and complementary read. Read template based on singleton.
     """
     read = singleton_dict[read_tag][0]
@@ -134,15 +131,14 @@ def main():
     # Infer SSCS bam from singleton bamfile (by removing extensions)
     sscs_bam = pysam.AlignmentFile('{}.sscs{}'.format(args.singleton.split('.singleton')[0],
                                                       args.singleton.split('.singleton')[1]), "rb")
-    sscs_rescue_bam = pysam.AlignmentFile('{}.sscs.rescue.bam'.format(args.singleton.split('.singleton')[0]), 'wb',
+    sscs_correction_bam = pysam.AlignmentFile('{}.sscs.correction.bam'.format(args.singleton.split('.singleton')[0]), 'wb',
                                           template=singleton_bam)
-    singleton_rescue_bam = pysam.AlignmentFile('{}.singleton.rescue.bam'.format(args.singleton.split('.singleton')[0]),
+    singleton_correction_bam = pysam.AlignmentFile('{}.singleton.correction.bam'.format(args.singleton.split('.singleton')[0]),
                                                'wb', template=singleton_bam)
-    remaining_rescue_bam = pysam.AlignmentFile('{}.rescue.remaining.bam'.format(args.singleton.split('.singleton')[0]),
+    uncorrected_bam = pysam.AlignmentFile('{}.uncorrected.bam'.format(args.singleton.split('.singleton')[0]),
                                                'wb', template=singleton_bam)
 
     stats = open('{}.stats.txt'.format(args.singleton.split('.singleton')[0]), 'a')
-    time_tracker = open('{}.time_tracker.txt'.format(args.singleton.split('.singleton')[0]), 'a')
 
     # ===== Initialize dictionaries =====
     singleton_dict = collections.OrderedDict()  # dict that remembers order of entries
@@ -155,22 +151,20 @@ def main():
     sscs_pair = collections.defaultdict(list)
     sscs_csn_pair = collections.defaultdict(list)
 
-    rescue_dict = collections.OrderedDict()
+    correction_dict = collections.OrderedDict()
 
     # ===== Initialize counters =====
     singleton_counter = 0
     singleton_unmapped = 0
-    singleton_unmapped_mate = 0
     singleton_multiple_mappings = 0
 
     sscs_counter = 0
     sscs_unmapped = 0
-    sscs_unmapped_mate = 0
     sscs_multiple_mappings = 0
 
-    sscs_dup_rescue = 0
-    singleton_dup_rescue = 0
-    singleton_remaining = 0
+    sscs_dup_correction = 0
+    singleton_dup_correction = 0
+    uncorrected_singleton = 0
 
     counter = 0  # Total singletons
 
@@ -192,7 +186,7 @@ def main():
             read_chr = x.split('_', 1)[0]
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
-            
+
             # === Reset dictionaries ===
             if last_chr != read_chr:
                 singleton_tag = collections.defaultdict(int)
@@ -248,43 +242,43 @@ def main():
         sscs_unmapped += sscs[5]
         sscs_multiple_mappings += sscs[6]
 
-        ######################
-        #       RESCUE       #
-        ######################
+        ########################
+        # Singleton Correction #
+        ########################
         for readPair in list(singleton_csn_pair.keys()):
             for tag in singleton_csn_pair[readPair]:
                 counter += 1
                 # Check to see if singleton can be corrected by SSCS, then by singletons
-                # If not, add to 'remaining' rescue bamfile
+                # If not, add to 'uncorrected' bamfile
                 duplex = duplex_tag(tag)
                 query_name = readPair + ':1'  # Reflect corrected singleton (uncorrected won't have our unique ID tag)
 
                 # 1) Singleton correction by complementary SSCS
                 if duplex in sscs_dict.keys():
-                    rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
-                    sscs_dup_rescue += 1
-                    sscs_rescue_bam.write(rescue_read)
+                    corrected_read = strand_correction(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
+                    sscs_dup_correction += 1
+                    sscs_correction_bam.write(corrected_read)
 
                     del sscs_dict[duplex]
                     del singleton_dict[tag]
 
                 # 2) Singleton correction by complementary Singletons
                 elif duplex in singleton_dict.keys():
-                    rescue_read = strand_rescue(tag, duplex, query_name, singleton_dict)
-                    singleton_dup_rescue += 1
-                    singleton_rescue_bam.write(rescue_read)
-                    rescue_dict[tag] = duplex
+                    corrected_read = strand_correction(tag, duplex, query_name, singleton_dict)
+                    singleton_dup_correction += 1
+                    singleton_correction_bam.write(corrected_read)
+                    correction_dict[tag] = duplex
 
-                    if duplex in rescue_dict.keys():
+                    if duplex in correction_dict.keys():
                         del singleton_dict[tag]
                         del singleton_dict[duplex]
-                        del rescue_dict[tag]
-                        del rescue_dict[duplex]
+                        del correction_dict[tag]
+                        del correction_dict[duplex]
 
                 # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex correction was possible
                 else:
-                    remaining_rescue_bam.write(singleton_dict[tag][0])
-                    singleton_remaining += 1
+                    uncorrected_bam.write(singleton_dict[tag][0])
+                    uncorrected_singleton += 1
                     del singleton_dict[tag]
 
             del singleton_csn_pair[readPair]
@@ -293,8 +287,8 @@ def main():
     ######################
     #       SUMMARY      #
     ######################
-    sscs_rescue_frac = (sscs_dup_rescue/singleton_counter) * 100
-    singleton_rescue_frac = (singleton_dup_rescue/singleton_counter) * 100
+    sscs_correction_frac = (sscs_dup_correction/singleton_counter) * 100
+    singleton_correction_frac = (singleton_dup_correction/singleton_counter) * 100
 
     summary_stats = '''# === Singleton Correction ===
 Total singletons: {}
@@ -302,7 +296,7 @@ Singleton Correction by SSCS: {}
 % Singleton Correction by SSCS: {}
 Singleton Correction by Singletons: {}
 % Singleton Correction by Singletons : {}
-Singletons remaining (not corrected): {} \n'''.format(counter, sscs_dup_rescue, sscs_rescue_frac, singleton_dup_rescue, singleton_rescue_frac, singleton_remaining)
+Uncorrected Singletons: {} \n'''.format(counter, sscs_dup_correction, sscs_correction_frac, singleton_dup_correction, singleton_correction_frac, uncorrected_singleton)
 
     stats.write(summary_stats)
     print(summary_stats)
@@ -310,9 +304,9 @@ Singletons remaining (not corrected): {} \n'''.format(counter, sscs_dup_rescue, 
     # Close files
     singleton_bam.close()
     sscs_bam.close()
-    sscs_rescue_bam.close()
-    singleton_rescue_bam.close()
-    remaining_rescue_bam.close()
+    sscs_correction_bam.close()
+    singleton_correction_bam.close()
+    uncorrected_bam.close()
     stats.close()
 
 
