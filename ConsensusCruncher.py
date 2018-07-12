@@ -126,7 +126,7 @@ def sort_index(bam, samtools):
     :type bam: str
     :param samtools: Path to samtools.
     :type samtools: str
-    :returns: Sorted and indexed BAM file.
+    :returns: Path to sorted BAM file.
     """
     identifier = bam.split('.bam', 1)[0]
     sorted_bam = '{}.sorted.bam'.format(identifier)
@@ -136,6 +136,8 @@ def sort_index(bam, samtools):
     sam2.communicate()
     os.remove(bam)
     call("{} index {}".format(samtools, sorted_bam).split(' '))
+
+    return sorted_bam
 
 
 def consensus(args):
@@ -162,8 +164,9 @@ def consensus(args):
     # SSCS #
     ########
     # Set variables
-    sscs = '{}/{}.sscs.bam'.format(sample_dir, identifier)
-    sing = '{}/{}.singleton.bam'.format(sample_dir, identifier)
+    os.makedirs(sample_dir + '/sscs')
+    sscs = '{}/sscs/{}.sscs.bam'.format(sample_dir, identifier)
+    sing = '{}/sscs/{}.singleton.bam'.format(sample_dir, identifier)
 
     # Run SSCS_maker
     if args.bedfile is False:
@@ -174,13 +177,108 @@ def consensus(args):
             format(code_dir, args.bam, sscs, args.cutoff, args.bedfile))
 
     # Sort and index BAM files
-    sort_index(sscs, args.samtools)
-    sort_index(sing, args.samtools)
+    sscs = sort_index(sscs, args.samtools)
+    sing = sort_index(sing, args.samtools)
 
     #######
     # DCS #
     #######
+    # Set variables
+    os.makedirs(sample_dir + '/dcs')
+    dcs = '{}/dcs/{}.dcs.bam'.format(sample_dir, identifier)
+    sscs_sing = '{}/dcs/{}.sscs.singleton.bam'.format(sample_dir, identifier)
 
+    # Move stats and time tracker file to next dir
+    os.rename('{}/sscs/{}.stats.txt'.format(sample_dir, identifier),
+              '{}/dcs/{}.stats.txt'.format(sample_dir, identifier))
+    os.rename('{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier),
+              '{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier))
+
+    # Run DCS_maker
+    if args.bedfile is False:
+        os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs, dcs))
+    else:
+        os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs,
+                                                                                                   dcs, args.bedfile))
+
+    # Sort and index BAM files
+    dcs = sort_index(dcs, args.samtools)
+    sscs_sing = sort_index(sscs_sing, args.samtools)
+
+    #############################
+    # Singleton Correction (SC) #
+    #############################
+    if args.scorrect is True:
+        os.makedirs(sample_dir + '/sscs_sc')
+        # Move stats and time tracker file to next dir
+        os.rename('{}/dcs/{}.stats.txt'.format(sample_dir, identifier),
+                  '{}/sscs/{}.stats.txt'.format(sample_dir, identifier))
+        os.rename('{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier),
+                  '{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier))
+
+        if args.bedfile is False:
+            os.system("{}/ConsensusCruncher/singleton_correction.py --singleton {}".format(code_dir, sing))
+        else:
+            os.system("{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {}".format(code_dir, sing,
+                                                                                                        args.bedfile))
+        # Sort and index BAM files
+        sscs_cor = '{}/sscs_sc/{}.sscs.correction.bam'.format(sample_dir, identifier)
+        os.rename('{}/sscs/{}.sscs.correction.bam'.format(sample_dir, identifier), sscs_cor)
+        sscs_cor = sort_index(sscs_cor, args.samtools)
+
+        sing_cor = '{}/sscs_sc/{}.singleton.correction.bam'.format(sample_dir, identifier)
+        os.rename('{}/sscs/{}.singleton.correction.bam'.format(sample_dir, identifier), sing_cor)
+        sing_cor = sort_index(sing_cor, args.samtools)
+
+        uncorrected = '{}/sscs_sc/{}.uncorrected.bam'.format(sample_dir, identifier)
+        os.rename('{}/sscs/{}.uncorrected.bam'.format(sample_dir, identifier), uncorrected)
+        uncorrected = sort_index(uncorrected, args.samtools)
+
+        #############
+        # SSCS + SC #
+        #############
+        # Merge corrected singletons with consensus sequences
+        sscs_sc = '{}/sscs_sc/{}.sscs.sc.bam'.format(sample_dir, identifier)
+        call("{} merge {} {} {} {}".format(args.samtools, sscs_sc, sscs, sscs_cor, sing_cor).split(' '))
+        sscs_sc = sort_index(sscs_sc, args.samtools)
+
+        ############
+        # DCS + SC #
+        ############
+        os.makedirs(sample_dir + '/dcs_sc')
+        dcs_sc = '{}/dcs_sc/{}.dcs.sc.bam'.format(sample_dir, identifier)
+        # Move stats and time tracker file to next dir
+        os.rename('{}/sscs/{}.stats.txt'.format(sample_dir, identifier),
+                  '{}/dcs_sc/{}.stats.txt'.format(sample_dir, identifier))
+        os.rename('{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier),
+                  '{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier))
+
+        if args.bedfile is False:
+            os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs_sc, dcs_sc))
+        else:
+            os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(
+                code_dir, sscs_sc, dcs_sc, args.bedfile))
+
+        # Sort and index BAM files
+        dcs_sc = sort_index(dcs_sc, args.samtools)
+        sscs_sc_sing = '{}/dcs_sc/{}.sscs.sc.singleton.bam'.format(sample_dir, identifier)
+        sscs_sc_sing = sort_index(sscs_sc_sing, args.samtools)
+
+        ########################
+        # All Unique Molecules #
+        ########################
+        # Merge DCS_SC + SSCS_SC singletons + uncorrected singletons
+        all_unique = '{}/dcs_sc/{}.all.unique.dcs.bam'.format(sample_dir, identifier)
+        call("{} merge {} {} {} {}".format(args.samtools, all_unique, dcs_sc, sscs_sc_sing, uncorrected).split(' '))
+        all_unique = sort_index(all_unique, args.samtools)
+
+    # Move stats and time tracker file to sample dir
+    os.rename('{}/dcs_sc/{}.stats.txt'.format(sample_dir, identifier),
+              '{}/{}.stats.txt'.format(sample_dir, identifier))
+    os.rename('{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier),
+              '{}/{}.time_tracker.txt'.format(sample_dir, identifier))
+    os.rename('{}/sscs/{}_tag_fam_size.png'.format(sample_dir, identifier),
+              '{}/{}_tag_fam_size.png'.format(sample_dir, identifier))
 
 
 if __name__ == '__main__':
@@ -282,7 +380,7 @@ if __name__ == '__main__':
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
     sub_b.add_argument('-c', '--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the"
                                                           " same base to form a consensus).")
-    sub_b.add_argument('--cleanup', help=cleanup_help)
+    sub_b.add_argument('--cleanup', choices=[True, False], type=bool, help=cleanup_help)
     sub_b.set_defaults(func=consensus)
 
     # Parse args
