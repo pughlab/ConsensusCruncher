@@ -161,6 +161,22 @@ if __name__ == '__main__':
     ref_help = "Reference (BWA index)."
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
     blist_help = "List of barcodes (Text file with unique barcodes on each line)."
+
+    # Consensus arg help messages
+    cinput_help = "Input BAM file."
+    coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences are " \
+                   "outputted."
+    bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
+                   "cytoBand.txt unless you're working with genome build that is not hg19. Then a separate bedfile is" \
+                   " needed for data segmentation (file can be formatted with the bed_separator.R tool). For small " \
+                   "BAM files, you may choose to  turn off data splitting with '-b OFF' and process everything all at" \
+                   " once (Division of data is only required for large data sets to offload the memory burden)."
+    cleanup_help = "Remove intermediate files."
+
+    # Determine code directory and set bedfile to split data
+    code_dir = os.path.dirname(os.path.realpath(__file__))
+    bedfile = '{}/cytoband.txt'.format(code_dir)
+
     # Set args for 'fastq2bam' mode
     sub_args, remaining_args = main_p.parse_known_args()
 
@@ -173,50 +189,47 @@ if __name__ == '__main__':
                     "ref": ref_help,
                     "samtools": samtools_help,
                     "bpattern": None,
-                    "blist": None}
+                    "blist": None,
+                    "bam": cinput_help,
+                    "c_output": coutput_help,
+                    "scorrect": True,
+                    "bedfile": bedfile,
+                    "cutoff": 0.7,
+                    "cleanup": cleanup_help}
 
         config = configparser.ConfigParser()
         config.read(sub_args.config)
-        defaults.update(dict(config.items("fastq2bam")))
 
-        # Add config file args
+        # Add config file args to fastq2bam mode
+        defaults.update(dict(config.items("fastq2bam")))
         sub_a.set_defaults(**defaults)
+
+        # Add config file args to consensus mode
+        defaults.update(dict(config.items("consensus")))
+        sub_b.set_defaults(**defaults)
 
     # Parse commandline arguments
     sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
     sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str, help=fastq2_help)
     sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str, help=output_help)
-    sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
+    sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help, default="_R")
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
     sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
-    sub_a.add_argument('-p', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help)
-    sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
+    sub_a.add_argument('-p', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help, default=None)
+    sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help, default=None)
     sub_a.set_defaults(func=fastq2bam)
 
-    # Determine code directory
-    code_dir = os.path.dirname(os.path.realpath(__file__))
-
-    # Consensus arg help messages
-    bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
-                   "cytoBand.txt and not to include your own bedfile. This option is mainly intended for non-human " \
-                   "genomes, where a separate bedfile is needed for data segmentation. If you do choose to use your " \
-                   "own bedfile, please format with the bed_separator.R tool. For small or non-human genomes where " \
-                   "cytobands cannot be used for segmenting the data set, you may choose to turn off this option with" \
-                   " '-b OFF' and process the data all at once (Division of data is only required for large data sets" \
-                   " to offload the memory burden)."
-
     # Set args for 'consensus' mode
-    sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help='Input BAM file.', type=str)
-    sub_b.add_argument('-o', '--output', metavar="OUTPUT_DIR", dest='c_output', type=str,
-                       help="Output project directory for new files and folders to be created.")
+    sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=cinput_help, type=str)
+    sub_b.add_argument('-o', '--output', metavar="OUTPUT_DIR", dest='c_output', type=str, help=coutput_help)
     sub_b.add_argument('-s', '--scorrect', help="Singleton correction, default: True.", default=True,
                        choices=[True, False], type=bool)
-    sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default='{}/cytoband.txt'.format(code_dir), type=str)
+    sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
     sub_b.add_argument('-c', '--cutoff', default=0.7, type=float,
                        help="Consensus cut-off, default: 0.7 (70%% of reads must have the same base to form a "
                             "consensus).")
-    sub_b.add_argument('--cleanup', help="Remove intermediate files.")
+    sub_b.add_argument('--cleanup', help=cleanup_help)
     sub_b.set_defaults(func=consensus)
 
     # Parse args
@@ -248,7 +261,6 @@ if __name__ == '__main__':
             else:
                 args.func(args)
         elif args.subparser_name == 'consensus':
-            print(args)
             if args.bam is None or args.c_output is None:
                 sub_b.error("Command line arguments must be provided if config file is not present.\n"
                             "REQUIRED: input and output.")
