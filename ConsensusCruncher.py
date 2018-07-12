@@ -86,11 +86,12 @@ def fastq2bam(args):
     filename = os.path.basename(args.fastq1).split(args.name, 1)[0]
     outfile = "{}/{}".format(fastq_dir, filename)
 
-    # Extract barcodes into header of FASTQ
+    ####################
+    # Extract barcodes #
+    ####################
     if args.blist is not None and args.bpattern is not None:
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
-                  "--blist {}".format(code_dir, args.fastq1, args.fastq2, outfile,
-                                      args.bpattern, args.blist))
+                  "--blist {}".format(code_dir, args.fastq1, args.fastq2, outfile, args.bpattern, args.blist))
     elif args.blist is None:
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
             code_dir, args.fastq1, args.fastq2, outfile, args.bpattern))
@@ -98,7 +99,10 @@ def fastq2bam(args):
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
             code_dir, args.fastq1, args.fastq2, outfile, args.blist))
 
-    # Align reads with BWA mem (command split into chunks and bwa_id retained as str repr)
+    #############
+    # BWA Align #
+    #############
+    # Command split into chunks and bwa_id retained as str repr
     bwa_cmd = args.bwa + ' mem -M -t4 -R'
     bwa_id = "@RG\tID:1\tSM:" + filename + "\tPL:Illumina"
     bwa_args = '{} {}_barcode_R1.fastq {}_barcode_R2.fastq'.format(args.ref, outfile, outfile)
@@ -111,8 +115,27 @@ def fastq2bam(args):
     sam2.communicate()
 
     # Index BAM
-    index_bam = "{} index {}/{}.bam".format(args.samtools, bam_dir, filename)
-    call(index_bam.split(' '))
+    call("{} index {}/{}.bam".format(args.samtools, bam_dir, filename).split(' '))
+
+
+def sort_index(bam, samtools):
+    """
+    Sort and index BAM file.
+
+    :param bam: Path to BAM file.
+    :type bam: str
+    :param samtools: Path to samtools.
+    :type samtools: str
+    :returns: Sorted and indexed BAM file.
+    """
+    identifier = bam.split('.bam', 1)[0]
+    sorted_bam = '{}.sorted.bam'.format(identifier)
+
+    sam1 = Popen((samtools + ' view -bu ' + bam).split(' '), stdout=PIPE)
+    sam2 = Popen((samtools + ' sort -').split(' '), stdin=sam1.stdout, stdout=open(sorted_bam, 'w'))
+    sam2.communicate()
+    os.remove(bam)
+    call("{} index {}".format(samtools, sorted_bam).split(' '))
 
 
 def consensus(args):
@@ -127,6 +150,36 @@ def consensus(args):
     Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created by merging DCSs, remaining
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
     """
+    # Create sample directory to hold consensus sequences
+    identifier = os.path.basename(args.bam).split('.bam', 1)[0]
+    sample_dir = '{}/{}'.format(args.c_output, identifier)
+
+    # Check if dir exists and there's permission to write
+    if not os.path.exists(sample_dir) and os.access(args.output, os.W_OK):
+        os.makedirs(sample_dir)
+
+    ########
+    # SSCS #
+    ########
+    # Set variables
+    sscs = '{}/{}.sscs.bam'.format(sample_dir, identifier)
+    sing = '{}/{}.singleton.bam'.format(sample_dir, identifier)
+
+    # Run SSCS_maker
+    if args.bedfile is False:
+        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
+            code_dir, args.bam, sscs, args.cutoff))
+    else:
+        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {}".
+            format(code_dir, args.bam, sscs, args.cutoff, args.bedfile))
+
+    # Sort and index BAM files
+    sort_index(sscs, args.samtools)
+    sort_index(sing, args.samtools)
+
+    #######
+    # DCS #
+    #######
 
 
 
@@ -169,13 +222,13 @@ if __name__ == '__main__':
     bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
                    "cytoBand.txt unless you're working with genome build that is not hg19. Then a separate bedfile is" \
                    " needed for data segmentation (file can be formatted with the bed_separator.R tool). For small " \
-                   "BAM files, you may choose to  turn off data splitting with '-b OFF' and process everything all at" \
+                   "BAM files, you may choose to turn off data splitting with '-b False' and process everything all at"\
                    " once (Division of data is only required for large data sets to offload the memory burden)."
     cleanup_help = "Remove intermediate files."
 
     # Determine code directory and set bedfile to split data
     code_dir = os.path.dirname(os.path.realpath(__file__))
-    bedfile = '{}/cytoband.txt'.format(code_dir)
+    bedfile = '{}/ConsensusCruncher/cytoBand.txt'.format(code_dir)
 
     # Set args for 'fastq2bam' mode
     sub_args, remaining_args = main_p.parse_known_args()
@@ -212,23 +265,23 @@ if __name__ == '__main__':
     sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
     sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str, help=fastq2_help)
     sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str, help=output_help)
-    sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help, default="_R")
+    sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
     sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
-    sub_a.add_argument('-p', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help, default=None)
-    sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help, default=None)
+    sub_a.add_argument('-p', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help)
+    sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
     # Set args for 'consensus' mode
     sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=cinput_help, type=str)
     sub_b.add_argument('-o', '--output', metavar="OUTPUT_DIR", dest='c_output', type=str, help=coutput_help)
-    sub_b.add_argument('-s', '--scorrect', help="Singleton correction, default: True.", default=True,
+    sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
+    sub_b.add_argument('--scorrect', help="Singleton correction, default: True.",
                        choices=[True, False], type=bool)
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
-    sub_b.add_argument('-c', '--cutoff', default=0.7, type=float,
-                       help="Consensus cut-off, default: 0.7 (70%% of reads must have the same base to form a "
-                            "consensus).")
+    sub_b.add_argument('-c', '--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the"
+                                                          " same base to form a consensus).")
     sub_b.add_argument('--cleanup', help=cleanup_help)
     sub_b.set_defaults(func=consensus)
 
@@ -261,9 +314,9 @@ if __name__ == '__main__':
             else:
                 args.func(args)
         elif args.subparser_name == 'consensus':
-            if args.bam is None or args.c_output is None:
+            if args.bam is None or args.c_output is None or args.samtools is None:
                 sub_b.error("Command line arguments must be provided if config file is not present.\n"
-                            "REQUIRED: input and output.")
+                            "REQUIRED: input, output, and samtools.")
                 sub_b.print_help()
             else:
                 args.func(args)
