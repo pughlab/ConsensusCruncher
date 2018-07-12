@@ -75,15 +75,16 @@ def fastq2bam(args):
     # Create directory for barcode extracted FASTQ files and BAM files
     fastq_dir = '{}/fastq_tag'.format(args.output)
     bam_dir = '{}/bamfiles'.format(args.output)
+
     # Check if dir exists and there's permission to write
     if not os.path.exists(fastq_dir) and os.access(args.output, os.W_OK):
         os.makedirs(fastq_dir)
     if not os.path.exists(bam_dir) and os.access(args.output, os.W_OK):
         os.makedirs(bam_dir)
 
+    # Set file variables
     args.fastqs = args.fastqs.split()
     filename = os.path.basename(args.fastqs[0]).split(args.name, 1)[0]
-
     outfile = "{}/{}".format(fastq_dir, filename)
 
     # Extract barcodes into header of FASTQ
@@ -98,7 +99,7 @@ def fastq2bam(args):
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
             code_dir, args.fastqs[0], args.fastqs[1], outfile, args.blist))
 
-    # Align reads with BWA mem
+    # Align reads with BWA mem (command split into chunks and bwa_id retained as str repr)
     bwa_cmd = args.bwa + ' mem -M -t4 -R'
     bwa_id = "@RG\tID:1\tSM:" + filename + "\tPL:Illumina"
     bwa_args = '{} {}_barcode_R1.fastq {}_barcode_R2.fastq'.format(args.ref, outfile, outfile)
@@ -126,11 +127,8 @@ def consensus(args):
 
     Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created by merging DCSs, remaining
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
-
-
-    :param args:
-
     """
+
 
 
 if __name__ == '__main__':
@@ -151,8 +149,9 @@ if __name__ == '__main__':
     sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help, add_help=False)
     sub_b = sub.add_parser('consensus', help=mode_consensus_help, add_help=False)
 
-    # Arg help messages
-    fastq_help = "Two paired-end FASTQ files."
+    # fastq2bam arg help messages
+    fastq1_help = "FASTQ containing Read 1 of paired-end reads."
+    fastq2_help = "FASTQ containing Read 2 of paired-end reads."
     output_help = "Output directory, where barcode extracted FASTQ and BAM files will be placed in " \
                   "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they " \
                   "do not exist)."
@@ -163,19 +162,12 @@ if __name__ == '__main__':
     ref_help = "Reference (BWA index)."
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
     blist_help = "List of barcodes (Text file with unique barcodes on each line)."
-    bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
-                   "cytoBand.txt and not to include your own bedfile. This option is mainly intended for non-human " \
-                   "genomes, where a separate bedfile is needed for data segmentation. If you do choose to use your " \
-                   "own bedfile, please format with the bed_separator.R tool. For small or non-human genomes where " \
-                   "cytobands cannot be used for segmenting the data set, you may choose to turn off this option with" \
-                   " '-b OFF' and process the data all at once (Division of data is only required for large data sets" \
-                   " to offload the memory burden)."
-
     # Set args for 'fastq2bam' mode
     sub_args, remaining_args = main_p.parse_known_args()
 
     if sub_args.config is not None:
-        defaults = {"fastqs": fastq_help,
+        defaults = {"fastq1": fastq1_help,
+                    "fastq2": fastq2_help,
                     "output": output_help,
                     "name": "_R",
                     "bwa": bwa_help,
@@ -192,7 +184,8 @@ if __name__ == '__main__':
         sub_a.set_defaults(**defaults)
 
     # Parse commandline arguments
-    sub_a.add_argument('-f', '--fastqs', dest='fastqs', metavar="FASTQ", type=str, nargs=2, help=fastq_help)
+    sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
+    sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str, help=fastq2_help)
     sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str, help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
@@ -208,9 +201,18 @@ if __name__ == '__main__':
     # Determine code directory
     code_dir = os.path.dirname(os.path.realpath(__file__))
 
+    # Consensus arg help messages
+    bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
+                   "cytoBand.txt and not to include your own bedfile. This option is mainly intended for non-human " \
+                   "genomes, where a separate bedfile is needed for data segmentation. If you do choose to use your " \
+                   "own bedfile, please format with the bed_separator.R tool. For small or non-human genomes where " \
+                   "cytobands cannot be used for segmenting the data set, you may choose to turn off this option with" \
+                   " '-b OFF' and process the data all at once (Division of data is only required for large data sets" \
+                   " to offload the memory burden)."
+
     # Set args for 'consensus' mode
-    sub_b.add_argument('-i', '--input', dest='c_input', help='Input directory.', required=True, type=str)
-    sub_b.add_argument('-o', '--output', dest='c_output', required=True, type=str,
+    sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help='Input BAM file.', type=str)
+    sub_b.add_argument('-o', '--output', metavar="OUTPUT_DIR", dest='c_output', type=str,
                        help="Output project directory for new files and folders to be created.")
     sub_b.add_argument('-s', '--scorrect', help="Singleton correction, default: True.", default=True,
                        choices=[True, False], type=bool)
