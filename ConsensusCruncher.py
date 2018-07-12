@@ -225,39 +225,37 @@ if __name__ == '__main__':
     if args.subparser_name is None:
         main_p.print_help()
     else:
-        if args.config is None:
-            if args.subparser_name == 'fastq2bam':
-                # Check if required arguments provided
-                if args.fastq1 is None or args.fastq2 is None or args.output is None or args.bwa is None or \
-                                args.ref is None or args.samtools is None:
-                    sub_a.error("Command line arguments must be provided if config file is not present.\n"
-                                "REQUIRED: fastq1, fastq2, output, bwa, ref, samtools, and bpattern OR blist")
-                    sub_a.print_help()
-                # Check if either barcode pattern or list is set. At least one must be provided.
-                elif args.bpattern is None and args.blist is None:
-                    sub_a.error("At least one of -b or -l required.")
-                # Check proper barcode design provided for barcode pattern
-                elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
-                    raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
-                # Check list for faulty barcodes in list
-                elif args.blist is not None:
-                    blist = open(args.blist, "r").read().splitlines()
-                    if re.search("[^ACGTN]", "".join(blist)) is not None:
-                        raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
-                    else:
-                        args.func(args)
-                else:
-                    args.func(args)
-            elif args.subparser_name == 'consensus':
-                print(args)
-                if args.bam is None or args.c_output is None:
-                    sub_b.error("Command line arguments must be provided if config file is not present.\n"
-                                "REQUIRED: input and output.")
-                    sub_b.print_help()
+        if args.subparser_name == 'fastq2bam':
+            # Check if required arguments provided
+            if args.fastq1 is None or args.fastq2 is None or args.output is None or args.bwa is None or \
+                            args.ref is None or args.samtools is None:
+                sub_a.error("Command line arguments must be provided if config file is not present.\n"
+                            "REQUIRED: fastq1, fastq2, output, bwa, ref, samtools, and barcode pattern OR list")
+                sub_a.print_help()
+            # Check if either barcode pattern or list is set. At least one must be provided.
+            elif args.bpattern is None and args.blist is None:
+                sub_a.error("At least one of -b or -l required.")
+            # Check proper barcode design provided for barcode pattern
+            elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
+                raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
+            # Check list for faulty barcodes in list
+            elif args.blist is not None:
+                blist = open(args.blist, "r").read().splitlines()
+                if re.search("[^ACGTN]", "".join(blist)) is not None:
+                    raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
                 else:
                     args.func(args)
             else:
-                main_p.print_help()
+                args.func(args)
+        elif args.subparser_name == 'consensus':
+            print(args)
+            if args.bam is None or args.c_output is None:
+                sub_b.error("Command line arguments must be provided if config file is not present.\n"
+                            "REQUIRED: input and output.")
+                sub_b.print_help()
+            else:
+                args.func(args)
         else:
-            args.func(args)
+            main_p.print_help()
+
 
