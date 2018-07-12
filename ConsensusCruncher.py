@@ -279,6 +279,26 @@ def consensus(args):
               '{}/{}.time_tracker.txt'.format(sample_dir, identifier))
     os.rename('{}/sscs/{}_tag_fam_size.png'.format(sample_dir, identifier),
               '{}/{}_tag_fam_size.png'.format(sample_dir, identifier))
+    os.rename('{}/sscs/{}.read_families.txt'.format(sample_dir, identifier),
+              '{}/{}.read_families.txt'.format(sample_dir, identifier))
+
+    # Remove intermediate files
+    if args.cleanup is True:
+        os.remove('{}/{}.time_tracker.txt'.format(sample_dir, identifier))
+        os.remove('{}/sssc/{}.badReads.bam'.format(sample_dir, identifier))
+        # Remove SSCSs that could not be formed into DCSs
+        os.remove('{}/dcs/{}.sscs.singleton.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/dcs/{}.sscs.singleton.sorted.bam.bai'.format(sample_dir, identifier))
+        # Remove singleton correction files and only keep merged files
+        os.remove('{}/sssc_sc/{}.singleton.correction.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/sssc_sc/{}.singleton.correction.sorted.bam.bai'.format(sample_dir, identifier))
+        os.remove('{}/sssc_sc/{}.sscs.correction.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/sssc_sc/{}.sscs.correction.sorted.bam.bai'.format(sample_dir, identifier))
+        os.remove('{}/sssc_sc/{}.uncorrected.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/sssc_sc/{}.uncorrected.sorted.bam.bai'.format(sample_dir, identifier))
+        # Remove SSCS_SC that could not be formed into DCSs
+        os.remove('{}/dcs_sc/{}.sscs.sc.singleton.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/dcs_sc/{}.sscs.sc.singleton.sorted.bam.bai'.format(sample_dir, identifier))
 
 
 if __name__ == '__main__':
