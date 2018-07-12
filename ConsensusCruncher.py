@@ -83,21 +83,20 @@ def fastq2bam(args):
         os.makedirs(bam_dir)
 
     # Set file variables
-    args.fastqs = args.fastqs.split()
-    filename = os.path.basename(args.fastqs[0]).split(args.name, 1)[0]
+    filename = os.path.basename(args.fastq1).split(args.name, 1)[0]
     outfile = "{}/{}".format(fastq_dir, filename)
 
     # Extract barcodes into header of FASTQ
     if args.blist is not None and args.bpattern is not None:
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
-                  "--blist {}".format(code_dir, args.fastqs[0], args.fastqs[1], outfile,
+                  "--blist {}".format(code_dir, args.fastq1, args.fastq2, outfile,
                                       args.bpattern, args.blist))
     elif args.blist is None:
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
-            code_dir, args.fastqs[0], args.fastqs[1], outfile, args.bpattern))
+            code_dir, args.fastq1, args.fastq2, outfile, args.bpattern))
     else:
         os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
-            code_dir, args.fastqs[0], args.fastqs[1], outfile, args.blist))
+            code_dir, args.fastq1, args.fastq2, outfile, args.blist))
 
     # Align reads with BWA mem (command split into chunks and bwa_id retained as str repr)
     bwa_cmd = args.bwa + ' mem -M -t4 -R'
@@ -195,9 +194,6 @@ if __name__ == '__main__':
     sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
-    # if args.config:
-    #     sub_a.parse_known_args(remaining_args)
-
     # Determine code directory
     code_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -226,25 +222,42 @@ if __name__ == '__main__':
     # Parse args
     args = main_p.parse_args()
 
-    if args.subparser_name is not None:
-        if args.config is None and (args.fastqs is None or args.output is None or args.ref is None):
-            sub_a.error("Command line arguments must be provided if config file is not present.")
-
-        # Check if either barcode pattern or list is set. At least one must be provided.
-        if args.bpattern is None and args.blist is None:
-            sub_a.error("At least one of -b or -l required.")
-        # Check proper barcode design provided for barcode pattern
-        elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
-            raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
-        # Check list for faulty barcodes in list
-        elif args.blist is not None:
-            blist = open(args.blist, "r").read().splitlines()
-            if re.search("[^ACGTN]", "".join(blist)) is not None:
-                raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
+    if args.subparser_name is None:
+        main_p.print_help()
+    else:
+        if args.config is None:
+            if args.subparser_name == 'fastq2bam':
+                # Check if required arguments provided
+                if args.fastq1 is None or args.fastq2 is None or args.output is None or args.bwa is None or \
+                                args.ref is None or args.samtools is None:
+                    sub_a.error("Command line arguments must be provided if config file is not present.\n"
+                                "REQUIRED: fastq1, fastq2, output, bwa, ref, samtools, and bpattern OR blist")
+                    sub_a.print_help()
+                # Check if either barcode pattern or list is set. At least one must be provided.
+                elif args.bpattern is None and args.blist is None:
+                    sub_a.error("At least one of -b or -l required.")
+                # Check proper barcode design provided for barcode pattern
+                elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
+                    raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
+                # Check list for faulty barcodes in list
+                elif args.blist is not None:
+                    blist = open(args.blist, "r").read().splitlines()
+                    if re.search("[^ACGTN]", "".join(blist)) is not None:
+                        raise ValueError("List contains invalid barcodes. Please specify barcodes with A|C|G|T.")
+                    else:
+                        args.func(args)
+                else:
+                    args.func(args)
+            elif args.subparser_name == 'consensus':
+                print(args)
+                if args.bam is None or args.c_output is None:
+                    sub_b.error("Command line arguments must be provided if config file is not present.\n"
+                                "REQUIRED: input and output.")
+                    sub_b.print_help()
+                else:
+                    args.func(args)
             else:
-                args.func(args)
+                main_p.print_help()
         else:
             args.func(args)
-    else:
-        main_p.print_help()
 
