@@ -285,17 +285,17 @@ def consensus(args):
     # Remove intermediate files
     if args.cleanup is True:
         os.remove('{}/{}.time_tracker.txt'.format(sample_dir, identifier))
-        os.remove('{}/sssc/{}.badReads.bam'.format(sample_dir, identifier))
+        os.remove('{}/sscs/{}.badReads.bam'.format(sample_dir, identifier))
         # Remove SSCSs that could not be formed into DCSs
         os.remove('{}/dcs/{}.sscs.singleton.sorted.bam'.format(sample_dir, identifier))
         os.remove('{}/dcs/{}.sscs.singleton.sorted.bam.bai'.format(sample_dir, identifier))
         # Remove singleton correction files and only keep merged files
-        os.remove('{}/sssc_sc/{}.singleton.correction.sorted.bam'.format(sample_dir, identifier))
-        os.remove('{}/sssc_sc/{}.singleton.correction.sorted.bam.bai'.format(sample_dir, identifier))
-        os.remove('{}/sssc_sc/{}.sscs.correction.sorted.bam'.format(sample_dir, identifier))
-        os.remove('{}/sssc_sc/{}.sscs.correction.sorted.bam.bai'.format(sample_dir, identifier))
-        os.remove('{}/sssc_sc/{}.uncorrected.sorted.bam'.format(sample_dir, identifier))
-        os.remove('{}/sssc_sc/{}.uncorrected.sorted.bam.bai'.format(sample_dir, identifier))
+        os.remove('{}/sscs_sc/{}.singleton.correction.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/sscs_sc/{}.singleton.correction.sorted.bam.bai'.format(sample_dir, identifier))
+        os.remove('{}/sscs_sc/{}.sscs.correction.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/sscs_sc/{}.sscs.correction.sorted.bam.bai'.format(sample_dir, identifier))
+        os.remove('{}/sscs_sc/{}.uncorrected.sorted.bam'.format(sample_dir, identifier))
+        os.remove('{}/sscs_sc/{}.uncorrected.sorted.bam.bai'.format(sample_dir, identifier))
         # Remove SSCS_SC that could not be formed into DCSs
         os.remove('{}/dcs_sc/{}.sscs.sc.singleton.sorted.bam'.format(sample_dir, identifier))
         os.remove('{}/dcs_sc/{}.sscs.sc.singleton.sorted.bam.bai'.format(sample_dir, identifier))
