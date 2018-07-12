@@ -43,7 +43,6 @@
 from argparse import ArgumentParser
 from gzip import open as gzopen
 from Bio import SeqIO
-import zipfile
 import pandas as pd
 import numpy as np
 import re
@@ -123,7 +122,7 @@ def main():
     ######################
     # === Initialize input and output files ===
     # Check if file is zipped
-    if zipfile.is_zipfile(args.read1):
+    if 'gz' in args.read1:
         read1 = SeqIO.parse(gzopen(args.read1, "rt"), "fastq")
         read2 = SeqIO.parse(gzopen(args.read2, "rt"), "fastq")
     else:
