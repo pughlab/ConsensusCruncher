@@ -308,7 +308,7 @@ def main():
     ######################
     # === STATS ===
     # Note: total reads = unmapped + secondary + SSCS uncollapsed + singletons
-    summary_stats = '''# === SSCS MAKER ===
+    summary_stats = '''# === SSCS ===
 Uncollapsed - Total reads: {}
 Uncollapsed - Unmapped reads: {}
 Uncollapsed - Secondary/Supplementary reads: {}
