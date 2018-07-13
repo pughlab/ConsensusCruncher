@@ -169,7 +169,7 @@ def consensus(args):
     sing = '{}/sscs/{}.singleton.bam'.format(sample_dir, identifier)
 
     # Run SSCS_maker
-    if args.bedfile is False:
+    if args.bedfile == 'False':
         os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
             code_dir, args.bam, sscs, args.cutoff))
     else:
@@ -195,7 +195,7 @@ def consensus(args):
               '{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier))
 
     # Run DCS_maker
-    if args.bedfile is False:
+    if args.bedfile == 'False':
         os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs, dcs))
     else:
         os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs,
@@ -208,7 +208,7 @@ def consensus(args):
     #############################
     # Singleton Correction (SC) #
     #############################
-    if args.scorrect is True:
+    if args.scorrect != 'False':
         os.makedirs(sample_dir + '/sscs_sc')
         # Move stats and time tracker file to next dir
         os.rename('{}/dcs/{}.stats.txt'.format(sample_dir, identifier),
@@ -216,7 +216,7 @@ def consensus(args):
         os.rename('{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier),
                   '{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier))
 
-        if args.bedfile is False:
+        if args.bedfile == 'False':
             os.system("{}/ConsensusCruncher/singleton_correction.py --singleton {}".format(code_dir, sing))
         else:
             os.system("{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {}".format(code_dir, sing,
@@ -253,7 +253,7 @@ def consensus(args):
         os.rename('{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier),
                   '{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier))
 
-        if args.bedfile is False:
+        if args.bedfile == 'False':
             os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs_sc, dcs_sc))
         else:
             os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(
@@ -272,33 +272,40 @@ def consensus(args):
         call("{} merge {} {} {} {}".format(args.samtools, all_unique, dcs_sc, sscs_sc_sing, uncorrected).split(' '))
         all_unique = sort_index(all_unique, args.samtools)
 
+        # Move stats and time tracker file to sample_dir
+        os.rename('{}/dcs_sc/{}.stats.txt'.format(sample_dir, identifier),
+                  '{}/{}.stats.txt'.format(sample_dir, identifier))
+        os.rename('{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier),
+                  '{}/{}.time_tracker.txt'.format(sample_dir, identifier))
+    else:
+        os.rename('{}/dcs/{}.stats.txt'.format(sample_dir, identifier),
+                  '{}/{}.stats.txt'.format(sample_dir, identifier))
+        os.rename('{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier),
+                  '{}/{}.time_tracker.txt'.format(sample_dir, identifier))
+
     # Move stats and time tracker file to sample dir
-    os.rename('{}/dcs_sc/{}.stats.txt'.format(sample_dir, identifier),
-              '{}/{}.stats.txt'.format(sample_dir, identifier))
-    os.rename('{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier),
-              '{}/{}.time_tracker.txt'.format(sample_dir, identifier))
     os.rename('{}/sscs/{}_tag_fam_size.png'.format(sample_dir, identifier),
               '{}/{}_tag_fam_size.png'.format(sample_dir, identifier))
     os.rename('{}/sscs/{}.read_families.txt'.format(sample_dir, identifier),
               '{}/{}.read_families.txt'.format(sample_dir, identifier))
 
     # Remove intermediate files
-    if args.cleanup is True:
+    if args.cleanup == 'True':
         os.remove('{}/{}.time_tracker.txt'.format(sample_dir, identifier))
         os.remove('{}/sscs/{}.badReads.bam'.format(sample_dir, identifier))
         # Remove SSCSs that could not be formed into DCSs
-        os.remove('{}/dcs/{}.sscs.singleton.sorted.bam'.format(sample_dir, identifier))
+        os.remove(sscs_sing)
         os.remove('{}/dcs/{}.sscs.singleton.sorted.bam.bai'.format(sample_dir, identifier))
-        if args.scorrect is True:
+        if args.scorrect != 'False':
             # Remove singleton correction files and only keep merged files
-            os.remove('{}/sscs_sc/{}.singleton.correction.sorted.bam'.format(sample_dir, identifier))
+            os.remove(sing_cor)
             os.remove('{}/sscs_sc/{}.singleton.correction.sorted.bam.bai'.format(sample_dir, identifier))
-            os.remove('{}/sscs_sc/{}.sscs.correction.sorted.bam'.format(sample_dir, identifier))
+            os.remove(sscs_cor)
             os.remove('{}/sscs_sc/{}.sscs.correction.sorted.bam.bai'.format(sample_dir, identifier))
-            os.remove('{}/sscs_sc/{}.uncorrected.sorted.bam'.format(sample_dir, identifier))
+            os.remove(uncorrected)
             os.remove('{}/sscs_sc/{}.uncorrected.sorted.bam.bai'.format(sample_dir, identifier))
             # Remove SSCS_SC that could not be formed into DCSs
-            os.remove('{}/dcs_sc/{}.sscs.sc.singleton.sorted.bam'.format(sample_dir, identifier))
+            os.remove(sscs_sc_sing)
             os.remove('{}/dcs_sc/{}.sscs.sc.singleton.sorted.bam.bai'.format(sample_dir, identifier))
 
 
@@ -338,6 +345,7 @@ if __name__ == '__main__':
     cinput_help = "Input BAM file."
     coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences are " \
                    "outputted."
+    scorrect_help = "Singleton correction, default: True."
     bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
                    "cytoBand.txt unless you're working with genome build that is not hg19. Then a separate bedfile is" \
                    " needed for data segmentation (file can be formatted with the bed_separator.R tool). For small " \
@@ -364,7 +372,7 @@ if __name__ == '__main__':
                     "blist": None,
                     "bam": cinput_help,
                     "c_output": coutput_help,
-                    "scorrect": True,
+                    "scorrect": 'True',
                     "bedfile": bedfile,
                     "cutoff": 0.7,
                     "cleanup": cleanup_help}
@@ -392,21 +400,30 @@ if __name__ == '__main__':
     sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
+    # Parse commandline args to override config args
+    if sub_args.config and sub_args.subparser_name == 'fastq2bam':
+        sub_a.parse_known_args(remaining_args)
+        print(sub_a.parse_known_args(remaining_args))
+
     # Set args for 'consensus' mode
     sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=cinput_help, type=str)
     sub_b.add_argument('-o', '--output', metavar="OUTPUT_DIR", dest='c_output', type=str, help=coutput_help)
     sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
-    sub_b.add_argument('--scorrect', help="Singleton correction, default: True.",
-                       choices=[True, False], type=bool)
+    sub_b.add_argument('--scorrect', help=scorrect_help, choices=['True', 'False'])
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
     sub_b.add_argument('-c', '--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the"
                                                           " same base to form a consensus).")
-    sub_b.add_argument('--cleanup', choices=[True, False], type=bool, help=cleanup_help)
+    sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
     sub_b.set_defaults(func=consensus)
+
+    # Parse commandline args to override config args
+    if sub_args.config and sub_args.subparser_name == 'consensus':
+        sub_b.parse_known_args(remaining_args)
 
     # Parse args
     args = main_p.parse_args()
 
+    # Check args
     if args.subparser_name is None:
         main_p.print_help()
     else:
