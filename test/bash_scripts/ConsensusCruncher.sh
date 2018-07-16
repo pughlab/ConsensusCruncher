@@ -2,50 +2,6 @@
 #$ -S /bin/bash
 #$ -cwd
 
-##====================================================================================
-##
-##  FILE:         DuplexPipeline.sh
-##
-##  USAGE:        DuplexPipeline.sh -i input_dir -o output_dir
-##
-##  OPTIONS:
-##
-##    -i  Input bamfile directory [MANDATORY]
-##    -o  Output project directory [MANDATORY]
-##    -s  Singleton correction, default: ON (use "OFF" to disable)
-##    -b  Bedfile, default: cytoBand.txt
-##        WARNING: It is HIGHLY RECOMMENDED that you use the default cytoBand.txt and
-##        not to include your own bedfile. This option is mainly intended for non-human
-##        genomes, where a separate bedfile is needed for data segmentation. If you do
-##        choose to use your own bedfile, please format with the bed_separator.R tool.
-##
-##        For small or non-human genomes where cytobands cannot be used for segmenting the
-##        data set, you may choose to turn off this option with "-b OFF" and process the
-##        data all at once (Division of data is only required for large data sets to offload
-##        the memory burden).
-##
-##    -c  Consensus cut-off, default: 0.7 (70% of reads must have the same base to form
-##        a consensus)
-##    -q  qusb directory, default: output/qsub
-##    -h  Show this message
-##
-##  DESCRIPTION:
-##
-##  This script amalgamates duplicate reads in bamfiles into single-strand consensus
-##  sequences (SSCS), which are subsequently combined into duplex consensus sequences
-##  (DCS). Singletons (reads lacking duplicate sequences) are corrected, combined
-##  with SSCS to form SSCS + SC, and further collapsed to form DCS + SC. Finally,
-##  files containing all unique molecules (a.k.a. no duplicates) are created for SSCS
-##  and DCS.
-##
-##  Note: Script will create a "consensus" directory under the project directory and
-##  sub-directories corresponding to each bamfile in the input directory.
-##
-##  WARNING: Please change qsub parameters according to your cluster commands; default
-##  qsub -q highmem.q SCRIPT
-##
-##====================================================================================
-
 usage()
 {
 cat << EOF
@@ -169,7 +125,8 @@ done
 
 # Set script directory
 code_dir="$( cd "$(dirname "$0")" ; pwd -P )"
-code_dir=$code_dir/helper
+code_dir=$(dirname $(dirname $code_dir))
+code_dir=$code_dir/ConsensusCruncher
 
 ###############
 #  Variables  #

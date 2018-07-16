@@ -2,41 +2,6 @@
 #$ -S /bin/bash
 #$ -cwd
 
-##====================================================================================
-##
-##  FILE:         fastq_to_bam.sh
-##
-##  USAGE:        fastq_to_bam.sh -i input_dir -o output_dir -p project -b BPATTERN
-##                                -r REF
-##
-##  OPTIONS:
-##
-##    -i  Input directory [MANDATORY]
-##    -o  Output project directory [MANDATORY]
-##    -p  Project name [MANDATORY]
-##    -r  Reference (BWA index) [MANDATORY]
-##    -b  Barcode pattern [MANDATORY; unless barcode list provided (you can input both list and pattern)]
-##    -l  Barcode list [MANDATORY; unless barcode pattern provided (you can input both list and pattern)]
-##    -q  qusb directory, default: output/qsub
-##    -h  Show this message
-##
-##  BARCODE DESIGN:
-##  You can input either a barcode list or barcode pattern or both. If both are provided, barcodes will first be matched
-##  with the list and then the constant spacer bases will be removed before the barcode is added to the header.
-##
-##  N = random / barcode bases
-##  A | C | G | T = constant spacer bases
-##  e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front and 'GT' behind.
-##
-##  DESCRIPTION:
-##  This script extracts molecular barcode tags and removes constant spacers from unzipped FASTQ
-##  files found in the input directory (file names must contain "R1" or "R2"). Barcode
-##  extracted FASTQ files are written to the 'fastq_tag' directory and are subsequently
-##  aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
-##  project folder.
-##
-##====================================================================================
-
 usage()
 {
 cat << EOF
@@ -178,9 +143,9 @@ for i in $variables; do
     fi
 done
 
-# Set code directory (NEEDS IMPROVEMENT* should be set to location of code)
-#code_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Set code directory 
 code_dir="$( cd "$(dirname "$0")" ; pwd -P )"
+code_dir=$(dirname $(dirname $code_dir))
 
 
 ################
@@ -245,13 +210,13 @@ for R1_file in $( ls $INPUT | grep R1); do
 
     # Check if barcode list or pattern is provided
     if [[ -n $BLIST ]] && [[ -n $BPATTERN ]]; then
-        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
+        echo -e "python3 $code_dir/ConsensusCruncher/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
         --bpattern $BPATTERN --blist $BLIST \n" >> $QSUBDIR/$filename.sh
     elif [[ -n $BLIST ]]; then
-        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
+        echo -e "python3 $code_dir/ConsensusCruncher/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
         --blist $BLIST \n" >> $QSUBDIR/$filename.sh
     else
-        echo -e "python3 $code_dir/helper/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
+        echo -e "python3 $code_dir/ConsensusCruncher/extract_barcodes.py --read1 $R1 --read2 $R2 --outfile $TAGDIR/$filename
         --bpattern $BPATTERN\n" >> $QSUBDIR/$filename.sh
     fi
 
