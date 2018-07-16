@@ -1,0 +1,6 @@
+generate_scripts.sh will create a shell script to run ConsensusCruncher (fastq2bam mode followed by consensus mode) for each paired-end sample. Please note generate_scripts.sh runs the ConsensusCruncher.py package, which has replaced the shell scripts fastq_to_bam.sh and ConsensusCruncher.sh. 
+
+
+
+
+
