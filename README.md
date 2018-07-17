@@ -60,7 +60,7 @@ project folder.
 2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
 ```
   -h, --help            show this help message and exit
-  -i BAM, --input BAM   Input BAM file. [mandatory]
+  -i BAM, --input BAM   Input BAM file with barcodes extracted into header. [mandatory]
   -o OUTPUT, --output OUTPUT
                         Output directory, where a folder will be created for
                         the BAM file and consensus sequences. [mandatory]
