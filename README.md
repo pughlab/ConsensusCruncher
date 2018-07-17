@@ -59,14 +59,30 @@ project folder.
 
 2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
 ```
---fastq1 FASTQ1         FASTQ containing Read 1 of paired-end reads. [mandatory]
--i/--input BAM          Input BAM file with barcodes extracted. [mandatory]
--o/--c_output OUTPUt    Output directory, where a folder will be created for the BAM file and consensus sequences. [mandatory]
--s/--samtools SAMTOOLS  Path to executable samtools. [mandatory]
---scorrect TRUE/FALSE   Singleton correction, default: True.
--b/--bedfile BEDFILE    Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default cytoBand.txt unless you're working with genome build that is not hg19. Then a separate bedfile is needed for data segmentation (file can be formatted with the bed_separator.R tool). For small BAM files, you may choose to turn off data splitting with '-b False' and process everything all at once (Division of data is only required for large data sets to offload the memory burden).
---cutoff CUTOFF         Consensus cut-off, default: 0.7 (70%% of reads must have the same base to form a consensus).
---cleanup TRUE/FALSE    Remove intermediate files.
+  -h, --help            show this help message and exit
+  -i BAM, --input BAM   Input BAM file. [mandatory]
+  -o OUTPUT, --output OUTPUT
+                        Output directory, where a folder will be created for
+                        the BAM file and consensus sequences. [mandatory]
+  -s SAMTOOLS, --samtools SAMTOOLS
+                        Path to executable samtools. [mandatory]
+  --scorrect {True,False}
+                        Singleton correction, default: True.
+  -b BEDFILE, --bedfile BEDFILE
+                        Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY
+                        RECOMMENDED that you use the default cytoBand.txt
+                        unless you're working with genome build that is not
+                        hg19. Then a separate bedfile is needed for data
+                        segmentation (file can be formatted with the
+                        bed_separator.R tool). For small BAM files, you may
+                        choose to turn off data splitting with '-b False' and
+                        process everything all at once (Division of data is
+                        only required for large data sets to offload the
+                        memory burden).
+  --cutoff CUTOFF       Consensus cut-off, default: 0.7 (70% of reads must
+                        have the same base to form a consensus).
+  --cleanup {True,False}
+                        Remove intermediate files.
 ```
 This script amalgamates duplicate reads in bamfiles into single-strand consensus
 sequences (SSCS), which are subsequently combined into duplex consensus sequences
