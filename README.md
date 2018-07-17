@@ -126,9 +126,9 @@ FASTQ files with extracted barcodes are placed in the **fastq_tag** directory an
 ```
 
 ### ConsensusCruncher ###
-*consensus* mode creates a **consensus** directory containing folders for each bam file. Separate bash scripts are generated for for each bamfile using the workflow illustrated above. 
+*consensus* mode creates a **consensus** directory and folders for each bam file.
 
-Bamfiles are generated and grouped according to type of error suppression (SSCS vs DCS) and whether Singleton Correction (SC) was implemented. 
+BAM files undergo consensus construction through the workflow illustrated above. Output BAMs are grouped according to type of error suppression (SSCS vs DCS) and whether Singleton Correction (SC) was implemented. 
 ```
 . 
 ├── bamfiles 
