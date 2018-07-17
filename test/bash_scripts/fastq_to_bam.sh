@@ -43,6 +43,7 @@ EOF
 ################
 #    Set-up    #
 ################
+<<<<<<< HEAD:test/bash_scripts/fastq_to_bam.sh
 while getopts "hi:o:p:r:b:l:q:" OPTION
 do
      case $OPTION in

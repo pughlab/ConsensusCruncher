@@ -87,6 +87,7 @@ def duplex_consensus(read1, read2):
 def strand_correction(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
     """(str, str, dict, dict) -> Pysam.AlignedSegment
     Return 'corrected' singleton using complement read from opposite strand (either found in SSCS or singleton).
+
     Quality score calculated from singleton and complementary read. Read template based on singleton.
     """
     read = singleton_dict[read_tag][0]
