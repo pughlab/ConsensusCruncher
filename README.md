@@ -17,10 +17,11 @@ All required python libraries can be installed by running ```pip install -r requ
 ### Configuration ###
 Set up config.ini with the appropriate configurations for [fastq2bam] and [consensus] modes. Alternatively, you can provide command-line arguments. 
 
-ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is provided under '''[ConsensusCruncher repo]/test/bash_scripts/generate_scripts.sh'''. 
+ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is provided under ```[ConsensusCruncher repo]/test/bash_scripts/generate_scripts.sh```. 
 
 ### Running ConsensusCruncher ###
 1. Run ConsensusCruncher.py [-c CONFIG] **fastq2bam** with required input parameters: \
+```
 --fastq1 FASTQ1         FASTQ containing Read 1 of paired-end reads. [mandatory] \
 --fastq2 FASTQ2         FASTQ containing Read 2 of paired-end reads. [mandatory] \
 -o/--output OUTPUT      Output directory, where barcode extracted FASTQ and BAM files will be placed in subdirectories 'fastq_tag' and                           'bamfiles' respectively (dir will be created if they do not exist. [mandatory] \
@@ -30,7 +31,7 @@ ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM fil
 -s/--samtools SAMTOOLS  Path to executable samtools. [mandatory] \
 -p/--bpattern PATTERN   Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [pattern or list must be provided] \
 -l/--blist LIST         List of barcodes (Text file with unique barcodes on each line). [pattern or list must be provided]
-
+```
 BARCODE DESIGN:
 You can input either a barcode list or barcode pattern or both. If both are provided, barcodes will first be matched
 with the list and then the constant spacer bases will be removed before the barcode is added to the header.
@@ -46,6 +47,7 @@ aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
 project folder.
 
 2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters: \
+```
 --fastq1 FASTQ1         FASTQ containing Read 1 of paired-end reads. [mandatory] \
 -i/--input BAM          Input BAM file with barcodes extracted. [mandatory] \
 -o/--c_output OUTPUt    Output directory, where a folder will be created for the BAM file and consensus sequences. [mandatory] \
@@ -54,7 +56,7 @@ project folder.
 -b/--bedfile BEDFILE    Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default cytoBand.txt unless                           you're working with genome build that is not hg19. Then a separate bedfile is needed for data segmentation (file                         can be formatted with the bed_separator.R tool). For small BAM files, you may choose to turn off data splitting                         with '-b False' and process everything all at once (Division of data is only required for large data sets to                             offload the memory burden). \
 --cutoff CUTOFF         Consensus cut-off, default: 0.7 (70%% of reads must have the same base to form a consensus). \
 --cleanup TRUE/FALSE    Remove intermediate files. \
-  
+```
 This script amalgamates duplicate reads in bamfiles into single-strand consensus
 sequences (SSCS), which are subsequently combined into duplex consensus sequences
 (DCS). Singletons (reads lacking duplicate sequences) are corrected, combined
