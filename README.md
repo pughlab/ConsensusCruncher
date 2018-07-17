@@ -20,7 +20,7 @@ Set up config.ini with the appropriate configurations for [fastq2bam] and [conse
 ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is provided under ```[ConsensusCruncher repo]/test/bash_scripts/generate_scripts.sh```. 
 
 ### Running ConsensusCruncher ###
-1. Run ConsensusCruncher.py [-c CONFIG] **fastq2bam** with required input parameters: \
+1. Run ConsensusCruncher.py [-c CONFIG] **fastq2bam** with required input parameters:
 ```
 --fastq1 FASTQ1         FASTQ containing Read 1 of paired-end reads. [mandatory] 
 --fastq2 FASTQ2         FASTQ containing Read 2 of paired-end reads. [mandatory] 
@@ -46,7 +46,7 @@ extracted FASTQ files are written to the 'fastq_tag' directory and are subsequen
 aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
 project folder.
 
-2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters: \
+2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
 ```
 --fastq1 FASTQ1         FASTQ containing Read 1 of paired-end reads. [mandatory]
 -i/--input BAM          Input BAM file with barcodes extracted. [mandatory]
@@ -71,15 +71,18 @@ and DCS.
 In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the [test folder](https://github.com/pughlab/ConsensusCruncher/tree/master/test/fastq).
 
 ### Fastqs to Bams ###
-Given **fastq** as the input directory, *fastq_to_bam.sh* removes the spacer region and extracts the barcode tag from each sequencing read into the header with *extract_barcode.py*.
+Given **fastq** as input files, *fastq2bam* mode removes the spacer region and extracts the barcode tag from each sequencing read into the header with *extract_barcode.py*.
 
 ```
-PATH="[insert path to ConsensusCruncher repo]"
-BWAPATH="[insert path to BWA index]"
-sh fastq_to_bam.sh -i ./$PATH/ConsensusCruncher/test/fastq -o ./$PATH/ConsensusCruncher/test -b 2 -s 1 -f T -r ./$BWAPATH/BWAIndex/genome.fa
+REPO="[insert path to ConsensusCruncher repo]"
+BWAPATH="[insert path to BWA]"
+BWAINDEX="[insert path to BWA INDEX]"
+BWAPATH="[insert path to SAMTOOLS]"
+
+python ConsensusCruncher.py fastq2bam --fastq1 $REPO/test/fastq/LargeMid_56_L005_R1.fastq --FASTQ2 $REPO/test/fastq/LargeMid_56_L005_R2.fastq -o $REPO/test -b $BWAPATH -r $BWAIndex -s $SAMTOOLS -bpattern NNT 
 ```
 
-In the sample dataset, we utilized 2-bp barcodes and 1-bp spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter (-f) should be imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
+In the sample dataset, we utilized 2-bp (NN) barcodes and 1-bp (T) spacers. While the barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an invariant "T" base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer filter is imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and combined together before being added to the header. 
 
 ```
 READ FROM SEQUENCER
@@ -123,7 +126,7 @@ FASTQ files with extracted barcodes are placed in the **fastq_tag** directory an
 ```
 
 ### ConsensusCruncher ###
-*ConsensusCruncher.sh* creates a **consensus** directory containing folders for each bam file. Separate bash scripts are generated for for each bamfile using the workflow illustrated above. 
+*consensus* mode creates a **consensus** directory containing folders for each bam file. Separate bash scripts are generated for for each bamfile using the workflow illustrated above. 
 
 Bamfiles are generated and grouped according to type of error suppression (SSCS vs DCS) and whether Singleton Correction (SC) was implemented. 
 ```
