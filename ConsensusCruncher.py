@@ -365,7 +365,7 @@ if __name__ == '__main__':
     sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
     sub_b.add_argument('--scorrect', help=scorrect_help, choices=['True', 'False'])
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
-    sub_b.add_argument('-c', '--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the"
+    sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the"
                                                           " same base to form a consensus).")
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
     sub_b.set_defaults(func=consensus)
