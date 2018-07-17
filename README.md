@@ -22,15 +22,26 @@ ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM fil
 ### Running ConsensusCruncher ###
 1. Run ConsensusCruncher.py [-c CONFIG] **fastq2bam** with required input parameters:
 ```
---fastq1 FASTQ1         FASTQ containing Read 1 of paired-end reads. [mandatory] 
---fastq2 FASTQ2         FASTQ containing Read 2 of paired-end reads. [mandatory] 
--o/--output OUTPUT      Output directory, where barcode extracted FASTQ and BAM files will be placed in subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they do not exist. [mandatory] 
--n/--name FILENAME      Output filename. If none provided, default will extract output name by taking everything left of" '_R'.
--b/--bwa BWA            Path to executable bwa. [mandatory] 
--r/--ref BWA_INDEX      Reference (BWA index). [mandatory] 
--s/--samtools SAMTOOLS  Path to executable samtools. [mandatory] 
--p/--bpattern PATTERN   Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [pattern or list must be provided] 
--l/--blist LIST         List of barcodes (Text file with unique barcodes on each line). [pattern or list must be provided]
+  --fastq1 FASTQ1       FASTQ containing Read 1 of paired-end reads. [MANDATORY]
+  --fastq2 FASTQ2       FASTQ containing Read 2 of paired-end reads. [MANDATORY]
+  -o OUTPUT, --output OUTPUT
+                        Output directory, where barcode extracted FASTQ and
+                        BAM files will be placed in subdirectories 'fastq_tag'
+                        and 'bamfiles' respectively (dir will be created if
+                        they do not exist). [MANDATORY]
+  -n FILENAME, --name FILENAME
+                        Output filename. If none provided, default will
+                        extract output name by taking everything left of '_R'.
+  -b BWA, --bwa BWA     Path to executable bwa. [MANDATORY]
+  -r REF, --ref REF     Reference (BWA index). [MANDATORY]
+  -s SAMTOOLS, --samtools SAMTOOLS
+                        Path to executable samtools [MANDATORY]
+  -p PATTERN, --bpattern PATTERN
+                        Barcode pattern (N = random barcode bases, A|C|G|T =
+                        fixed spacer bases). [Pattern or list must be provided]
+  -l LIST, --blist LIST
+                        List of barcodes (Text file with unique barcodes on
+                        each line). [Pattern or list must be provided]
 ```
 BARCODE DESIGN:
 You can input either a barcode list or barcode pattern or both. If both are provided, barcodes will first be matched
