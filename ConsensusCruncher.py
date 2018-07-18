@@ -265,9 +265,16 @@ def consensus(args):
 
 if __name__ == '__main__':
     # Mode parser
-    main_p = argparse.ArgumentParser()
+    main_p = argparse.ArgumentParser(add_help=False)
     main_p.add_argument('-c', '--config', default=None,
-                       help="Specify config file. Commandline option overrides config file (Use config template).")
+                        help="Specify config file. Commandline option overrides config file (Use config template).")
+
+    # Parse out config file
+    sub_args, remaining_args = main_p.parse_known_args()
+
+    main_p = argparse.ArgumentParser(parents=[main_p], add_help=True,
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
     sub = main_p.add_subparsers(help='sub-command help', dest='subparser_name')
 
     # Mode help messages
@@ -278,27 +285,27 @@ if __name__ == '__main__':
                           " be corrected with 'Singleton Correction'."
 
     # Add subparsers
-    sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help, add_help=False)
-    sub_b = sub.add_parser('consensus', help=mode_consensus_help, add_help=False)
+    sub_a = sub.add_parser('fastq2bam', help=mode_fastq2bam_help)
+    sub_b = sub.add_parser('consensus', help=mode_consensus_help)
 
     # fastq2bam arg help messages
-    fastq1_help = "FASTQ containing Read 1 of paired-end reads."
-    fastq2_help = "FASTQ containing Read 2 of paired-end reads."
+    fastq1_help = "FASTQ containing Read 1 of paired-end reads. [MANDATORY]"
+    fastq2_help = "FASTQ containing Read 2 of paired-end reads. [MANDATORY]"
     output_help = "Output directory, where barcode extracted FASTQ and BAM files will be placed in " \
                   "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they " \
-                  "do not exist)."
+                  "do not exist). [MANDATORY]"
     filename_help = "Output filename. If none provided, default will extract output name by taking everything left of" \
                     " '_R'."
-    bwa_help = "Path to executable bwa."
-    samtools_help = "Path to executable samtools"
-    ref_help = "Reference (BWA index)."
-    bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
-    blist_help = "List of barcodes (Text file with unique barcodes on each line)."
+    bwa_help = "Path to executable bwa. [MANDATORY]"
+    samtools_help = "Path to executable samtools. [MANDATORY]"
+    ref_help = "Reference (BWA index). [MANDATORY]"
+    bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [MANDATORY]"
+    blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
 
     # Consensus arg help messages
-    cinput_help = "Input BAM file."
-    coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences are " \
-                   "outputted."
+    cinput_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
+    coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences. " \
+                   "[MANDATORY]"
     scorrect_help = "Singleton correction, default: True."
     bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
                    "cytoBand.txt unless you're working with genome build that is not hg19. Then a separate bedfile is" \
@@ -311,9 +318,7 @@ if __name__ == '__main__':
     code_dir = os.path.dirname(os.path.realpath(__file__))
     bedfile = '{}/ConsensusCruncher/cytoBand.txt'.format(code_dir)
 
-    # Set args for 'fastq2bam' mode
-    sub_args, remaining_args = main_p.parse_known_args()
-
+    # Update subparsers with config
     if sub_args.config is not None:
         defaults = {"fastq1": fastq1_help,
                     "fastq2": fastq2_help,
@@ -345,23 +350,18 @@ if __name__ == '__main__':
     # Parse commandline arguments
     sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
     sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str, help=fastq2_help)
-    sub_a.add_argument('-o', '--output', dest='output', metavar="OUTPUT_DIR", type=str, help=output_help)
+    sub_a.add_argument('-o', '--output', dest='output', type=str, help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
     sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
-    sub_a.add_argument('-p', '--bpattern', metavar="BARCODE_PATTERN", type=str, help=bpattern_help)
-    sub_a.add_argument('-l', '--blist', metavar="BARCODE_LIST", type=str, help=blist_help)
+    sub_a.add_argument('-p', '--bpattern', metavar="PATTERN", type=str, help=bpattern_help)
+    sub_a.add_argument('-l', '--blist', metavar="LIST", type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
-
-    # Parse commandline args to override config args
-    if sub_args.config and sub_args.subparser_name == 'fastq2bam':
-        sub_a.parse_known_args(remaining_args)
-        print(sub_a.parse_known_args(remaining_args))
 
     # Set args for 'consensus' mode
     sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=cinput_help, type=str)
-    sub_b.add_argument('-o', '--output', metavar="OUTPUT_DIR", dest='c_output', type=str, help=coutput_help)
+    sub_b.add_argument('-o', '--output', metavar="OUTPUT", dest='c_output', type=str, help=coutput_help)
     sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
     sub_b.add_argument('--scorrect', help=scorrect_help, choices=['True', 'False'])
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
@@ -369,10 +369,6 @@ if __name__ == '__main__':
                                                           " same base to form a consensus).")
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
     sub_b.set_defaults(func=consensus)
-
-    # Parse commandline args to override config args
-    if sub_args.config and sub_args.subparser_name == 'consensus':
-        sub_b.parse_known_args(remaining_args)
 
     # Parse args
     args = main_p.parse_args()
@@ -382,15 +378,17 @@ if __name__ == '__main__':
         main_p.print_help()
     else:
         if args.subparser_name == 'fastq2bam':
+            # Parse command line args to override config args
+            if sub_args.config:
+                sub_a.parse_known_args(remaining_args)
+
             # Check if required arguments provided
             if args.fastq1 is None or args.fastq2 is None or args.output is None or args.bwa is None or \
                             args.ref is None or args.samtools is None:
-                sub_a.error("Command line arguments must be provided if config file is not present.\n"
-                            "REQUIRED: fastq1, fastq2, output, bwa, ref, samtools, and barcode pattern OR list")
                 sub_a.print_help()
             # Check if either barcode pattern or list is set. At least one must be provided.
             elif args.bpattern is None and args.blist is None:
-                sub_a.error("At least one of -b or -l required.")
+                sub_a.error("At least one of -p/--bpattern or -l/--blist required.")
             # Check proper barcode design provided for barcode pattern
             elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
                 raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
@@ -404,13 +402,13 @@ if __name__ == '__main__':
             else:
                 args.func(args)
         elif args.subparser_name == 'consensus':
+            # Parse commandline args to override config args
+            if sub_args.config:
+                sub_b.parse_known_args(remaining_args)
+            # Check if required arguments provided
             if args.bam is None or args.c_output is None or args.samtools is None:
-                sub_b.error("Command line arguments must be provided if config file is not present.\n"
-                            "REQUIRED: input, output, and samtools.")
                 sub_b.print_help()
             else:
                 args.func(args)
         else:
             main_p.print_help()
-
-
