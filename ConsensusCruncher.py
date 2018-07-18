@@ -264,14 +264,15 @@ def consensus(args):
 
 
 if __name__ == '__main__':
-    # Mode parser
+    # Set up mode parser (turn off help message, to be added later)
     main_p = argparse.ArgumentParser(add_help=False)
     main_p.add_argument('-c', '--config', default=None,
                         help="Specify config file. Commandline option overrides config file (Use config template).")
 
-    # Parse out config file
+    # Parse out config file (sub_args) and other command line args (remaining_args) to override config
     sub_args, remaining_args = main_p.parse_known_args()
 
+    # Re-initialize parser with help message enabled
     main_p = argparse.ArgumentParser(parents=[main_p], add_help=True,
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -303,7 +304,7 @@ if __name__ == '__main__':
     blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
 
     # Consensus arg help messages
-    cinput_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
+    bam_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
     coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences. " \
                    "[MANDATORY]"
     scorrect_help = "Singleton correction, default: True."
@@ -329,7 +330,7 @@ if __name__ == '__main__':
                     "samtools": samtools_help,
                     "bpattern": None,
                     "blist": None,
-                    "bam": cinput_help,
+                    "bam": bam_help,
                     "c_output": coutput_help,
                     "scorrect": 'True',
                     "bedfile": bedfile,
@@ -360,13 +361,13 @@ if __name__ == '__main__':
     sub_a.set_defaults(func=fastq2bam)
 
     # Set args for 'consensus' mode
-    sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=cinput_help, type=str)
+    sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=bam_help, type=str)
     sub_b.add_argument('-o', '--output', metavar="OUTPUT", dest='c_output', type=str, help=coutput_help)
     sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
     sub_b.add_argument('--scorrect', help=scorrect_help, choices=['True', 'False'])
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
-    sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the"
-                                                          " same base to form a consensus).")
+    sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
+                                                    "same base to form a consensus).")
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
     sub_b.set_defaults(func=consensus)
 
