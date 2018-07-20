@@ -130,11 +130,11 @@ def consensus(args):
 
     # Run SSCS_maker
     if args.bedfile == 'False':
-        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
-            code_dir, args.bam, sscs, args.cutoff))
+        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bdelim {}".format(
+            code_dir, args.bam, sscs, args.cutoff, args.bdelim))
     else:
-        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {}".
-            format(code_dir, args.bam, sscs, args.cutoff, args.bedfile))
+        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim {}".
+            format(code_dir, args.bam, sscs, args.cutoff, args.bedfile, args.bdelim))
 
     # Sort and index BAM files
     sscs = sort_index(sscs, args.samtools)
@@ -309,6 +309,8 @@ if __name__ == '__main__':
     genome_help = "Genome version (e.g. hg19 or hg38), default: hg19"
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [MANDATORY]"
     blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
+    bdelim_help = "Delimiter before barcode in read name " \
+                  "(e.g. '|' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')"
 
     # Consensus arg help messages
     bam_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
@@ -344,6 +346,7 @@ if __name__ == '__main__':
                     "genome": 'hg19',
                     "bedfile": bedfile,
                     "cutoff": 0.7,
+                    "bdelim": '|',
                     "cleanup": cleanup_help}
 
         config = configparser.ConfigParser()
@@ -378,6 +381,7 @@ if __name__ == '__main__':
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
     sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
                                                     "same base to form a consensus).")
+    sub_b.add_argument('-d', '--bdelim', metavar="DELIMITER", type=str, help=bdelim_help)
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
     sub_b.set_defaults(func=consensus)
 

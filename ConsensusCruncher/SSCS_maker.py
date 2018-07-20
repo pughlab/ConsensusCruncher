@@ -183,6 +183,8 @@ def main():
                         required=True)
     parser.add_argument("--infile", action="store", dest="infile", help="Input BAM file", required=True)
     parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", required=True)
+    parser.add_argument("--bdelim", action="store", dest="bdelim", default="|",
+                        help="Delimiter to differentiate barcodes from read name, default: '|'")
     parser.add_argument("--bedfile", action="store", dest="bedfile",
                         help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
@@ -248,8 +250,8 @@ def main():
                             duplex=None,  # this indicates bamfile is not for making DCS (thus headers are diff)
                             read_chr=read_chr,
                             read_start=read_start,
-                            read_end=read_end
-                            )
+                            read_end=read_end,
+                            barcode_delim=args.bdelim)
 
         # Set dicts and update counters
         read_dict = chr_data[0]

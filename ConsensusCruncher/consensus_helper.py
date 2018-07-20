@@ -308,7 +308,7 @@ def unique_tag(read, barcode, cigar):
 
 
 def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, duplex,
-             read_chr=None, read_start=None, read_end=None):
+             read_chr=None, read_start=None, read_end=None, barcode_delim=None):
     """(bamfile, dict, dict, dict, dict, bamfile, bool, str, int, int) ->
     dict, dict, dict, dict, int, int, int
 
@@ -335,6 +335,9 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
     # For duplex consensus making
     - duplex: any string or bool [that is not None] specifying duplex consensus making [e.g. TRUE], necessary for
               parsing barcode as query name for Uncollapsed and SSCS differ
+
+    # For bams with barcodes extracted by other software and placed into read name with different delimiters
+    - barcode_delim (str): sequence before barcode (e.g. '|' for 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')
 
     === Output ===
     1) read_dict: dictionary of bamfile reads grouped by unique molecular tags
@@ -420,8 +423,11 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                 # === Create consensus identifier ===
                 # Extract molecular barcode, barcodes in diff position for SSCS vs DCS generation
                 if duplex == None or duplex == False:
-                    # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
-                    barcode = read.qname.split("|")[1]
+                    if barcode_delim is None:
+                        # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
+                        barcode = read.qname.split("|")[1]
+                    else:
+                        barcode = read.qname.split(barcode_delim)[1]
                 else:
                     # DCS query name: CCTG_12_25398000_12_25398118_neg:5
                     barcode = read.qname.split("_")[0]
