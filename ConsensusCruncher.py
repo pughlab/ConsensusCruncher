@@ -106,6 +106,12 @@ def consensus(args):
     Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created by merging DCSs, remaining
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
     """
+    # Change bedfile if genome is hg38
+    if args.genome == 'hg38':
+        # Determine code directory and set bedfile to split data
+        code_dir = os.path.dirname(os.path.realpath(__file__))
+        args.bedfile = '{}/ConsensusCruncher/hg38_cytoBand.txt'.format(code_dir)
+
     # Create sample directory to hold consensus sequences
     identifier = os.path.basename(args.bam).split('.bam', 1)[0]
     sample_dir = '{}/{}'.format(args.c_output, identifier)
@@ -300,6 +306,7 @@ if __name__ == '__main__':
     bwa_help = "Path to executable bwa. [MANDATORY]"
     samtools_help = "Path to executable samtools. [MANDATORY]"
     ref_help = "Reference (BWA index). [MANDATORY]"
+    genome_help = "Genome version (e.g. hg19 or hg38), default: hg19"
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [MANDATORY]"
     blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
 
@@ -309,15 +316,16 @@ if __name__ == '__main__':
                    "[MANDATORY]"
     scorrect_help = "Singleton correction, default: True."
     bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
-                   "cytoBand.txt unless you're working with genome build that is not hg19. Then a separate bedfile is" \
-                   " needed for data segmentation (file can be formatted with the bed_separator.R tool). For small " \
-                   "BAM files, you may choose to turn off data splitting with '-b False' and process everything all at"\
-                   " once (Division of data is only required for large data sets to offload the memory burden)."
+                   "cytoBand.txt unless you're working with genome build that is not hg19 or hg38. Then a separate " \
+                   "bedfile is needed for data segmentation (file can be formatted with the bed_separator.R tool). " \
+                   "For small BAM files, you may choose to turn off data splitting with '-b False' and process " \
+                   "everything all at once (Division of data is only required for large data sets to offload the " \
+                   "memory burden)."
     cleanup_help = "Remove intermediate files."
 
     # Determine code directory and set bedfile to split data
     code_dir = os.path.dirname(os.path.realpath(__file__))
-    bedfile = '{}/ConsensusCruncher/cytoBand.txt'.format(code_dir)
+    bedfile = '{}/ConsensusCruncher/hg19_cytoBand.txt'.format(code_dir)
 
     # Update subparsers with config
     if sub_args.config is not None:
@@ -333,6 +341,7 @@ if __name__ == '__main__':
                     "bam": bam_help,
                     "c_output": coutput_help,
                     "scorrect": 'True',
+                    "genome": 'hg19',
                     "bedfile": bedfile,
                     "cutoff": 0.7,
                     "cleanup": cleanup_help}
@@ -365,6 +374,7 @@ if __name__ == '__main__':
     sub_b.add_argument('-o', '--output', metavar="OUTPUT", dest='c_output', type=str, help=coutput_help)
     sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
     sub_b.add_argument('--scorrect', help=scorrect_help, choices=['True', 'False'])
+    sub_b.add_argument('-g', '--genome', metavar="VERSION", dest='genome', help=genome_help, choices=['hg19', 'hg38'])
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
     sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
                                                     "same base to form a consensus).")
