@@ -106,10 +106,10 @@ def consensus(args):
     Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created by merging DCSs, remaining
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
     """
+    code_dir = os.path.dirname(os.path.realpath(__file__))
     # Change bedfile if genome is hg38
     if args.genome == 'hg38':
         # Determine code directory and set bedfile to split data
-        code_dir = os.path.dirname(os.path.realpath(__file__))
         args.bedfile = '{}/ConsensusCruncher/hg38_cytoBand.txt'.format(code_dir)
 
     # Create sample directory to hold consensus sequences
