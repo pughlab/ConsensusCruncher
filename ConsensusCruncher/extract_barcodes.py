@@ -91,7 +91,7 @@ def extract_barcode(read, plen):
     :type plen: num
     :returns: A SeqIO object with barcode removed and a barcode string.
     """
-    barcode = read.seq[:plen]
+    barcode = str(read.seq[:plen])
     read_b = read[plen:]
 
     return read_b, barcode
