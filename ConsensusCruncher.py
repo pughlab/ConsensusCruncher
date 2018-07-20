@@ -349,13 +349,14 @@ if __name__ == '__main__':
         config = configparser.ConfigParser()
         config.read(sub_args.config)
 
-        # Add config file args to fastq2bam mode
-        defaults.update(dict(config.items("fastq2bam")))
-        sub_a.set_defaults(**defaults)
-
-        # Add config file args to consensus mode
-        defaults.update(dict(config.items("consensus")))
-        sub_b.set_defaults(**defaults)
+        if config.has_section("fastq2bam"):
+            # Add config file args to fastq2bam mode
+            defaults.update(dict(config.items("fastq2bam")))
+            sub_a.set_defaults(**defaults)
+        if config.has_section("consensus"):
+            # Add config file args to consensus mode
+            defaults.update(dict(config.items("consensus")))
+            sub_b.set_defaults(**defaults)
 
     # Parse commandline arguments
     sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
