@@ -185,42 +185,46 @@ def main():
         r1, r1_barcode = extract_barcode(r1, plen)
         r2, r2_barcode = extract_barcode(r2, plen)
 
-        # Count barcode bases
-        r1_barcode_counter += seq_to_mat(r1_barcode, nuc_dict)
-        r2_barcode_counter += seq_to_mat(r2_barcode, nuc_dict)
-
-        # Add barcode and read number to header
-        if args.bpattern is not None:
-            r1_bc = ''.join([r1_barcode[x] for x in b_index])
-            r2_bc = ''.join([r2_barcode[x] for x in b_index])
-
-        r1.id = '{}|{}{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
-        r2.id = '{}|{}{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
-        r1.description = r1.id
-        r2.description = r2.id
-
-        # Isolate barcode from sequence
-        if args.blist is not None:
-            if r1_barcode in blist and r2_barcode in blist:
-                good_barcode += 1
-                # Write read to output file
-                SeqIO.write(r1, r1_output, "fastq")
-                SeqIO.write(r2, r2_output, "fastq")
-            else:
-                bad_barcode += 1
-
+        # Check to see if barcode is valid
+        if re.search("[^ACGT]", r1_barcode) is not None or re.search("[^ACGT]", r2_barcode) is not None:
+            bad_barcode += 1
         else:
-            r1_spacer = ''.join([r1_barcode[x] for x in s_index])
-            r2_spacer = ''.join([r2_barcode[x] for x in s_index])
+            # Count barcode bases
+            r1_barcode_counter += seq_to_mat(r1_barcode, nuc_dict)
+            r2_barcode_counter += seq_to_mat(r2_barcode, nuc_dict)
 
-            # Check if spacer is correct
-            if r1_spacer == spacer and r2_spacer == spacer:
-                good_barcode += 1
-                # Write read to output file
-                SeqIO.write(r1, r1_output, "fastq")
-                SeqIO.write(r2, r2_output, "fastq")
+            # Add barcode and read number to header
+            if args.bpattern is not None:
+                r1_bc = ''.join([r1_barcode[x] for x in b_index])
+                r2_bc = ''.join([r2_barcode[x] for x in b_index])
+
+            r1.id = '{}|{}{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
+            r2.id = '{}|{}{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
+            r1.description = r1.id
+            r2.description = r2.id
+
+            # Isolate barcode from sequence
+            if args.blist is not None:
+                if r1_barcode in blist and r2_barcode in blist:
+                    good_barcode += 1
+                    # Write read to output file
+                    SeqIO.write(r1, r1_output, "fastq")
+                    SeqIO.write(r2, r2_output, "fastq")
+                else:
+                    bad_barcode += 1
+
             else:
-                bad_spacer += 1
+                r1_spacer = ''.join([r1_barcode[x] for x in s_index])
+                r2_spacer = ''.join([r2_barcode[x] for x in s_index])
+
+                # Check if spacer is correct
+                if r1_spacer == spacer and r2_spacer == spacer:
+                    good_barcode += 1
+                    # Write read to output file
+                    SeqIO.write(r1, r1_output, "fastq")
+                    SeqIO.write(r2, r2_output, "fastq")
+                else:
+                    bad_spacer += 1
 
     r1_output.close()
     r2_output.close()
