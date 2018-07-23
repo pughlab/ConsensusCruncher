@@ -151,12 +151,12 @@ def main():
         sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.sc.singleton.bam'.format(args.outfile.split('.dcs.sc')[0]),
                                              "wb", template=sscs_bam)
         dcs_header = "DCS - Singleton Correction"
-        sr_header = " SC"
+        sc_header = " SC"
     else:
         sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.singleton.bam'.format(args.outfile.split('.dcs')[0]),
                                              "wb", template=sscs_bam)
         dcs_header = "DCS"
-        sr_header = ""
+        sc_header = ""
 
     stats = open('{}.stats.txt'.format(args.outfile.split('.dcs')[0]), 'a')
     time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.dcs')[0]), 'a')
@@ -266,8 +266,8 @@ SSCS{} - Total reads: {}
 SSCS{} - Unmapped reads: {}
 SSCS{} - Secondary/Supplementary reads: {}
 DCS{} reads: {}
-SSCS{} singletons: {} \n'''.format(dcs_header, sr_header, counter, sr_header, unmapped, sr_header, multiple_mappings,
-                                   sr_header, duplex_count, sr_header, sscs_singletons)
+SSCS{} singletons: {} \n'''.format(dcs_header, sc_header, counter, sc_header, unmapped, sc_header, multiple_mappings,
+                                   sc_header, duplex_count, sc_header, sscs_singletons)
     stats.write(summary_stats)
     print(summary_stats)
 
