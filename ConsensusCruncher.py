@@ -8,6 +8,28 @@ import configparser
 from subprocess import Popen, PIPE, call
 
 
+def sort_index(bam, samtools):
+    """
+    Sort and index BAM file.
+
+    :param bam: Path to BAM file.
+    :type bam: str
+    :param samtools: Path to samtools.
+    :type samtools: str
+    :returns: Path to sorted BAM file.
+    """
+    identifier = bam.split('.bam', 1)[0]
+    sorted_bam = '{}.sorted.bam'.format(identifier)
+
+    sam1 = Popen((samtools + ' view -bu ' + bam).split(' '), stdout=PIPE)
+    sam2 = Popen((samtools + ' sort -').split(' '), stdin=sam1.stdout, stdout=open(sorted_bam, 'w'))
+    sam2.communicate()
+    os.remove(bam)
+    call("{} index {}".format(samtools, sorted_bam).split(' '))
+
+    return sorted_bam
+
+
 def fastq2bam(args):
     """
     Extract molecular barcodes from paired-end sequencing reads using a barcode list,
@@ -44,14 +66,17 @@ def fastq2bam(args):
     # Extract barcodes #
     ####################
     if args.blist is not None and args.bpattern is not None:
-        os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
-                  "--blist {}".format(code_dir, args.fastq1, args.fastq2, outfile, args.bpattern, args.blist))
+        extractb_cmd = "{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
+        "--blist {}".format(code_dir, args.fastq1, args.fastq2, outfile, args.bpattern, args.blist)
     elif args.blist is None:
-        os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
-            code_dir, args.fastq1, args.fastq2, outfile, args.bpattern))
+        extractb_cmd = "{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {}".format(
+            code_dir, args.fastq1, args.fastq2, outfile, args.bpattern)
     else:
-        os.system("{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
-            code_dir, args.fastq1, args.fastq2, outfile, args.blist))
+        extractb_cmd = "{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
+            code_dir, args.fastq1, args.fastq2, outfile, args.blist)
+
+    print(extractb_cmd)
+    os.system(extractb_cmd)
 
     #############
     # BWA Align #
@@ -62,36 +87,14 @@ def fastq2bam(args):
     bwa_args = '{} {}_barcode_R1.fastq {}_barcode_R2.fastq'.format(args.ref, outfile, outfile)
 
     bwa = Popen(bwa_cmd.split(' ') + [bwa_id] + bwa_args.split(' '), stdout=PIPE)
-    # Sort BAM
+    # Sort BAM (BWA output piped into samtools for sorting before writing into bam)
     sam1 = Popen((args.samtools + ' view -bhS -').split(' '), stdin=bwa.stdout, stdout=PIPE)
     sam2 = Popen((args.samtools + ' sort -').split(' '), stdin=sam1.stdout,
-                 stdout=open('{}/{}.bam'.format(bam_dir, filename), 'w'))
+                 stdout=open('{}/{}.sorted.bam'.format(bam_dir, filename), 'w'))
     sam2.communicate()
 
     # Index BAM
-    call("{} index {}/{}.bam".format(args.samtools, bam_dir, filename).split(' '))
-
-
-def sort_index(bam, samtools):
-    """
-    Sort and index BAM file.
-
-    :param bam: Path to BAM file.
-    :type bam: str
-    :param samtools: Path to samtools.
-    :type samtools: str
-    :returns: Path to sorted BAM file.
-    """
-    identifier = bam.split('.bam', 1)[0]
-    sorted_bam = '{}.sorted.bam'.format(identifier)
-
-    sam1 = Popen((samtools + ' view -bu ' + bam).split(' '), stdout=PIPE)
-    sam2 = Popen((samtools + ' sort -').split(' '), stdin=sam1.stdout, stdout=open(sorted_bam, 'w'))
-    sam2.communicate()
-    os.remove(bam)
-    call("{} index {}".format(samtools, sorted_bam).split(' '))
-
-    return sorted_bam
+    call("{} index {}/{}.sorted.bam".format(args.samtools, bam_dir, filename).split(' '))
 
 
 def consensus(args):
@@ -130,11 +133,14 @@ def consensus(args):
 
     # Run SSCS_maker
     if args.bedfile == 'False':
-        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
-            code_dir, args.bam, sscs, args.cutoff))
+        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
+            code_dir, args.bam, sscs, args.cutoff)
     else:
-        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {}".
-            format(code_dir, args.bam, sscs, args.cutoff, args.bedfile))
+        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {}".format(
+            code_dir, args.bam, sscs, args.cutoff, args.bedfile)
+
+    print(sscs_cmd)
+    os.system(sscs_cmd)
 
     # Sort and index BAM files
     sscs = sort_index(sscs, args.samtools)
@@ -156,10 +162,12 @@ def consensus(args):
 
     # Run DCS_maker
     if args.bedfile == 'False':
-        os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs, dcs))
+        dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs, dcs)
     else:
-        os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs,
-                                                                                                   dcs, args.bedfile))
+        dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs,
+                                                                                                   dcs, args.bedfile)
+    print(dcs_cmd)
+    os.system(dcs_cmd)
 
     # Sort and index BAM files
     dcs = sort_index(dcs, args.samtools)
@@ -177,10 +185,13 @@ def consensus(args):
                   '{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier))
 
         if args.bedfile == 'False':
-            os.system("{}/ConsensusCruncher/singleton_correction.py --singleton {}".format(code_dir, sing))
+            sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {}".format(code_dir, sing)
         else:
-            os.system("{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {}".format(code_dir, sing,
-                                                                                                        args.bedfile))
+            sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {}".format(code_dir, sing,
+                                                                                                       args.bedfile)
+        print(sc_cmd)
+        os.system(sc_cmd)
+
         # Sort and index BAM files
         sscs_cor = '{}/sscs_sc/{}.sscs.correction.bam'.format(sample_dir, identifier)
         os.rename('{}/sscs/{}.sscs.correction.bam'.format(sample_dir, identifier), sscs_cor)
@@ -199,7 +210,9 @@ def consensus(args):
         #############
         # Merge corrected singletons with consensus sequences
         sscs_sc = '{}/sscs_sc/{}.sscs.sc.bam'.format(sample_dir, identifier)
-        call("{} merge {} {} {} {}".format(args.samtools, sscs_sc, sscs, sscs_cor, sing_cor).split(' '))
+        merge_sc = "{} merge {} {} {} {}".format(args.samtools, sscs_sc, sscs, sscs_cor, sing_cor)
+        print(merge_sc)
+        call(merge_sc.split(' '))
         sscs_sc = sort_index(sscs_sc, args.samtools)
 
         ############
@@ -214,10 +227,12 @@ def consensus(args):
                   '{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier))
 
         if args.bedfile == 'False':
-            os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs_sc, dcs_sc))
+            dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs_sc, dcs_sc)
         else:
-            os.system("{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(
-                code_dir, sscs_sc, dcs_sc, args.bedfile))
+            dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(
+                code_dir, sscs_sc, dcs_sc, args.bedfile)
+        print(dcs_sc_cmd)
+        os.system(dcs_sc_cmd)
 
         # Sort and index BAM files
         dcs_sc = sort_index(dcs_sc, args.samtools)
@@ -229,7 +244,10 @@ def consensus(args):
         ########################
         # Merge DCS_SC + SSCS_SC singletons + uncorrected singletons
         all_unique = '{}/dcs_sc/{}.all.unique.dcs.bam'.format(sample_dir, identifier)
-        call("{} merge {} {} {} {}".format(args.samtools, all_unique, dcs_sc, sscs_sc_sing, uncorrected).split(' '))
+        merge_all_unique = "{} merge {} {} {} {}".format(args.samtools, all_unique, dcs_sc,
+                                                         sscs_sc_sing, uncorrected).split(' ')
+        print(all_unique)
+        call(merge_all_unique)
         all_unique = sort_index(all_unique, args.samtools)
 
         # Move stats and time tracker file to sample_dir
