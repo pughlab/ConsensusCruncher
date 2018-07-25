@@ -84,9 +84,7 @@ def which_read(flag):
 def which_strand(read):
     """(pysam.calignedsegment.AlignedSegment) -> str
     Return DNA strand of origin based on flags.
-
     Note: Strand is needed for the common identifier to replace read orientation and number (see sscs_qname for example)
-
     flag_pairings = {
                      # paired and mapped
                      99:147, 147:99, 83:163, 163:83,
@@ -97,7 +95,6 @@ def which_strand(read):
                      # wrong insert size and wrong orientation
                      65:129, 129:65, 113:177, 177:113
                      }
-
     To determine orientation of translocations (flag 65, 129, 113, 177) where read pair occurs in same direction or have
     no orientation, use coordinate to determine strand
     - pos: 1) read is first in pair (R1) AND has lower chr number than mate with higher chr number (R1 chr < R2 chr)
@@ -113,18 +110,15 @@ def which_strand(read):
                 (chr16_chr12_R1) 'neg'
                 H1080:278:C8RE3ACXX:6:1307:20616:55254|CTCT	113	16	7320258	60	98M	12	25398309	98 ->
                 (chr12_chr16_R2) 'neg'
-
     Exceptions:
     81/161 - reads from two strands of a molecule encoded as 81/161/81/161 when typically different flags given e.g.
              99/147/83/163 between two strands. In addition, duplex pairing of these reads also differ (ignore edge
              cases for now as there are very few occurrences)
-
     normal:
         for cases where flags of read/mate and their reverse complement are encoded in
           the same direction or share the same flags
           (e.g. flags 65/129 -> +/+/+/+ OR 81/161/81/161 [scenarios like this cannot be distinguished by flag info such
           as orientation and strand number alone. Genome coordinate can be included to help differentiate reads])
-
     Example Test cases:
     Flag = 147 -> 'pos'
     Flag = 67 -> 'pos'
@@ -203,7 +197,7 @@ def cigar_order(read, mate):
 def sscs_qname(read, mate, barcode, cigar):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
     Return new query name for consensus sequences:
-    [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Read Cigar String]_[Mate Cigar String]_[Strand]:[Family Size]
+    [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Read Cigar String]_[Mate Cigar String]_[Strand]_[Absolute insert size]:[Family Size]
 
     * Since multiple reads go into making a consensus, a new query name is needed as an identifier for consensus read
     pairs * (Read pairs share the same query name to indicate they're mates)
@@ -214,15 +208,15 @@ def sscs_qname(read, mate, barcode, cigar):
 
     ---
     original query name -> H1080:278:C8RE3ACXX:6:1308:18882:18072|TTTG
-    new query name -> TTTG_24_58847448_24_58847416_137M10S_147M_pos
+    new query name -> TTTG_24_58847448_24_58847416_137M10S_147M_pos_148
 
     Examples:
     (+)                                                 [Flag]
-    TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1 [99] --> TTTG_24_58847416_24_58847448_137M10S_147M_pos
+    TTTG_24_58847416_24_58847448_137M10S_147M_pos_fwd_R1 [99] --> TTTG_24_58847416_24_58847448_137M10S_147M_pos_148
     TTTG_24_58847448_24_58847416_137M10S_147M_pos_rev_R2 [147]
 
     (-)
-    TGTT_24_58847448_24_58847416_137M10S_147M_neg_rev_R1 [83] --> TGTT_24_58847416_24_58847448_137M10S_147M_neg
+    TGTT_24_58847448_24_58847416_137M10S_147M_neg_rev_R1 [83] --> TGTT_24_58847416_24_58847448_137M10S_147M_neg_148
     TGTT_24_58847416_24_58847448_137M10S_147M_neg_fwd_R2 [163]
 
     Special case (mate and complementary reads are all in the same direction)
@@ -241,13 +235,14 @@ def sscs_qname(read, mate, barcode, cigar):
         mate_coor = read.reference_start
 
     strand = which_strand(read)
-    query_tag = '{}_{}_{}_{}_{}_{}_{}'.format(barcode,
-                                              read_chr,
-                                              read_coor,
-                                              mate_chr,
-                                              mate_coor,
-                                              cigar,
-                                              strand)
+    query_tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,
+                                                 read_chr,
+                                                 read_coor,
+                                                 mate_chr,
+                                                 mate_coor,
+                                                 cigar,
+                                                 strand,
+                                                 abs(read.template_length))
 
     return query_tag
 
