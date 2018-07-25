@@ -22,7 +22,7 @@ def sort_index(bam, samtools):
     sorted_bam = '{}.sorted.bam'.format(identifier)
 
     sam1 = Popen((samtools + ' view -bu ' + bam).split(' '), stdout=PIPE)
-    sam2 = Popen((samtools + ' sort -').split(' '), stdin=sam1.stdout, stdout=open(sorted_bam, 'w'))
+    sam2 = Popen((samtools + ' sort -o').split(' '), stdin=sam1.stdout, stdout=open(sorted_bam, 'w'))
     sam2.communicate()
     os.remove(bam)
     call("{} index {}".format(samtools, sorted_bam).split(' '))
