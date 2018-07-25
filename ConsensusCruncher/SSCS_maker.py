@@ -217,6 +217,7 @@ def main():
     counter = 0
     singletons = 0
     SSCS_reads = 0
+    bad_spacer = 0
 
     #######################
     #   SPLIT BY REGION   #
@@ -262,6 +263,7 @@ def main():
         counter += chr_data[4]
         unmapped += chr_data[5]
         multiple_mapping += chr_data[6]
+        bad_spacer += chr_data[7]
 
         # Determine length of sequence
         if region is 0 and bool(read_dict.values()):
@@ -315,7 +317,8 @@ Uncollapsed - Total reads: {}
 Uncollapsed - Unmapped reads: {}
 Uncollapsed - Secondary/Supplementary reads: {}
 SSCS reads: {}
-Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons)
+Singletons: {}
+Bad spacers: {}\n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons, bad_spacer)
 
     stats.write(summary_stats)
     print(summary_stats)

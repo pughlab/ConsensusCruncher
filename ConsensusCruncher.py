@@ -106,10 +106,11 @@ def consensus(args):
     Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created by merging DCSs, remaining
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
     """
+    code_dir = os.path.dirname(os.path.realpath(__file__))
+
     # Change bedfile if genome is hg38
     if args.genome == 'hg38':
         # Determine code directory and set bedfile to split data
-        code_dir = os.path.dirname(os.path.realpath(__file__))
         args.bedfile = '{}/ConsensusCruncher/hg38_cytoBand.txt'.format(code_dir)
 
     # Create sample directory to hold consensus sequences
@@ -130,10 +131,12 @@ def consensus(args):
 
     # Run SSCS_maker
     if args.bedfile == 'False':
-        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bdelim {}".format(
+        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bdelim '{}'".format(
             code_dir, args.bam, sscs, args.cutoff, args.bdelim))
     else:
-        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim {}".
+        print("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim '{}'".
+              format(code_dir, args.bam, sscs, args.cutoff, args.bedfile, args.bdelim))
+        os.system("{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim '{}'".
             format(code_dir, args.bam, sscs, args.cutoff, args.bedfile, args.bdelim))
 
     # Sort and index BAM files
@@ -352,13 +355,14 @@ if __name__ == '__main__':
         config = configparser.ConfigParser()
         config.read(sub_args.config)
 
-        # Add config file args to fastq2bam mode
-        defaults.update(dict(config.items("fastq2bam")))
-        sub_a.set_defaults(**defaults)
-
-        # Add config file args to consensus mode
-        defaults.update(dict(config.items("consensus")))
-        sub_b.set_defaults(**defaults)
+        if config.has_section("fastq2bam"):
+            # Add config file args to fastq2bam mode
+            defaults.update(dict(config.items("fastq2bam")))
+            sub_a.set_defaults(**defaults)
+        if config.has_section("consensus"):
+            # Add config file args to consensus mode
+            defaults.update(dict(config.items("consensus")))
+            sub_b.set_defaults(**defaults)
 
     # Parse commandline arguments
     sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)

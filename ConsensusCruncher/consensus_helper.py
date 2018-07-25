@@ -376,6 +376,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
     unmapped_mate = 0
     multiple_mapping = 0  # secondary/supplementary reads
     counter = 0
+    bad_spacer = 0
 
     for line in bamLines:
         # Parse out reads that don't fall within region
@@ -394,7 +395,10 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         mate_unmapped = [73, 89, 121, 153, 185, 137]
         badRead = True
 
-        if line.is_unmapped:
+        # Check if delimiter is found in read
+        if barcode_delim is not None and barcode_delim not in line.qname:
+            bad_spacer += 1
+        elif line.is_unmapped:
             unmapped += 1
             counter -= 1
         elif line.flag in mate_unmapped:
@@ -407,9 +411,8 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
             badRead = False
 
         # Write bad reads to file
-        if badRead:
-            if badRead_bam is not None:
-                badRead_bam.write(line)
+        if badRead and badRead_bam is not None:
+            badRead_bam.write(line)
         else:
             pair_dict[line.qname].append(line)
 
@@ -479,7 +482,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                 # remove read pair qname from pair_dict once reads added to read_dict
                 pair_dict.pop(line.qname)
 
-    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped_mate, multiple_mapping
+    return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped_mate, multiple_mapping, bad_spacer
 
 
 def read_mode(field, bam_reads):
