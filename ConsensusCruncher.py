@@ -110,6 +110,7 @@ def consensus(args):
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
     """
     code_dir = os.path.dirname(os.path.realpath(__file__))
+
     # Change bedfile if genome is hg38
     if args.genome == 'hg38':
         # Determine code directory and set bedfile to split data
@@ -327,6 +328,8 @@ if __name__ == '__main__':
     genome_help = "Genome version (e.g. hg19 or hg38), default: hg19"
     bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [MANDATORY]"
     blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
+    bdelim_help = "Delimiter before barcode in read name " \
+                  "(e.g. '|' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')"
 
     # Consensus arg help messages
     bam_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
@@ -362,6 +365,7 @@ if __name__ == '__main__':
                     "genome": 'hg19',
                     "bedfile": bedfile,
                     "cutoff": 0.7,
+                    "bdelim": '|',
                     "cleanup": cleanup_help}
 
         config = configparser.ConfigParser()
@@ -397,6 +401,7 @@ if __name__ == '__main__':
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, default=bedfile, type=str)
     sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
                                                     "same base to form a consensus).")
+    sub_b.add_argument('-d', '--bdelim', metavar="DELIMITER", type=str, help=bdelim_help)
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
     sub_b.set_defaults(func=consensus)
 

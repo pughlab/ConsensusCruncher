@@ -183,6 +183,8 @@ def main():
                         required=True)
     parser.add_argument("--infile", action="store", dest="infile", help="Input BAM file", required=True)
     parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", required=True)
+    parser.add_argument("--bdelim", action="store", dest="bdelim", default="|",
+                        help="Delimiter to differentiate barcodes from read name, default: '|'")
     parser.add_argument("--bedfile", action="store", dest="bedfile",
                         help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
@@ -215,6 +217,7 @@ def main():
     counter = 0
     singletons = 0
     SSCS_reads = 0
+    bad_spacer = 0
 
     #######################
     #   SPLIT BY REGION   #
@@ -248,8 +251,8 @@ def main():
                             duplex=None,  # this indicates bamfile is not for making DCS (thus headers are diff)
                             read_chr=read_chr,
                             read_start=read_start,
-                            read_end=read_end
-                            )
+                            read_end=read_end,
+                            barcode_delim=args.bdelim)
 
         # Set dicts and update counters
         read_dict = chr_data[0]
@@ -260,6 +263,7 @@ def main():
         counter += chr_data[4]
         unmapped += chr_data[5]
         multiple_mapping += chr_data[6]
+        bad_spacer += chr_data[7]
 
         # Determine length of sequence
         if region is 0 and bool(read_dict.values()):
@@ -313,7 +317,8 @@ Uncollapsed - Total reads: {}
 Uncollapsed - Unmapped reads: {}
 Uncollapsed - Secondary/Supplementary reads: {}
 SSCS reads: {}
-Singletons: {} \n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons)
+Singletons: {}
+Bad spacers: {}\n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, singletons, bad_spacer)
 
     stats.write(summary_stats)
     print(summary_stats)
