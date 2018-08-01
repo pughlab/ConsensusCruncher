@@ -121,7 +121,7 @@ def consensus(args):
     sample_dir = '{}/{}'.format(args.c_output, identifier)
 
     # Check if dir exists and there's permission to write
-    if not os.path.exists(sample_dir) and os.access(args.output, os.W_OK):
+    if not os.path.exists(sample_dir) and os.access(args.c_output, os.W_OK):
         os.makedirs(sample_dir)
 
     ########
