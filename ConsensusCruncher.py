@@ -133,12 +133,18 @@ def consensus(args):
     sing = '{}/sscs/{}.singleton.bam'.format(sample_dir, identifier)
 
     # Run SSCS_maker
-    if args.bedfile == 'False':
+    if args.bedfile == 'False' and args.bdelim == '|':
         sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
             code_dir, args.bam, sscs, args.cutoff)
-    else:
+    elif args.bedfile == 'False' and args.bdelim != '|':
+        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bdelim {}".format(
+            code_dir, args.bam, sscs, args.cutoff, args.bdelim)
+    elif args.bedfile != 'False' and args.bdelim == '|':
         sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {}".format(
             code_dir, args.bam, sscs, args.cutoff, args.bedfile)
+    else:
+        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim {}".format(
+            code_dir, args.bam, sscs, args.cutoff, args.bedfile, args.bdelim)
 
     print(sscs_cmd)
     os.system(sscs_cmd)
