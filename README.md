@@ -93,7 +93,7 @@ files containing all unique molecules (a.k.a. no duplicates) are created for SSC
 and DCS.
 
 ## Multiple files ##
-[script generator](https://github.com/pughlab/ConsensusCruncher/tree/master/test/bash_scripts/generate_scripts.sh) will create sh scripts for each file in a project directory. 
+[script generator](https://github.com/pughlab/ConsensusCruncher/tree/master/test/bash_scripts/generate_scripts.sh) will create sh scripts for each file in a fastq directory. 
 1) The following parameters need to be changed in the config file: name, bwa, ref, samtools, bpattern (alternatively if a barcode list is used instead, remove bpattern and add blist as parameter). Please note: fastq1, fastq2, output, bam, and c_output can be ignored as those will be updated using the generate_scripts.sh file.
 2) Update generate_scripts.sh with input, output, and code_dir.
 3) Run generate_scripts.sh to create sh files and then run those scripts.
