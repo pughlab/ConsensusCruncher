@@ -69,16 +69,13 @@ project folder.
                         Path to executable samtools. [mandatory]
   --scorrect {True,False}
                         Singleton correction, default: True.
-  -b BEDFILE, --bedfile BEDFILE
-                        Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY
-                        RECOMMENDED that you use the default cytoBand.txt
-                        unless you're working with genome build that is not
-                        hg19. Then a separate bedfile is needed for data
-                        segmentation (file can be formatted with the
-                        bed_separator.R tool). For small BAM files, you may
-                        choose to turn off data splitting with '-b False' and
-                        process everything all at once (Division of data is
-                        only required for large data sets to offload the
+  -b BEDFILE, --bedfile Separator file to split bamfile into chunks for processing.
+                        Default: hg19 cytoband (You can find other cytobands for your 
+                        genome of interest on UCSC
+                        http://hgdownload.cse.ucsc.edu/downloads.html).
+                        For small BAM files, you may choose to turn off data splitting 
+                        with '-b False' and process everything all at once (Division of 
+                        data is only required for large data sets to offload the
                         memory burden).
   --cutoff CUTOFF       Consensus cut-off, default: 0.7 (70% of reads must
                         have the same base to form a consensus).
