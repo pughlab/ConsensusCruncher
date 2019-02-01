@@ -270,8 +270,8 @@ def main():
                 r2_tag_dict[r2_b+'T'] += 1            
             
                 # Add barcode and read number to header of fastq
-                r1_read.id = '{}|{}{}/{}'.format(r1_read.id.split(" ")[0], r1_b, r2_b, "1")
-                r2_read.id = '{}|{}{}/{}'.format(r2_read.id.split(" ")[0], r1_b, r2_b, "2")
+                r1_read.id = '{}|{}.{}/{}'.format(r1_read.id.split(" ")[0], r1_b, r2_b, "1")
+                r2_read.id = '{}|{}.{}/{}'.format(r2_read.id.split(" ")[0], r1_b, r2_b, "2")
                 # Update description so ID is not repeated twice in FASTQ header
                 r1_read.description = r1_read.id  
                 r2_read.description = r2_read.id
