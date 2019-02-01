@@ -20,6 +20,7 @@ Set up config.ini with the appropriate configurations for [fastq2bam] and [conse
 ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is provided under ```[ConsensusCruncher repo]/test/bash_scripts/generate_scripts.sh```. 
 
 ### Running ConsensusCruncher ###
+## Individual files ##
 1. Run ConsensusCruncher.py [-c CONFIG] **fastq2bam** with required input parameters:
 ```
   --fastq1 FASTQ1       FASTQ containing Read 1 of paired-end reads. [MANDATORY]
@@ -68,16 +69,13 @@ project folder.
                         Path to executable samtools. [mandatory]
   --scorrect {True,False}
                         Singleton correction, default: True.
-  -b BEDFILE, --bedfile BEDFILE
-                        Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY
-                        RECOMMENDED that you use the default cytoBand.txt
-                        unless you're working with genome build that is not
-                        hg19. Then a separate bedfile is needed for data
-                        segmentation (file can be formatted with the
-                        bed_separator.R tool). For small BAM files, you may
-                        choose to turn off data splitting with '-b False' and
-                        process everything all at once (Division of data is
-                        only required for large data sets to offload the
+  -b BEDFILE, --bedfile Separator file to split bamfile into chunks for processing.
+                        Default: hg19 cytoband (You can find other cytobands for your 
+                        genome of interest on UCSC
+                        http://hgdownload.cse.ucsc.edu/downloads.html).
+                        For small BAM files, you may choose to turn off data splitting 
+                        with '-b False' and process everything all at once (Division of 
+                        data is only required for large data sets to offload the
                         memory burden).
   --cutoff CUTOFF       Consensus cut-off, default: 0.7 (70% of reads must
                         have the same base to form a consensus).
@@ -90,6 +88,12 @@ sequences (SSCS), which are subsequently combined into duplex consensus sequence
 with SSCS to form SSCS + SC, and further collapsed to form DCS + SC. Finally,
 files containing all unique molecules (a.k.a. no duplicates) are created for SSCS
 and DCS.
+
+## Multiple files ##
+[script generator](https://github.com/pughlab/ConsensusCruncher/tree/master/test/bash_scripts/generate_scripts.sh) will create sh scripts for each file in a fastq directory. 
+1) The following parameters need to be changed in the config file: name, bwa, ref, samtools, bpattern (alternatively if a barcode list is used instead, remove bpattern and add blist as parameter). Please note: fastq1, fastq2, output, bam, and c_output can be ignored as those will be updated using the generate_scripts.sh file.
+2) Update generate_scripts.sh with input, output, and code_dir.
+3) Run generate_scripts.sh to create sh files and then run those scripts.
 
 ## Overview ##
 <img src="https://user-images.githubusercontent.com/13406244/39268149-03b4c12a-489d-11e8-8011-f85ec8a82f39.png" width="50%" height="50%">
