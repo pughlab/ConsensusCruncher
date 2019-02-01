@@ -408,7 +408,7 @@ if __name__ == '__main__':
     sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
                                                     "same base to form a consensus).")
     sub_b.add_argument('-d', '--bdelim', metavar="DELIMITER", type=str, help=bdelim_help)
-    sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help)
+    sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help) # Make default
     sub_b.set_defaults(func=consensus)
 
     # Parse args
@@ -431,7 +431,7 @@ if __name__ == '__main__':
             elif args.bpattern is None and args.blist is None:
                 sub_a.error("At least one of -p/--bpattern or -l/--blist required.")
             # Check proper barcode design provided for barcode pattern
-            elif re.findall(r'[^A|C|G|T|N]', args.bpattern):
+            elif args.bpattern is not None and re.findall(r'[^A|C|G|T|N]', args.bpattern):
                 raise ValueError("Invalid barcode pattern containing characters other than A, C, G, T, and N.")
             # Check list for faulty barcodes in list
             elif args.blist is not None:
