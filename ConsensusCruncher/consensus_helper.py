@@ -462,7 +462,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                             print(read_dict[csn_pair_dict[consensus_tag][0]][0])
                             print(read_dict[csn_pair_dict[consensus_tag][1]][0])
 
-                            # Manual inspection should be done on these reads,
+                            # Manual inspection should be done on these reads
                         else:
                             csn_pair_dict[consensus_tag].append(tag)
                     elif tag in tag_dict and read not in read_dict[tag]:
@@ -613,6 +613,8 @@ def duplex_tag(tag):
     2) read: R1 -> R2
 
     Note: don't need to swap cigar strings as they are already ordered by strand (pos R1 correspond to neg R2)
+    ** Barcode lists may contain barcodes of different lengths, so R1 and R2 barcodes are 
+    separated by '.'**
 
     Test cases:
     >>> duplex_tag('GTCT_1_1507809_7_55224319_98M_98M_fwd_R1')
@@ -627,9 +629,14 @@ def duplex_tag(tag):
     split_tag = tag.split('_')
     # 1) Barcode needs to be swapped
     barcode = split_tag[0]
-    barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
-    # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
-    split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
+    # Check to see if barcodes may be of different lengths (presence of '.' separating R1 and R2 barcodes)
+    if re.search('\.', barcode) is not None:
+        split_index = barcode.index('.')
+        split_tag[0] = barcode[split_index+1:] + '.' + barcode[:split_index]
+    else:
+        barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
+        # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
+        split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
 
     # 2) Opposite read number in duplex
     read_num = split_tag[8]
