@@ -309,10 +309,10 @@ def main():
     else:
         stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(pd.DataFrame(sorted(r1_tag_dict.items(), 
                                                                                       key=lambda kv: (len(kv[0]), kv[0])), 
-                                                                               columns=["Barcode", "Count"]),
+                                                                               columns=["Barcode_r1", "Count"]),
                                                                   pd.DataFrame(sorted(r2_tag_dict.items(),
                                                                                       key=lambda kv: (len(kv[0]), kv[0])), 
-                                                                               columns=["Barcode", "Count"])))
+                                                                               columns=["Barcode_r2", "Count"])))
 
     stats.close()
 
