@@ -230,8 +230,8 @@ def main():
                 r1_bc = ''.join([r1_barcode[x] for x in b_index])
                 r2_bc = ''.join([r2_barcode[x] for x in b_index])
 
-                r1.id = '{}|{}.{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
-                r2.id = '{}|{}.{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
+                r1.id = '{}|{}{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
+                r2.id = '{}|{}{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
                 r1.description = r1.id
                 r2.description = r2.id
 
@@ -325,11 +325,11 @@ def main():
                                                                                                      bad_spacer,
                                                                                                      bad_barcode,
                                                                                                      good_barcode))
-    # === Barcode pattern ===
+    # == Barcode pattern ==
     if args.bpattern is not None:
         stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_barcode_counter.apply(lambda x: x / x.sum(), axis=1),
                                                                   r2_barcode_counter.apply(lambda x: x / x.sum(), axis=1)))
-    # === Barcode list ===
+    # == Barcode list ==
     else:
         # Convert dict to dataframes
         r1_df = pd.DataFrame(sorted(r1_tag_dict.items(), key=lambda kv: (len(kv[0]), kv[0])), columns=["Barcode", "R1_Count"])
@@ -351,8 +351,8 @@ def main():
 
         ind = np.arange(len(df_merge.index))  # the x locations (number of barcodes)
         width = 0.35  # the width of the bars
-        p1 = ax.bar(ind, df_merge['R1_Count'], width, color='g', align="center")
-        p2 = ax.bar(ind + width, df_merge['R2_Count'], width, color='y', align="center")
+        p1 = ax.bar(ind, df_merge['R1_Count'], width, color='g')
+        p2 = ax.bar(ind + width, df_merge['R2_Count'], width, color='y')
 
         # Label axis
         ax.set_xticks(ind + width)
