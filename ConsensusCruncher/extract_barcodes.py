@@ -47,9 +47,7 @@ import pandas as pd
 import numpy as np
 import re
 import sys
-import collections
-import time
-import datetime
+import matplotlib.pyplot as plt
 
 
 #######################
@@ -58,18 +56,18 @@ import datetime
 def check_overlap(blist):
     """(list) -> bool
     Return boolean indicating whether or not there's overlapping barcodes within the list.
-    
+
     >>> check_overlap(['AACT', 'AGCT'])
     False
     >>> check_overlap(['AACTCT', 'AACT'])
     True
     """
     overlap = False
-    
+
     for barcode in blist:
         if sum([barcode in b for b in blist]) > 1:
             overlap = True
-            
+
     return overlap
 
 
@@ -77,7 +75,7 @@ def find_all(a_str, sub):
     """(str, str) -> int
     Return index of substring in string.
     """
-    sub_index=[i for i, x in enumerate(list(a_str)) if x==sub]    
+    sub_index=[i for i, x in enumerate(list(a_str)) if x==sub]
     return sub_index
 
 
@@ -161,7 +159,7 @@ def main():
     bad_spacer = 0
     bad_barcode = 0
     good_barcode = 0
-    
+
     nuc_lst = ['A', 'C', 'G', 'T', 'N']
 
     # === Define barcodes ===
@@ -183,7 +181,7 @@ def main():
             # Column in the following corresponds to A, C, G, T, N
             nuc_dict = create_nuc_dict(nuc_lst)
             r1_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
-            r2_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)    
+            r2_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
     # == Barcode list ==
     else:
         blist = open(args.blist, "r").read().splitlines()
@@ -200,11 +198,11 @@ def main():
             raise ValueError("There are overlapping barcodes in the list (difficult to determine which barcode is correct).")
         else:
             # Barcode counter: create dictionary with barcodes as keys and values as 0
-            # - Barcodes may be of different lengths, so a tally of each barcode occurrence 
+            # - Barcodes may be of different lengths, so a tally of each barcode occurrence
             # is better than moderating the frequency of nuc bases at each barcode position
-            r1_tag_dict = dict.fromkeys(blist, 0) 
-            r2_tag_dict = dict.fromkeys(blist, 0)  
-        
+            r1_tag_dict = dict.fromkeys(blist, 0)
+            r2_tag_dict = dict.fromkeys(blist, 0)
+
     ######################
     #  Extract barcodes  #
     ######################
@@ -232,8 +230,8 @@ def main():
                 r1_bc = ''.join([r1_barcode[x] for x in b_index])
                 r2_bc = ''.join([r2_barcode[x] for x in b_index])
 
-                r1.id = '{}|{}{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
-                r2.id = '{}|{}{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
+                r1.id = '{}|{}.{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
+                r2.id = '{}|{}.{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
                 r1.description = r1.id
                 r2.description = r2.id
 
@@ -248,26 +246,26 @@ def main():
                     SeqIO.write(r2, r2_output, "fastq")
                 else:
                     bad_spacer += 1
-                
+
         # === Barcode list ===
         else:
             # Identify unique lengths of barcodes
             barcode_len = list(set(len(n) for n in blist))
             # Sort length from highest to lowest in case shorter barcodes overlap longer ones
             barcode_len.sort(reverse=True)
-        
+
             # Check to see if both R1 and R2 barcodes are present in blist
             r1_status = False
             r2_status = False
-        
+
             # Iterate through barcodes of different lengths
             for blen in barcode_len:
                 # Remove new line '\n' from str and separate using barcode length
                 r1_read, r1_barcode = extract_barcode(r1, blen)
                 r2_read, r2_barcode = extract_barcode(r2, blen)
-        
+
                 # Check to see if barcode is valid
-                if re.search("[^ACGT]", r1_barcode) is not None or re.search("[^ACGT]", r2_barcode) is not None:   
+                if re.search("[^ACGT]", r1_barcode) is not None or re.search("[^ACGT]", r2_barcode) is not None:
                     bad_barcode += 1
                     if re.search("[^ACGT]", r1_barcode) is not None:
                         r1_bad_barcodes.write(r1_barcode + '\n')
@@ -284,25 +282,27 @@ def main():
                         r2_status = True
                         r2_r = r2_read
                         r2_b = r2_barcode[:blen-1]  # remove T from end of barcode
-        
+
             # If R1 and R2 barcodes are both valid
-            if r1_status and r2_status: 
+            if r1_status and r2_status:
                 good_barcode += 1  # Note: number of barcodes is per paired reads
-            
+
                 # Add to barcode counter
                 r1_tag_dict[r1_b+'T'] += 1
-                r2_tag_dict[r2_b+'T'] += 1            
-            
+                r2_tag_dict[r2_b+'T'] += 1
+
                 # Add barcode and read number to header of fastq
                 r1_r.id = '{}|{}.{}/{}'.format(r1_r.id.split(" ")[0], r1_b, r2_b, "1")
                 r2_r.id = '{}|{}.{}/{}'.format(r2_r.id.split(" ")[0], r1_b, r2_b, "2")
                 # Update description so ID is not repeated twice in FASTQ header
-                r1_r.description = r1_r.id  
+                r1_r.description = r1_r.id
                 r2_r.description = r2_r.id
-            
+
                 SeqIO.write(r1_r, r1_output, "fastq")
                 SeqIO.write(r2_r, r2_output, "fastq")
             else:
+                # Note bad barcodes always correspond to length of shortest barcode as we can't determine the original
+                # barcode length
                 bad_barcode += 1
                 if r1_status == False:
                     r1_bad_barcodes.write(r1_barcode + '\n')
@@ -325,18 +325,50 @@ def main():
                                                                                                      bad_spacer,
                                                                                                      bad_barcode,
                                                                                                      good_barcode))
-    # == Barcode pattern ==
+    # === Barcode pattern ===
     if args.bpattern is not None:
         stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_barcode_counter.apply(lambda x: x / x.sum(), axis=1),
                                                                   r2_barcode_counter.apply(lambda x: x / x.sum(), axis=1)))
-    # == Barcode list ==
+    # === Barcode list ===
     else:
-        stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(pd.DataFrame(sorted(r1_tag_dict.items(), 
-                                                                                      key=lambda kv: (len(kv[0]), kv[0])), 
-                                                                               columns=["Barcode_r1", "Count"]),
-                                                                  pd.DataFrame(sorted(r2_tag_dict.items(),
-                                                                                      key=lambda kv: (len(kv[0]), kv[0])), 
-                                                                               columns=["Barcode_r2", "Count"])))
+        # Convert dict to dataframes
+        r1_df = pd.DataFrame(sorted(r1_tag_dict.items(), key=lambda kv: (len(kv[0]), kv[0])), columns=["Barcode", "R1_Count"])
+        r2_df = pd.DataFrame(sorted(r2_tag_dict.items(), key=lambda kv: (len(kv[0]), kv[0])), columns=["Barcode", "R2_Count"])
+
+        # Merge dataframes and sum total count
+        df_merge = pd.merge(r1_df, r2_df, on="Barcode")
+        df_merge['Total'] = df_merge['R1_Count'] + df_merge['R2_Count']
+
+        # Order dataframe
+        df_merge = df_merge.sort_values(by="Total", ascending=False)
+
+        # Write stats to file
+        stats.write('---BARCODE---\n{}'.format(df_merge))
+
+        # == Create histogram for barcode stats ==
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, len(df_merge.index))  # Set x-axis range to number of barcodes
+
+        ind = np.arange(len(df_merge.index))  # the x locations (number of barcodes)
+        width = 0.35  # the width of the bars
+        p1 = ax.bar(ind, df_merge['R1_Count'], width, color='g', align="center")
+        p2 = ax.bar(ind + width, df_merge['R2_Count'], width, color='y', align="center")
+
+        # Label axis
+        ax.set_xticks(ind + width)
+        ax.set_xticklabels(df_merge['Barcode'])
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(90)
+        plt.gcf().subplots_adjust(bottom=0.15)  # Add space to make sure x labels aren't cut off
+        plt.tick_params(axis='x', which='both', top=False)
+        plt.tick_params(axis='y', which='both', right=False)
+
+        # Set legends and labels
+        ax.legend((p1[0], p2[0]), ('Read1', 'Read2'))
+        ax.set_title('Barcode frequency')
+        plt.ylabel('Count')
+
+        plt.savefig('{}_barcode_stats.png'.format(args.outfile))
 
     stats.close()
 
