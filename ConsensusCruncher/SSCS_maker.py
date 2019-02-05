@@ -72,8 +72,8 @@ from consensus_helper import *
 ###############################
 #       Helper Functions      #
 ###############################
-def consensus_maker(readList, cutoff, readLength):
-    """(list, int, int) -> str, list, list
+def consensus_maker(readList, cutoff):
+    """(list, int) -> str, list, list
     Return consensus sequence and quality score.
 
     Arguments:
@@ -98,6 +98,8 @@ def consensus_maker(readList, cutoff, readLength):
     quality_consensus = []
 
     # Determine consensus for every position across read length
+    readLength = readList[0].infer_query_length()
+
     for i in range(readLength):
         # Positions in the following lists corresponds to A, C, G, T, N
         nuc_count = [0, 0, 0, 0, 0]
@@ -230,7 +232,7 @@ def main():
         division_coor = [1]
 
     # ===== Process data in chunks =====
-    region=0
+    region = 0
     for x in division_coor:
         if division_coor == [1]:
             read_chr = None
@@ -265,11 +267,6 @@ def main():
         multiple_mapping += chr_data[6]
         bad_spacer += chr_data[7]
 
-        # Determine length of sequence
-        if region is 0 and bool(read_dict.values()):
-            readLength = next(iter(read_dict.values()))[0].infer_query_length()
-            region += 1
-
         ######################
         #     CONSENSUS      #
         ######################
@@ -285,7 +282,7 @@ def main():
                         singleton_bam.write(read_dict[tag][0])
                     else:
                         # Create collapsed SSCSs
-                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff), readLength)
+                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff))
 
                         query_name = readPair + ':' + str(tag_dict[tag])
                         SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
