@@ -54,20 +54,21 @@ import collections
 #    Helper Function    #
 #######################
 def check_overlap(blist):
-	"""(list) -> bool
-	Return boolean indicating whether or not there's overlapping barcodes within the list.
-	
-	>>> check_overlap(['AACT', 'AGCT'])
-	False
-	>>> check_overlap(['AACTCT', 'AACT'])
-	True
-	"""
-	overlap = False
-	for barcode in blist:
-		if sum([barcode in b for b in blist]) > 1:
-			overlap = True
-	
-	return overlap
+    """(list) -> bool
+    Return boolean indicating whether or not there's overlapping barcodes within the list.
+    
+    >>> check_overlap(['AACT', 'AGCT'])
+    False
+    >>> check_overlap(['AACTCT', 'AACT'])
+    True
+    """
+    overlap = False
+    
+    for barcode in blist:
+        if sum([barcode in b for b in blist]) > 1:
+            overlap = True
+            
+    return overlap
 
 
 def find_all(a_str, sub):
@@ -194,7 +195,7 @@ def main():
         # Check barcodes in list are not overlapping as its indicative of faulty design
         # (Difficult to differentiate whether the shorter or longer barcode is correct)
         elif check_overlap(blist):
-        	raise ValueError("There are overlapping barcodes in the list (difficult to determine which barcode is correct).")
+            raise ValueError("There are overlapping barcodes in the list (difficult to determine which barcode is correct).")
         else:
             # Barcode counter: create dictionary with barcodes as keys and values as 0
             # - Barcodes may be of different lengths, so a tally of each barcode occurrence 
@@ -205,6 +206,7 @@ def main():
     ######################
     #  Extract barcodes  #
     ######################
+    
     for r1, r2 in zip(read1, read2):
         readpair_count += 1
 
@@ -291,14 +293,14 @@ def main():
                 r2_tag_dict[r2_b+'T'] += 1            
             
                 # Add barcode and read number to header of fastq
-                r1_read.id = '{}|{}.{}/{}'.format(r1_read.id.split(" ")[0], r1_b, r2_b, "1")
-                r2_read.id = '{}|{}.{}/{}'.format(r2_read.id.split(" ")[0], r1_b, r2_b, "2")
+                r1_r.id = '{}|{}.{}/{}'.format(r1_r.id.split(" ")[0], r1_b, r2_b, "1")
+                r2_r.id = '{}|{}.{}/{}'.format(r2_r.id.split(" ")[0], r1_b, r2_b, "2")
                 # Update description so ID is not repeated twice in FASTQ header
-                r1_read.description = r1_read.id  
-                r2_read.description = r2_read.id
+                r1_r.description = r1_r.id  
+                r2_r.description = r2_r.id
             
-                SeqIO.write(r1_read, r1_output, "fastq")
-                SeqIO.write(r2_read, r2_output, "fastq")
+                SeqIO.write(r1_r, r1_output, "fastq")
+                SeqIO.write(r2_r, r2_output, "fastq")
             else:
                 bad_barcode += 1
                 if r1_status == False:
