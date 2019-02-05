@@ -48,6 +48,8 @@ import numpy as np
 import re
 import sys
 import collections
+import time
+import datetime
 
 
 #######################
@@ -206,7 +208,6 @@ def main():
     ######################
     #  Extract barcodes  #
     ######################
-    
     for r1, r2 in zip(read1, read2):
         readpair_count += 1
 
@@ -338,7 +339,6 @@ def main():
                                                                                columns=["Barcode_r2", "Count"])))
 
     stats.close()
-
 
 if __name__ == "__main__":
     main()
