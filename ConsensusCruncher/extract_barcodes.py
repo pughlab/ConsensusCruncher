@@ -53,6 +53,23 @@ import collections
 #######################
 #    Helper Function    #
 #######################
+def check_overlap(blist):
+	"""(list) -> bool
+	Return boolean indicating whether or not there's overlapping barcodes within the list.
+	
+	>>> check_overlap(['AACT', 'AGCT'])
+	False
+	>>> check_overlap(['AACTCT', 'AACT'])
+	True
+	"""
+	overlap = False
+	for barcode in blist:
+		if sum([barcode in b for b in blist]) > 1:
+			overlap = True
+	
+	return overlap
+
+
 def find_all(a_str, sub):
     """(str, str) -> int
     Return index of substring in string.
@@ -174,6 +191,10 @@ def main():
         # Check barcodes end with spacer T (necessary for T-tailed adapters and 3' dA overhang on the fragmented DNA sample)
         elif [s for s in blist if not s.endswith("T")] != []:
             raise ValueError("There is one or more barcodes in the list that do not end with 'T'.")
+        # Check barcodes in list are not overlapping as its indicative of faulty design
+        # (Difficult to differentiate whether the shorter or longer barcode is correct)
+        elif check_overlap(blist):
+        	raise ValueError("There are overlapping barcodes in the list (difficult to determine which barcode is correct).")
         else:
             # Barcode counter: create dictionary with barcodes as keys and values as 0
             # - Barcodes may be of different lengths, so a tally of each barcode occurrence 
