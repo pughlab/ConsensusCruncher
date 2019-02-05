@@ -343,7 +343,7 @@ def main():
         df_merge = df_merge.sort_values(by="Total", ascending=False)
 
         # Write stats to file
-        stats.write('---BARCODE---\n{}'.format(df_merge))
+        stats.write('---BARCODE---\n{}\n'.format(df_merge))
 
         # == Create histogram for barcode stats ==
         fig, ax = plt.subplots()
