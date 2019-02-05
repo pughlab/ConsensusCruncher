@@ -78,6 +78,24 @@ def fastq2bam(args):
     print(extractb_cmd)
     os.system(extractb_cmd)
 
+    # Create directories for bad barcodes and barcode distribution histograms
+    bad_barcode_dir = '{}/fastq_tag/bad_barcode'.format(args.output)
+    barcode_dist_dir = '{}/fastq_tag/barcode_dist'.format(args.output)
+
+    if not os.path.exists(bad_barcode_dir) and os.access(args.output, os.W_OK):
+        os.makedirs(bad_barcode_dir)
+
+    if not os.path.exists(barcode_dist_dir) and os.access(args.output, os.W_OK):
+        os.makedirs(barcode_dist_dir)
+
+    # Move files
+    os.rename('{}/{}_r1_bad_barcodes.txt'.format(fastq_dir, filename),
+              '{}/{}_r1_bad_barcodes.txt'.format(bad_barcode_dir, filename))
+    os.rename('{}/{}_r2_bad_barcodes.txt'.format(fastq_dir, filename),
+              '{}/{}_r2_bad_barcodes.txt'.format(bad_barcode_dir, filename))
+    os.rename('{}/{}_barcode_stats.png'.format(fastq_dir, filename),
+              '{}/{}_barcode_stats.png'.format(barcode_dist_dir, filename))
+
     #############
     # BWA Align #
     #############
