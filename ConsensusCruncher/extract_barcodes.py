@@ -151,8 +151,6 @@ def main():
     r1_output = open('{}_barcode_R1.fastq'.format(args.outfile), "w")
     r2_output = open('{}_barcode_R2.fastq'.format(args.outfile), "w")
     stats = open('{}_barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
-    r1_bad_barcodes = open('{}_r1_bad_barcodes.txt'.format(args.outfile), 'w')
-    r2_bad_barcodes = open('{}_r2_bad_barcodes.txt'.format(args.outfile), 'w')
 
     # === Initialize counters ===
     readpair_count = 0
@@ -202,6 +200,11 @@ def main():
             # is better than moderating the frequency of nuc bases at each barcode position
             r1_tag_dict = dict.fromkeys(blist, 0)
             r2_tag_dict = dict.fromkeys(blist, 0)
+
+            # Write bad_barcodes to file
+            r1_bad_barcodes = open('{}_r1_bad_barcodes.txt'.format(args.outfile), 'w')
+            r2_bad_barcodes = open('{}_r2_bad_barcodes.txt'.format(args.outfile), 'w')
+
 
     ######################
     #  Extract barcodes  #
