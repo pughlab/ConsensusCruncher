@@ -233,8 +233,8 @@ def main():
                 r1_bc = ''.join([r1_barcode[x] for x in b_index])
                 r2_bc = ''.join([r2_barcode[x] for x in b_index])
 
-                r1.id = '{}|{}{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
-                r2.id = '{}|{}{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
+                r1.id = '{}|{}.{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
+                r2.id = '{}|{}.{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
                 r1.description = r1.id
                 r2.description = r2.id
 
