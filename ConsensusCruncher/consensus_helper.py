@@ -633,7 +633,11 @@ def duplex_tag(tag):
     if re.search('\.', barcode) is not None:
         split_index = barcode.index('.')
         split_tag[0] = barcode[split_index+1:] + '.' + barcode[:split_index]
-
+    else:
+        barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
+        # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
+        split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
+        		
     # 2) Opposite read number in duplex
     read_num = split_tag[8]
     if read_num == 'R1':
