@@ -4,13 +4,17 @@
 
 # Generate ConsensusCruncher sh scripts for each bam file to qsub (Please load appropriate python module)
 
-INPUT=$1  # Directory containing FASTQ files
-OUTPUT=$2  # Output project directory, new folders and files will be created here
-QSUBDIR=$OUTPUT/qsub
-code_dir='PLEASE INSERT PATH TO GIT DIRECTORY' 
+INPUT=$1  # Bamfile dir
+OUTPUT=$2
+PATTERN=$3
+CODEDIR='/mnt/work1/users/pughlab/projects/Duplext_sequencing/nwang_scripts/ConsensusCruncher'
+CONFIG=$OUTPUT/bash_scripts/config.ini
+CYTOBAND=$CODEDIR/ConsensusCruncher/hg19_cytoBand.txt # Textfile to separate
 
+QSUBDIR=$OUTPUT/consensus/qsub
+
+mkdir $OUTPUT/consensus
 mkdir $QSUBDIR
-mkdir $OUTPUT'/consensus'
 
 for R1_file in $( ls $INPUT | grep R1); do
     ################
@@ -24,12 +28,11 @@ for R1_file in $( ls $INPUT | grep R1); do
     ###############
     #  fastq2bam  #
     ###############
-    echo -e "python3 $code_dir/ConsensusCruncher.py -c $code_dir/config.ini fastq2bam --fastq1 $INPUT/$R1_file --fastq2 $INPUT/$R2_file --output $OUTPUT" >> $QSUBDIR/$filename.sh
+    echo -e "python3 $CODEDIR/ConsensusCruncher.py -c $CONFIG fastq2bam --fastq1 $INPUT/$R1_file --fastq2 $INPUT/$R2_file --output $OUTPUT -p $PATTERN" >> $QSUBDIR/$filename.sh
 
     ###############
     #  consensus  #
     ###############
-    echo -e "python3 $code_dir/ConsensusCruncher.py -c $code_dir/config.ini consensus -i $OUTPUT/bamfiles/$filename.bam" >> $QSUBDIR/$filename.sh
+    echo -e "python3 $CODEDIR/ConsensusCruncher.py -c $CONFIG consensus -i $OUTPUT/bamfiles/$filename.sorted.bam -o $OUTPUT/consensus -b $CYTOBAND" >> $QSUBDIR/$filename.sh
 
 done
-
