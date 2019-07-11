@@ -2,6 +2,8 @@
 
 ConsensusCruncher is a tool that suppresses errors in next-generation sequencing data by using unique molecular identifers (UMIs) to amalgamate reads derived from the same DNA template into a consensus sequence.
 
+To learn more about ConsensusCruncher and its applications: https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz474/5498633
+
 ## Quick start ##
 ### Dependencies ###
 This pipeline requires the following dependencies:
