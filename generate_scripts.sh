@@ -4,10 +4,10 @@
 
 # Generate ConsensusCruncher sh scripts for each bam file to qsub (Please load appropriate python module)
 
-INPUT=$1  # Bamfile dir
-OUTPUT=$2
-PATTERN=$3
-CODEDIR='/mnt/work1/users/pughlab/projects/Duplext_sequencing/nwang_scripts/ConsensusCruncher'
+INPUT=$1  # Bamfile directory
+OUTPUT=$2  # Output directory
+PATTERN=$3  # Barcode pattern, e.g. NNT or NNGCT
+CODEDIR='INSERT-PATH-HERE/ConsensusCruncher'  # Code directory
 CONFIG=$OUTPUT/bash_scripts/config.ini
 CYTOBAND=$CODEDIR/ConsensusCruncher/hg19_cytoBand.txt # Textfile to separate
 
