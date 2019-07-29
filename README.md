@@ -227,7 +227,7 @@ consensus sequence (SSCS) bamfile and an uncorrected singleton bamfile.
 an expanded pool of DCS reads (Figure illustrates singleton correction merged work flow).
 
 ### Issues and feature requests ###
-Please use this repository templates available at: [.github/ISSUE_TEMPLATE](https://github.com/pughlab/ConsensusCruncher/tree/master/.github/ISSUE_TEMPLATE/bug_report.md)
+Please use this repository templates available at [.github/ISSUE_TEMPLATE](https://github.com/pughlab/ConsensusCruncher/tree/master/.github/ISSUE_TEMPLATE)
 
 ### Who do I talk to? ###
 * Nina Wang (nina.tt.wang@gmail.com), Trevor Pugh (Trevor.Pugh@uhn.ca), Scott Bratman (Scott.Bratman@rmp.uhn.ca)
