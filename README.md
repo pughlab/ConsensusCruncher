@@ -101,7 +101,7 @@ and DCS.
 <img src="https://user-images.githubusercontent.com/13406244/39268149-03b4c12a-489d-11e8-8011-f85ec8a82f39.png" width="50%" height="50%">
 
 ## Example ##
-In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the [test folder](https://github.com/pughlab/ConsensusCruncher/tree/master/test/fastq).
+In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the [test folder](https://github.com/pughlab/ConsensusCruncher/tree/master/test/fastq). Please note these fastqs are only for testing purposes. For the full fastqs used in our paper, please download the data from the NCBI Sequence Read Archive (SRA; https://www.ncbi.nlm.nih.gov/sra/) under access numbers SRP140497 and SRP141184.
 
 ### Fastqs to Bams ###
 Given **fastq** as input files, *fastq2bam* mode removes the spacer region and extracts the barcode tag from each sequencing read into the header with *extract_barcode.py*.
