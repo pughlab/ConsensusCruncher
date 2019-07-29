@@ -7,8 +7,8 @@
 INPUT=$1  # Bamfile directory
 OUTPUT=$2  # Output directory
 PATTERN=$3  # Barcode pattern, e.g. NNT or NNGCT
-CODEDIR='INSERT-PATH-HERE/ConsensusCruncher'  # Code directory
-CONFIG=$OUTPUT/bash_scripts/config.ini
+CODEDIR= # ConsensusCruncher code directory
+CONFIG=  # Path to config file
 CYTOBAND=$CODEDIR/ConsensusCruncher/hg19_cytoBand.txt # Textfile to separate
 
 QSUBDIR=$OUTPUT/consensus/qsub
