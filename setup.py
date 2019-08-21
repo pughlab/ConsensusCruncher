@@ -13,5 +13,5 @@ setup(name='ConsensusCruncher',
       url="https://github.com/pughlab/ConsensusCruncher",
       packages=["consensuscruncher"],
       install_requires=['numpy', 'pandas', 'pysam', 'Biopython', 'matplotlib'],
-      classifiers="Programming Language :: Python :: 3"
+      classifiers="Programming Language :: Python :: 3",
       )
