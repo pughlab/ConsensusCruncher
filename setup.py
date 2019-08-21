@@ -1,3 +1,4 @@
+
 from setuptools import setup
 
 with open("README.md", "r") as fh:
@@ -12,6 +13,6 @@ setup(name='ConsensusCruncher',
       long_description_content_type="text/markdown",
       url="https://github.com/pughlab/ConsensusCruncher",
       packages=["ConsensusCruncher"],
-      install_requires=['numpy', 'pandas', 'pysam', 'Biopython'],
-      classifiers=["Programming Language :: Python :: 3"],
+      install_requires=['numpy', 'pandas', 'pysam', 'Biopython', 'matplotlib'],
+      classifiers="Programming Language :: Python :: 3",
       )
