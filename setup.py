@@ -1,10 +1,9 @@
-
-from setuptools import setup
+import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-setup(name='ConsensusCruncher',
+setuptools.setup(name='ConsensusCruncher',
       version='0.0.1',
       author="Nina Wang",
       author_email="nina.tt.wang@gmail.com",
@@ -12,7 +11,7 @@ setup(name='ConsensusCruncher',
       long_description=long_description,
       long_description_content_type="text/markdown",
       url="https://github.com/pughlab/ConsensusCruncher",
-      packages=["ConsensusCruncher"],
+      packages=setuptools.find_packages(),
       install_requires=['numpy', 'pandas', 'pysam', 'Biopython', 'matplotlib'],
-      classifiers="Programming Language :: Python :: 3",
+      classifiers=["Programming Language :: Python :: 3"],
       )
