@@ -11,7 +11,7 @@ setup(name='ConsensusCruncher',
       long_description=long_description,
       long_description_content_type="text/markdown",
       url="https://github.com/pughlab/ConsensusCruncher",
-      packages=["consensuscruncher"],
+      packages=["ConsensusCruncher"],
       install_requires=['numpy', 'pandas', 'pysam', 'Biopython'],
-      classifiers="Programming Language :: Python :: 3"
+      classifiers=["Programming Language :: Python :: 3"],
       )
