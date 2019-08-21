@@ -19,7 +19,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'doctut'
+project = 'ConsensusCruncher'
 copyright = '2019, Nina Wang'
 author = 'Nina Wang'
 
