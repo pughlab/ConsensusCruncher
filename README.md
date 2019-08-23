@@ -19,7 +19,7 @@ All required python libraries can be installed by running ```pip install -r requ
 ### Configuration ###
 Set up config.ini with the appropriate configurations for [fastq2bam] and [consensus] modes. Alternatively, you can provide command-line arguments. 
 
-ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is provided under ```[ConsensusCruncher repo]/test/bash_scripts/generate_scripts.sh```. 
+ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is available [here](https://github.com/pughlab/ConsensusCruncher/blob/master/generate_scripts.sh). 
 
 ### Running ConsensusCruncher ###
 ## Individual files ##
