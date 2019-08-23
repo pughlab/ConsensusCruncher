@@ -60,7 +60,7 @@ extracted FASTQ files are written to the 'fastq_tag' directory and are subsequen
 aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
 project folder.
 
-2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
+2. Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
 ```
   -h, --help            show this help message and exit
   -i BAM, --input BAM   Input BAM file with barcodes extracted into header. [mandatory]
