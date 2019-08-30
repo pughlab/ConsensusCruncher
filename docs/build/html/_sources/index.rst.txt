@@ -13,12 +13,16 @@ To learn more about ConsensusCruncher and its applications, see our  publication
 	:maxdepth: 1
 	:caption: Contents:
 	
-	Install
-	QuickStart
-# 	Tutorial
+	quick_start
+	tutorial
+	schematic
+	FAQ
 
 Modes
 -----
+.. image:: https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png
+   :width: 600
+
 ConsensusCruncher has 2 modes: 
 
 * ``fastq2bam`` extracts UMIs and aligns FASTQs with BWA to generate BAM files.
@@ -33,10 +37,13 @@ ConsensusCruncher has 2 modes:
 	(DCS). Singletons (reads lacking duplicate sequences) are corrected, combined with 
 	SSCS to form SSCS + SC, and further collapsed to form DCS + SC. Finally, files 
 	containing all unique molecules (a.k.a. no duplicates) are created for SSCS and DCS.
-	
+
+
 .. toctree::
    :maxdepth: 1
    :caption: Commands:
-   SSCS_maker
-   Singleton_correction
-   DCS_maker
+   
+   extract_barcodes
+   sscs
+   singleton_correction
+   dcs

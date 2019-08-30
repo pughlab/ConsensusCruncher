@@ -1,0 +1,425 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Quick start guide &mdash; ConsensusCruncher 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'./',
+              VERSION:'0.0.1',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial" href="tutorial.html" />
+    <link rel="prev" title="ConsensusCruncher - Extended Error Suppression" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> ConsensusCruncher
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick start guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-consensuscruncher">Running ConsensusCruncher</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#extract-umis-align-fastqs">Extract UMIs &amp; align FASTQs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#error-suppression">Error suppression</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-fastqs">Multiple FASTQs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#output">Output</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schematic.html">How it works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ConsensusCruncher</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Quick start guide</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/quick_start.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="quick-start-guide">
+<h1>Quick start guide<a class="headerlink" href="#quick-start-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><p class="first">Download the latest release or clone the repository:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/pughlab/ConsensusCruncher.git
+</pre></div>
+</div>
+</li>
+<li><p class="first">Install the dependencies:</p>
+</li>
+</ol>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="12%" />
+<col width="34%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Program</td>
+<td>Version</td>
+<td>Purpose</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://www.python.org/">Python</a></td>
+<td>3.5.1</td>
+<td>Run ConsensusCruncher</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="http://bio-bwa.sourceforge.net/">BWA</a></td>
+<td>0.7.15</td>
+<td>Align reads</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="http://samtools.sourceforge.net/">Samtools</a></td>
+<td>1.3.1</td>
+<td>Sorting and indexing bamfiles</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<ol class="arabic" start="3">
+<li><p class="first">All required python libraries can be installed by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install -r requirements.txt
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+<div class="section" id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h2>
+<p>Set up <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> with the appropriate configurations for <code class="docutils literal notranslate"><span class="pre">fastq2bam</span></code> and <code class="docutils literal notranslate"><span class="pre">consensus</span></code> modes.
+Alternatively, you can provide command-line arguments, which will overwrite <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> parameters.</p>
+<p>Example config file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">fastq2bam</span><span class="p">]</span>
+<span class="n">fastq1</span> <span class="o">=</span> <span class="c1"># Path to FASTQ containing Read 1 of paired-end reads. [MANDATORY]</span>
+<span class="n">fastq2</span> <span class="o">=</span> <span class="c1"># Path to FASTQ containing Read 2 of paired-end reads. [MANDATORY]</span>
+<span class="n">output</span> <span class="o">=</span> <span class="c1"># Output directory, where barcode extracted FASTQ and</span>
+         <span class="c1"># BAM files will be placed in subdirectories &#39;fastq_tag&#39;</span>
+         <span class="c1"># and &#39;bamfiles&#39; respectively (dir will be created if</span>
+         <span class="c1"># they do not exist). [MANDATORY]</span>
+<span class="n">name</span> <span class="o">=</span> <span class="c1"># Sample name extracted from filename using read number delimiter</span>
+         <span class="c1"># (e.g. Sample1_R1.fastq, delimiter = &#39;_R&#39;, sample name = &quot;Sample1&quot;). [MANDATORY]</span>
+<span class="n">bwa</span> <span class="o">=</span> <span class="c1"># Path to executable BWA. [MANDATORY]</span>
+<span class="n">ref</span> <span class="o">=</span> <span class="c1"># Path to reference (BWA index). [MANDATORY]</span>
+<span class="n">samtools</span> <span class="o">=</span> <span class="c1"># Path to executable samtools. [MANDATORY]</span>
+<span class="n">bpattern</span> <span class="o">=</span> <span class="c1"># Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [MANDATORY]</span>
+<span class="n">blist</span> <span class="o">=</span> <span class="c1"># List of barcodes (Text file with unique barcodes on each line). [MANDATORY]</span>
+
+<span class="c1"># Note: You can input either a barcode list or barcode pattern or both.</span>
+<span class="c1"># If both are provided, barcodes will first be matched with the list and then the constant</span>
+<span class="c1"># spacer bases will be removed before the barcode is added to the header.</span>
+<span class="c1"># e.g. ATNNGT means 2-bp barcode is flanked by two spacers matching &#39;AT&#39; in front and</span>
+<span class="c1"># &#39;GT&#39; behind.</span>
+
+<span class="p">[</span><span class="n">consensus</span><span class="p">]</span>
+<span class="n">bam</span>  <span class="o">=</span> <span class="c1"># Input BAM file with barcodes in header. [MANDATORY]</span>
+<span class="n">c_output</span> <span class="o">=</span> <span class="c1"># Output directory for consensus sequences. [MANDATORY]</span>
+<span class="n">samtools</span> <span class="o">=</span> <span class="c1"># Path to executable samtools. [MANDATORY]</span>
+
+<span class="c1"># Optional arguments</span>
+<span class="n">scorrect</span> <span class="o">=</span> <span class="c1"># Singleton correction [True or False, default: True].</span>
+<span class="n">genome</span> <span class="o">=</span> <span class="c1"># Genome version to determine which cytoband file to use for data splitting</span>
+         <span class="c1"># (hg19 or hg38, default: hg19)</span>
+<span class="n">bedfile</span> <span class="o">=</span> <span class="c1"># Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you</span>
+          <span class="c1"># use the provided cytoBand.txt unless you&#39;re working with genome build that</span>
+          <span class="c1"># is not hg19 or hg38. Then a separate bedfile is needed for data segmentation.</span>
+          <span class="c1"># For small BAM files, you may choose to turn off data splitting with &#39;-b False&#39;</span>
+          <span class="c1"># and process everything all at once (Division of data is only required for</span>
+          <span class="c1"># large data sets to offload the memory burden).</span>
+<span class="n">cutoff</span> <span class="o">=</span> <span class="c1"># Consensus cut-off, default: 0.7</span>
+         <span class="c1"># (70% of reads must have the same base to form a consensus).</span>
+<span class="n">bdelim</span> <span class="o">=</span> <span class="c1"># Delimiter before barcode in read name</span>
+         <span class="c1"># (e.g. &#39;|&#39; in &#39;HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT&#39;)</span>
+<span class="n">cleanup</span> <span class="o">=</span> <span class="c1"># Remove intermediate files. [True or False]</span>
+</pre></div>
+</div>
+<p>UMI list example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">TATGCGT</span>
+<span class="n">AACGGAT</span>
+<span class="n">AAGCCT</span>
+<span class="n">AATCGCT</span>
+<span class="n">ACCGAT</span>
+<span class="n">ACGCAAT</span>
+<span class="n">ACGTGT</span>
+<span class="n">AGGACAT</span>
+<span class="n">ATGTCCT</span>
+<span class="n">CACAGT</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-consensuscruncher">
+<h2>Running ConsensusCruncher<a class="headerlink" href="#running-consensuscruncher" title="Permalink to this headline">¶</a></h2>
+<p>ConsensusCruncher has 2 modes:</p>
+<div class="section" id="extract-umis-align-fastqs">
+<h3>Extract UMIs &amp; align FASTQs<a class="headerlink" href="#extract-umis-align-fastqs" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic">
+<li><dl class="first docutils">
+<dt><code class="docutils literal notranslate"><span class="pre">fastq2bam</span></code> extracts UMIs and aligns FASTQs with BWA to generate BAM files.</dt>
+<dd><p class="first">Run <code class="docutils literal notranslate"><span class="pre">ConsensusCruncher.py</span> <span class="pre">[-c</span> <span class="pre">CONFIG]</span> <span class="pre">fastq2bam</span></code> with required input parameters
+(see <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> or <code class="docutils literal notranslate"><span class="pre">--help</span></code> for examples).</p>
+<p class="last">This script extracts molecular barcode tags and removes spacers from unzipped FASTQ
+files found in the input directory (file names must contain “R1” or “R2”). Barcode
+extracted FASTQ files are written to the ‘fastq_tag’ directory and are subsequently
+aligned with BWA mem. Bamfiles are written to the ‘bamfile” directory under the project folder.</p>
+</dd>
+</dl>
+</li>
+</ol>
+</div>
+<div class="section" id="error-suppression">
+<h3>Error suppression<a class="headerlink" href="#error-suppression" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic" start="2">
+<li><dl class="first docutils">
+<dt><code class="docutils literal notranslate"><span class="pre">consensus</span></code> generates single-strand and duplex consensus sequences with ‘Singleton Correction’</dt>
+<dd><p class="first">Run <code class="docutils literal notranslate"><span class="pre">ConsensusCruncher.py</span> <span class="pre">[-c</span> <span class="pre">CONFIG]</span> <span class="pre">consensus</span></code> with the required input parameters
+(see <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> or <code class="docutils literal notranslate"><span class="pre">--help</span></code> for examples).</p>
+<p>Using unique molecular identifiers (UMIs), duplicate reads from the same molecule are
+amalgamated into single-strand consensus sequences (SSCS). If complementary strands are
+present, SSCSs can be subsequently combined to form duplex consensus sequences (DCS).</p>
+<p>If ‘Singleton Correction’ (SC) is enabled, single reads (singletons) can be error
+suppressed using complementary strand. These corrected singletons can be merged with
+SSCSs to be further collapsed into DCSs + SC.</p>
+<p class="last">Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created
+by merging DCSs, remaining SSCSs (those that could not form DCSs), and remaining
+singletons (those that could not be corrected).</p>
+</dd>
+</dl>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="multiple-fastqs">
+<h2>Multiple FASTQs<a class="headerlink" href="#multiple-fastqs" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">ConsensusCruncher.py</span></code> processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time.
+A sample script to generate shell scripts for multiple samples is provided <a class="reference external" href="https://github.com/pughlab/ConsensusCruncher/blob/master/generate_scripts.sh">here</a>.</p>
+<p>The script generator will create sh scripts for each file in a fastq directory.</p>
+<ol class="arabic simple">
+<li>The following parameters need to be changed in the config file: name, bwa, ref, samtools,
+bpattern (alternatively if a barcode list is used instead, remove bpattern and add blist
+as parameter). Please note: fastq1, fastq2, output, bam, and c_output can be ignored as
+those will be updated using the generate_scripts.sh file.</li>
+<li>Update generate_scripts.sh with input, output, and code_dir.</li>
+<li>Run generate_scripts.sh to create sh files and then run those scripts.</li>
+</ol>
+</div>
+<div class="section" id="output">
+<h2>Output<a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h2>
+<p>Please note the example below is for illustrative purposes only, as sample names and index
+files were removed for simplification. Order of directories and files were also altered to
+improve comprehension.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>.                                           Filetype
+├── sscs
+│   ├── badReads.bam                        Reads that are unmapped or have multiple alignments
+│   ├── sscs.sorted.bam                     Single-Strand Consensus Sequences (SSCS)
+│   ├── singleton.sorted.bam                Single reads (Singleton) that cannot form SSCSs
+├── sscs_SC
+|   ├── singleton.rescue.sorted.bam         Singleton correction (SC) with complementary singletons
+|   ├── sscs.rescue.sorted.bam              SC with complementary SSCSs
+|   ├── sscs.sc.sorted.bam                  SSCS combined with corrected singletons (from both rescue strategies)   [*]
+|   ├── rescue.remaining.sorted.bam         Singletons that could not be corrected
+|   ├── all.unique.sscs.sorted.bam          SSCS + SC + remaining (uncorrected) singletons
+├── dcs
+│   ├── dcs.sorted.bam                      Duplex Consensus Sequence (DCS)
+│   ├── sscs.singleton.sorted.bam           SSCSs that could not form DCSs as complementary strand was missing
+├── dcs_SC
+│   ├── dcs.sc.sorted.bam                   DCS generated from SSCS + SC    [*]
+│   ├── sscs.sc.singleton.sorted.bam        SSCS + SC that could not form DCSs
+│   ├── all.unique.dcs.sorted.bam           DCS (from SSCS + SC) + SSCS_SC_Singletons + remaining singletons
+├── read_families.txt                       Family size and frequency
+├── stats.txt                               Consensus sequence formation metrics
+├── tag_fam_size.png                        Distribution of reads across family size
+└── time_tracker.txt                        Time log
+</pre></div>
+</div>
+<p>Through each stage of consensus formation, duplicate reads are collapsed together and
+single reads are written as separate files. This allows rentention of all unique molecules,
+while providing users with easy data management for cross-comparisons between error
+suppression strategies.</p>
+<p>To simplify analyses, it would be good to focus on SSCS+SC (“sscs.sc.sorted.bam”) and
+DCS+SC (“dcs.sc.sorted.bam”) as highlighted above with [*].</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="tutorial.html" class="btn btn-neutral float-right" title="Tutorial" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral float-left" title="ConsensusCruncher - Extended Error Suppression" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Nina Wang
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

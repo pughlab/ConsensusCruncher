@@ -59,7 +59,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = 'Python'
+language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -67,7 +67,7 @@ language = 'Python'
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = None
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -102,7 +102,7 @@ html_static_path = ['nstatic']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'doctutdoc'
+htmlhelp_basename = 'ConsensusCruncherdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -129,7 +129,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'doctut.tex', 'doctut Documentation',
+    (master_doc, 'ConsensusCruncher', 'ConsensusCruncher Documentation',
      'Nina Wang', 'manual'),
 ]
 
@@ -139,7 +139,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'doctut', 'doctut Documentation',
+    (master_doc, 'ConsensusCruncher', 'ConsensusCruncher Documentation',
      [author], 1)
 ]
 
@@ -150,8 +150,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'doctut', 'doctut Documentation',
-     author, 'doctut', 'One line description of project.',
+    (master_doc, 'ConsensusCruncher', 'ConsensusCruncher Documentation',
+     author, 'ConsensusCruncher', 'One line description of project.',
      'Miscellaneous'),
 ]
 

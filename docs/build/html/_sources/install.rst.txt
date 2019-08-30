@@ -1,0 +1,30 @@
+Installation
+============
+There are two ways of installing ConsensusCruncher, either using pip or from source.
+
+Quick start
+-----------
+:: 
+
+    $ pip install ConsensusCruncher
+	
+	
+Installing from Source
+----------------------
+1. Download the latest release or clone the repository::
+
+    $ git clone https://github.com/pughlab/ConsensusCruncher.git
+
+2. Install the dependencies: 
+
+ ================================================ =========== =============================== 
+  Program					      Version     Purpose 	                 
+ ------------------------------------------------ ----------- ------------------------------- 
+  `Python <https://www.python.org/>`_ 	           3.5.1   	   Run ConsensusCruncher 	     
+  `BWA <http://bio-bwa.sourceforge.net/>`_ 	       0.7.15      Align reads 	  		          
+  `Samtools <http://samtools.sourceforge.net/>`_   1.3.1       Sorting and indexing bamfiles  
+ ================================================ =========== =============================== 
+
+All required python libraries can be installed by running::
+
+    $ pip install -r requirements.txt

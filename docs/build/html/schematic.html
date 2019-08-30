@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Search &mdash; ConsensusCruncher 0.0.1 documentation</title>
+  <title>How it works &mdash; ConsensusCruncher 0.0.1 documentation</title>
   
 
   
@@ -34,7 +34,6 @@
         <script type="text/javascript" src="_static/jquery.js"></script>
         <script type="text/javascript" src="_static/underscore.js"></script>
         <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/searchtools.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -44,7 +43,9 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="#" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="FAQ" href="FAQ.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -71,7 +72,7 @@
 
           
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="#" method="get">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
@@ -89,18 +90,11 @@
             
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick start guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
-<li class="toctree-l1"><a class="reference internal" href="schematic.html">How it works</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How it works</a></li>
 <li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
-</ul>
-<p class="caption"><span class="caption-text">Commands:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="extract_barcodes.html">Extract barcodes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sscs.html">Single-strand consensus sequences (SSCS)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="singleton_correction.html">Singleton Correction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dcs.html">Duplex consensus sequences (DCS)</a></li>
 </ul>
 
             
@@ -146,12 +140,14 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>Search</li>
+      <li>How it works</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
+            <a href="_sources/schematic.rst.txt" rel="nofollow"> View page source</a>
+          
         
       </li>
     
@@ -163,24 +159,38 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <noscript>
-  <div id="fallback" class="admonition warning">
-    <p class="last">
-      Please activate JavaScript to enable the search
-      functionality.
-    </p>
-  </div>
-  </noscript>
+  <div class="section" id="how-it-works">
+<h1>How it works<a class="headerlink" href="#how-it-works" title="Permalink to this headline">¶</a></h1>
+<a class="reference internal image-reference" href="https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png"><img alt="https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png" src="https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png" style="width: 600px;" /></a>
+<p>Unique molecular identifiers (UMIs) composed of molecular barcodes and sequence features are used aggregate reads derived from the same strand of a template molecule. Amalgamation of such reads into single strand consensus sequences (SSCS) removes discordant bases, which effectively eliminates polymerase and sequencer errors. Complementary SSCSs can be subsequently combined to form a duplex consensus sequence (DCS), which eliminates asymmetric strand artefacts such as those that develop from oxidative damage.</p>
+<p>Conventional UMI-based strategies rely on redundant sequencing from both template strands to form consensus sequences and cannot error suppress single reads (singleton). We enable singleton correction using complementary duplex reads in the absence of redundant sequencing.</p>
+<p><strong>ConsensusCruncher schematic:</strong></p>
+<ul class="simple">
+<li>An uncollapsed bamfile is first processed through SSCS_maker.py to create an
+error-suppressed single-strand consensus sequence (SSCS) bamfile and an uncorrected
+singleton bamfile.</li>
+<li>The singletons can be corrected through singleton_correction.py, which error suppress
+singletons with its complementary SSCS or singleton read.</li>
+<li>SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with
+corrected singletons to create an expanded pool of DCS reads (Figure illustrates singleton
+correction merged work flow).</li>
+</ul>
+</div>
 
-  
-  <div id="search-results">
-  
-  </div>
 
            </div>
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="FAQ.html" class="btn btn-neutral float-right" title="FAQ" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="tutorial.html" class="btn btn-neutral float-left" title="Tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>
@@ -213,14 +223,7 @@
   
   
     
-  
-  <script type="text/javascript">
-    jQuery(function() { Search.loadIndex("searchindex.js"); });
-  </script>
-  
-  <script type="text/javascript" id="searchindexloader"></script>
    
-
 
 </body>
 </html>

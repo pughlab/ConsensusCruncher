@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Search &mdash; ConsensusCruncher 0.0.1 documentation</title>
+  <title>Singleton Correction &mdash; ConsensusCruncher 0.0.1 documentation</title>
   
 
   
@@ -34,7 +34,6 @@
         <script type="text/javascript" src="_static/jquery.js"></script>
         <script type="text/javascript" src="_static/underscore.js"></script>
         <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/searchtools.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -44,7 +43,9 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="#" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Duplex consensus sequences (DCS)" href="dcs.html" />
+    <link rel="prev" title="Single-strand consensus sequences (SSCS)" href="sscs.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -71,7 +72,7 @@
 
           
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="#" method="get">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
@@ -96,10 +97,10 @@
 <li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Commands:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="extract_barcodes.html">Extract barcodes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sscs.html">Single-strand consensus sequences (SSCS)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="singleton_correction.html">Singleton Correction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Singleton Correction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dcs.html">Duplex consensus sequences (DCS)</a></li>
 </ul>
 
@@ -146,12 +147,14 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>Search</li>
+      <li>Singleton Correction</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
+            <a href="_sources/singleton_correction.rst.txt" rel="nofollow"> View page source</a>
+          
         
       </li>
     
@@ -163,24 +166,75 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <noscript>
-  <div id="fallback" class="admonition warning">
-    <p class="last">
-      Please activate JavaScript to enable the search
-      functionality.
-    </p>
-  </div>
-  </noscript>
+  <div class="section" id="singleton-correction">
+<h1>Singleton Correction<a class="headerlink" href="#singleton-correction" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">singleton_correction.py</span></code></p>
+<p><strong>Function:</strong>
+To correct single reads with its complementary (SSCS/singleton) strand and enable error suppression</p>
+<blockquote>
+<div><ul class="simple">
+<li>Traditionally, consensus sequences can only be made from 2 or more reads</li>
+</ul>
+</div></blockquote>
+<p>(Written for Python 3.5.1)</p>
+<p><strong>Usage:</strong>
+Python3 singleton_correction.py [–singleton Singleton BAM] [–bedfile BEDFILE]</p>
+<p><strong>Arguments:</strong></p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>–singleton SingletonBAM</td>
+<td>input singleton BAM file</td>
+</tr>
+<tr class="row-even"><td>–bedfile BEDFILE</td>
+<td>Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt)</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
+<dt><strong>Inputs:</strong></dt>
+<dd><ol class="first last arabic simple">
+<li>A position-sorted BAM file containing paired-end single reads with barcode identifiers in the header/query name</li>
+<li>A BED file containing coordinates subdividing the entire ref genome for more manageable data processing</li>
+</ol>
+</dd>
+<dt><strong>Outputs:</strong></dt>
+<dd><ol class="first last arabic simple">
+<li>A BAM file containing paired singletons error corrected by its complementary SSCS - “sscs.correction.bam”</li>
+<li>A BAM file containing paired singletons error corrected by its complementary singleton - “singleton.correction.bam”</li>
+<li>A BAM file containing the remaining singletons that cannot be corrected as its missing a complementary strand -
+“uncorrected.bam”</li>
+<li>A text file containing summary statistics (Total singletons, Singleton Correction by SSCS, % Singleton Correction by SSCS,
+Singleton Correction by Singletons, % Singleton Correction by Singletons, Uncorrected Singletons)
+- “stats.txt” (Stats pended to same stats file as SSCS)</li>
+</ol>
+</dd>
+<dt><strong>Concepts:</strong></dt>
+<dd><ul class="first last simple">
+<li>Read family: reads that share the same molecular barcode, chr, and start coordinates for Read1 and Read2</li>
+<li>Singleton: single read with no PCR duplicates (family size = 1)</li>
+</ul>
+</dd>
+</dl>
+</div>
 
-  
-  <div id="search-results">
-  
-  </div>
 
            </div>
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="dcs.html" class="btn btn-neutral float-right" title="Duplex consensus sequences (DCS)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="sscs.html" class="btn btn-neutral float-left" title="Single-strand consensus sequences (SSCS)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>
@@ -213,14 +267,7 @@
   
   
     
-  
-  <script type="text/javascript">
-    jQuery(function() { Search.loadIndex("searchindex.js"); });
-  </script>
-  
-  <script type="text/javascript" id="searchindexloader"></script>
    
-
 
 </body>
 </html>

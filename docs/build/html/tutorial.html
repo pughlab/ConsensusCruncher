@@ -1,0 +1,388 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Tutorial &mdash; ConsensusCruncher 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'./',
+              VERSION:'0.0.1',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How it works" href="schematic.html" />
+    <link rel="prev" title="Quick start guide" href="quick_start.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> ConsensusCruncher
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick start guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#fastqs-to-bams">FASTQs to BAMs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#consensuscruncher">ConsensusCruncher</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="schematic.html">How it works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ConsensusCruncher</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Tutorial</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/tutorial.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
+<p>Sample FASTQ files can be found under the test folder. Please note these FASTQ are only
+for testing purposes. For the full FASTQs used in our paper, please download the data from
+the NCBI Sequence Read Archive (SRA; <a class="reference external" href="https://www.ncbi.nlm.nih.gov/sra/">https://www.ncbi.nlm.nih.gov/sra/</a>) under access
+numbers SRP140497 and SRP141184.</p>
+<p>In order to create consensus sequences, we first need to process FASTQ files into BAM files.</p>
+<div class="section" id="fastqs-to-bams">
+<h2>FASTQs to BAMs<a class="headerlink" href="#fastqs-to-bams" title="Permalink to this headline">¶</a></h2>
+<p>Given FASTQs as input files, <code class="docutils literal notranslate"><span class="pre">fastq2bam</span></code> mode removes the spacer region and extracts the
+barcode tag from each sequencing read into the header with extract_barcode.py. The tag
+removed FASTQs are then aligned with BWA mem into BAM files (Arguments can be provided in
+the <cite>config.ini</cite> file or as command-line arguments. Please note command-line arguments
+over-writes config.ini arguments).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>REPO=&quot;[insert path to ConsensusCruncher repo]&quot;
+BWAPATH=&quot;[insert path to BWA]&quot;
+BWAINDEX=&quot;[insert path to BWA INDEX]&quot;
+BWAPATH=&quot;[insert path to SAMTOOLS]&quot;
+
+python ConsensusCruncher.py fastq2bam --fastq1 $REPO/test/fastq/LargeMid_56_L005_R1.fastq
+--FASTQ2 $REPO/test/fastq/LargeMid_56_L005_R2.fastq -o $REPO/test -b $BWAPATH -r $BWAIndex
+-s $SAMTOOLS -bpattern NNT
+</pre></div>
+</div>
+<p>In the sample dataset, we utilized 2-bp (NN) barcodes and 1-bp (T) spacers. While the
+barcodes for each read can be one of 16 possible combinations (4^2), the spacer is an
+invariant “T” base used to ligate barcodes onto each end of a DNA fragment. Thus, a spacer
+filter is imposed to remove faulty reads. Barcodes from read 1 and read 2 are extracted and
+combined together before being added to the header.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">READ</span> <span class="n">FROM</span> <span class="n">SEQUENCER</span>
+<span class="n">Read1</span><span class="p">:</span>
+<span class="nd">@HWI</span><span class="o">-</span><span class="n">D00331</span><span class="p">:</span><span class="mi">196</span><span class="p">:</span><span class="n">C900FANXX</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1101</span><span class="p">:</span><span class="mi">1332</span><span class="p">:</span><span class="mi">2193</span> <span class="mi">1</span><span class="p">:</span><span class="n">N</span><span class="p">:</span><span class="mi">0</span><span class="p">:</span><span class="n">ACGTCACA</span>   <span class="p">[</span><span class="o">&lt;--</span> <span class="n">HEADER</span><span class="p">]</span>
+<span class="n">ATTAAGCCCCAGGCAGTTGCTAATGATGGGAGCTTAGTGCACAAGGGCTGGGCCTCCCTCTTGGAGCTGAACATTGTTTCTTGGGGACGGCTGTGCCCACCTCAGCGGGGAGGCAAGGATTAAATC</span>  <span class="p">[</span><span class="o">&lt;--</span> <span class="n">SEQUENCE</span><span class="p">]</span>
+<span class="o">+</span>
+<span class="n">BCCCCGGGGGGGGGGGGGGGGGGGGGGGGGFGGGGGGGGEGGGGGBGGGGGGGGGGGGGGGGGGGGGGGEGG1</span><span class="p">:</span><span class="n">FGFGGGGGGGGG</span><span class="o">/</span><span class="n">CB</span><span class="o">&gt;</span><span class="n">DG</span><span class="nd">@GGGGGGG</span><span class="o">&lt;</span><span class="n">DGGGGAAGGEGGB</span><span class="o">&gt;</span><span class="n">DGGGEGGG</span><span class="o">/</span><span class="nd">@G</span>  <span class="p">[</span><span class="o">&lt;--</span> <span class="n">QUALITY</span> <span class="n">SCORE</span><span class="p">]</span>
+
+<span class="n">Read2</span><span class="p">:</span>
+<span class="nd">@HWI</span><span class="o">-</span><span class="n">D00331</span><span class="p">:</span><span class="mi">196</span><span class="p">:</span><span class="n">C900FANXX</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1101</span><span class="p">:</span><span class="mi">1332</span><span class="p">:</span><span class="mi">2193</span> <span class="mi">2</span><span class="p">:</span><span class="n">N</span><span class="p">:</span><span class="mi">0</span><span class="p">:</span><span class="n">ACGTCACA</span>
+<span class="n">GGTGGGCTCCAGCCCTGATTTCCTCCCCCAGCCCTGCAGGGCTCAGGTCCAGAGGACACAAGTTTAACTTGCGGGTGGTCACTTGCCTCGTGCGGTGACGCCATGGTGCCCTCTCTGTGCAGCGCA</span>
+<span class="o">+</span>
+<span class="n">BBBBCGGGGEGGGGFGGGGGGGGGGGGGGGGGGGGGGB</span><span class="p">:</span><span class="n">FCGGGGGGGGGGEGGGGGGGG</span><span class="o">=</span><span class="n">FCGG</span><span class="p">:</span><span class="nd">@GGGEGBGGGAGFGDE@FGGGGGFGFGEGDGGGFCGGDEBGGGGGGGEG</span><span class="o">=</span><span class="n">EGGGEEGGG</span><span class="c1">#</span>
+
+<span class="o">------</span>
+
+<span class="n">AFTER</span> <span class="n">BARCODE</span> <span class="n">EXTRACTION</span> <span class="n">AND</span> <span class="n">SPACER</span> <span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span> <span class="n">REMOVAL</span>
+<span class="n">Read1</span><span class="p">:</span>
+<span class="nd">@HWI</span><span class="o">-</span><span class="n">D00331</span><span class="p">:</span><span class="mi">196</span><span class="p">:</span><span class="n">C900FANXX</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1101</span><span class="p">:</span><span class="mi">1332</span><span class="p">:</span><span class="mi">2193</span><span class="o">|</span><span class="n">AT</span><span class="o">.</span><span class="n">GG</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">AAGCCCCAGGCAGTTGCTAATGATGGGAGCTTAGTGCACAAGGGCTGGGCCTCCCTCTTGGAGCTGAACATTGTTTCTTGGGGACGGCTGTGCCCACCTCAGCGGGGAGGCAAGGATTAAATC</span>
+<span class="o">+</span>
+<span class="n">CCGGGGGGGGGGGGGGGGGGGGGGGGGFGGGGGGGGEGGGGGBGGGGGGGGGGGGGGGGGGGGGGGEGG1</span><span class="p">:</span><span class="n">FGFGGGGGGGGG</span><span class="o">/</span><span class="n">CB</span><span class="o">&gt;</span><span class="n">DG</span><span class="nd">@GGGGGGG</span><span class="o">&lt;</span><span class="n">DGGGGAAGGEGGB</span><span class="o">&gt;</span><span class="n">DGGGEGGG</span><span class="o">/</span><span class="nd">@G</span>
+
+<span class="n">Read2</span><span class="p">:</span>
+<span class="nd">@HWI</span><span class="o">-</span><span class="n">D00331</span><span class="p">:</span><span class="mi">196</span><span class="p">:</span><span class="n">C900FANXX</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1101</span><span class="p">:</span><span class="mi">1332</span><span class="p">:</span><span class="mi">2193</span><span class="o">|</span><span class="n">AT</span><span class="o">.</span><span class="n">GG</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">GGGCTCCAGCCCTGATTTCCTCCCCCAGCCCTGCAGGGCTCAGGTCCAGAGGACACAAGTTTAACTTGCGGGTGGTCACTTGCCTCGTGCGGTGACGCCATGGTGCCCTCTCTGTGCAGCGCA</span>
+<span class="o">+</span>
+<span class="n">BCGGGGEGGGGFGGGGGGGGGGGGGGGGGGGGGGB</span><span class="p">:</span><span class="n">FCGGGGGGGGGGEGGGGGGGG</span><span class="o">=</span><span class="n">FCGG</span><span class="p">:</span><span class="nd">@GGGEGBGGGAGFGDE@FGGGGGFGFGEGDGGGFCGGDEBGGGGGGGEG</span><span class="o">=</span><span class="n">EGGGEEGGG</span><span class="c1">#</span>
+</pre></div>
+</div>
+<p>FASTQ files with extracted barcodes are placed in the fastq_tag directory and are
+subsequently aligned with BWA to generate BAMs in the bamfiles folder.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>.
+├── bamfiles
+├── fastq
+├── fastq_tag
+└── qsub
+</pre></div>
+</div>
+</div>
+<div class="section" id="consensuscruncher">
+<h2>ConsensusCruncher<a class="headerlink" href="#consensuscruncher" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">consensus</span></code> mode creates a consensus directory and folders for each bam file. BAM files
+undergo consensus construction through the workflow illustrated above. Output BAMs are
+grouped according to type of error suppression (SSCS vs DCS) and whether Singleton
+Correction (SC) was implemented.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>.
+├── bamfiles
+├── consensus
+│   ├── LargeMid_56_L005
+│   │   ├── dcs
+│   │   ├── dcs_SC
+│   │   ├── sscs
+│   │   └── sscs_SC
+...
+│   ├── LargeMid_62_L006
+│   │   ├── dcs
+│   │   ├── dcs_SC
+│   │   ├── sscs
+│   │   └── sscs_SC
+│   └── qsub
+├── fastq
+├── fastq_tag
+└── qsub
+</pre></div>
+</div>
+<p>Within a sample directory (e.g. LargeMid_56_L005), you will find the following files:</p>
+<p>Please note the example below is for illustrative purposes only, as sample names and index
+files were removed for simplification. Order of directories and files were also altered to
+improve comprehension.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>.                                           Filetype
+├── sscs
+│   ├── badReads.bam                        Reads that are unmapped or have multiple alignments
+│   ├── sscs.sorted.bam                     Single-Strand Consensus Sequences (SSCS)
+│   ├── singleton.sorted.bam                Single reads (Singleton) that cannot form SSCSs
+├── sscs_SC
+|   ├── singleton.rescue.sorted.bam         Singleton correction (SC) with complementary singletons
+|   ├── sscs.rescue.sorted.bam              SC with complementary SSCSs
+|   ├── sscs.sc.sorted.bam                  SSCS combined with corrected singletons (from both rescue strategies)   [*]
+|   ├── rescue.remaining.sorted.bam         Singletons that could not be corrected
+|   ├── all.unique.sscs.sorted.bam          SSCS + SC + remaining (uncorrected) singletons
+├── dcs
+│   ├── dcs.sorted.bam                      Duplex Consensus Sequence (DCS)
+│   ├── sscs.singleton.sorted.bam           SSCSs that could not form DCSs as complementary strand was missing
+├── dcs_SC
+│   ├── dcs.sc.sorted.bam                   DCS generated from SSCS + SC    [*]
+│   ├── sscs.sc.singleton.sorted.bam        SSCS + SC that could not form DCSs
+│   ├── all.unique.dcs.sorted.bam           DCS (from SSCS + SC) + SSCS_SC_Singletons + remaining singletons
+├── read_families.txt                       Family size and frequency
+├── stats.txt                               Consensus sequence formation metrics
+├── tag_fam_size.png                        Distribution of reads across family size
+└── time_tracker.txt                        Time log
+</pre></div>
+</div>
+<p>Through each stage of consensus formation, duplicate reads are collapsed together and
+single reads are written as separate files. This allows rentention of all unique molecules,
+while providing users with easy data management for cross-comparisons between error
+suppression strategies.</p>
+<p>To simplify analyses, it would be good to focus on SSCS+SC (“sscs.sc.sorted.bam”) and
+DCS+SC (“dcs.sc.sorted.bam”) as highlighted above with [*].</p>
+<p>Within the stats file you should expect to see the following (Please note as this is a
+test dataset, the number of consensus reads is very low):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># === SSCS ===</span>
+<span class="n">Uncollapsed</span> <span class="o">-</span> <span class="n">Total</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">19563</span>
+<span class="n">Uncollapsed</span> <span class="o">-</span> <span class="n">Unmapped</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">17</span>
+<span class="n">Uncollapsed</span> <span class="o">-</span> <span class="n">Secondary</span><span class="o">/</span><span class="n">Supplementary</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">24</span>
+<span class="n">SSCS</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">Singletons</span><span class="p">:</span> <span class="mi">19522</span>
+<span class="n">Bad</span> <span class="n">spacers</span><span class="p">:</span> <span class="mi">0</span>
+
+<span class="c1"># QC: Total uncollapsed reads should be equivalent to mapped reads in bam file.</span>
+<span class="n">Total</span> <span class="n">uncollapsed</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">19563</span>
+<span class="n">Total</span> <span class="n">mapped</span> <span class="n">reads</span> <span class="ow">in</span> <span class="n">bam</span> <span class="n">file</span><span class="p">:</span> <span class="mi">19563</span>
+<span class="n">QC</span><span class="p">:</span> <span class="n">check</span> <span class="n">dictionaries</span> <span class="n">to</span> <span class="n">see</span> <span class="k">if</span> <span class="n">there</span> <span class="n">are</span> <span class="nb">any</span> <span class="n">remaining</span> <span class="n">reads</span>
+<span class="o">===</span> <span class="n">pair_dict</span> <span class="n">remaining</span> <span class="o">===</span>
+<span class="o">===</span> <span class="n">read_dict</span> <span class="n">remaining</span> <span class="o">===</span>
+<span class="o">===</span> <span class="n">csn_pair_dict</span> <span class="n">remaining</span> <span class="o">===</span>
+<span class="mf">0.02919737100601196</span>
+<span class="c1"># === DCS ===</span>
+<span class="n">SSCS</span> <span class="o">-</span> <span class="n">Total</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">SSCS</span> <span class="o">-</span> <span class="n">Unmapped</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">SSCS</span> <span class="o">-</span> <span class="n">Secondary</span><span class="o">/</span><span class="n">Supplementary</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">DCS</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">SSCS</span> <span class="n">singletons</span><span class="p">:</span> <span class="mi">0</span>
+
+<span class="c1"># === Singleton Correction ===</span>
+<span class="n">Total</span> <span class="n">singletons</span><span class="p">:</span> <span class="mi">19522</span>
+<span class="n">Singleton</span> <span class="n">Correction</span> <span class="n">by</span> <span class="n">SSCS</span><span class="p">:</span> <span class="mi">0</span>
+<span class="o">%</span> <span class="n">Singleton</span> <span class="n">Correction</span> <span class="n">by</span> <span class="n">SSCS</span><span class="p">:</span> <span class="mf">0.0</span>
+<span class="n">Singleton</span> <span class="n">Correction</span> <span class="n">by</span> <span class="n">Singletons</span><span class="p">:</span> <span class="mi">4</span>
+<span class="o">%</span> <span class="n">Singleton</span> <span class="n">Correction</span> <span class="n">by</span> <span class="n">Singletons</span> <span class="p">:</span> <span class="mf">0.020489703923778302</span>
+<span class="n">Uncorrected</span> <span class="n">Singletons</span><span class="p">:</span> <span class="mi">19518</span>
+
+<span class="mf">0.020557292302449546</span>
+<span class="c1"># === DCS - Singleton Correction ===</span>
+<span class="n">SSCS</span> <span class="n">SC</span> <span class="o">-</span> <span class="n">Total</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">4</span>
+<span class="n">SSCS</span> <span class="n">SC</span> <span class="o">-</span> <span class="n">Unmapped</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">SSCS</span> <span class="n">SC</span> <span class="o">-</span> <span class="n">Secondary</span><span class="o">/</span><span class="n">Supplementary</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">DCS</span> <span class="n">SC</span> <span class="n">reads</span><span class="p">:</span> <span class="mi">2</span>
+<span class="n">SSCS</span> <span class="n">SC</span> <span class="n">singletons</span><span class="p">:</span> <span class="mi">0</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="schematic.html" class="btn btn-neutral float-right" title="How it works" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="quick_start.html" class="btn btn-neutral float-left" title="Quick start guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Nina Wang
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
