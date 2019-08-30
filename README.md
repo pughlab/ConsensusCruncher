@@ -4,6 +4,8 @@ ConsensusCruncher is a tool that suppresses errors in next-generation sequencing
 
 To learn more about ConsensusCruncher and its applications: https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz474/5498633
 
+For a full documentation of ConsensusCruncher, please see our Read the Docs: https://consensuscruncher.readthedocs.io/en/latest/?
+
 ## Quick start ##
 ### Dependencies ###
 This pipeline requires the following dependencies:
