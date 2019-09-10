@@ -108,8 +108,10 @@ def duplex_consensus(read1, read2):
         # Check to see if base at position i is the same
         if read1.query_sequence[i] == read2.query_sequence[i]:
             consensus_seq += read1.query_sequence[i]
-            mol_qual = sum([read1.query_qualities[i], read2.query_qualities[i]])
-            # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
+            mol_qual = sum([read1.query_qualities[i],
+                            read2.query_qualities[i]])
+            # Set to max quality score if sum of qualities is greater than the
+            # threshold (Q60) imposed by genomic tools
             if mol_qual > 60:
                 consensus_qual += [60]
             else:
@@ -128,12 +130,25 @@ def duplex_consensus(read1, read2):
 def main():
     # Command-line parameters
     parser = ArgumentParser()
-    parser.add_argument("--infile", action = "store", dest="infile", help="Input BAM file", required=True)
-    parser.add_argument("--outfile", action = "store", dest="outfile", help="Output BAM file", required=True)
-    parser.add_argument("--bedfile", action="store", dest="bedfile",
-                        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
+    parser.add_argument(
+        "--infile",
+        action="store",
+        dest="infile",
+        help="Input BAM file",
+        required=True)
+    parser.add_argument(
+        "--outfile",
+        action="store",
+        dest="outfile",
+        help="Output BAM file",
+        required=True)
+    parser.add_argument(
+        "--bedfile",
+        action="store",
+        dest="bedfile",
+        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
-                        required=False)
+        required=False)
     args = parser.parse_args()
 
     ######################
@@ -146,20 +161,24 @@ def main():
 
     sscs_bam = pysam.AlignmentFile(args.infile, "rb")
     dcs_bam = pysam.AlignmentFile(args.outfile, "wb", template=sscs_bam)
-    
+
     if re.search('dcs\.sc', args.outfile) is not None:
-        sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.sc.singleton.bam'.format(args.outfile.split('.dcs.sc')[0]),
-                                             "wb", template=sscs_bam)
+        sscs_singleton_bam = pysam.AlignmentFile(
+            '{}.sscs.sc.singleton.bam'.format(
+                args.outfile.split('.dcs.sc')[0]), "wb", template=sscs_bam)
         dcs_header = "DCS - Singleton Correction"
         sc_header = " SC"
     else:
-        sscs_singleton_bam = pysam.AlignmentFile('{}.sscs.singleton.bam'.format(args.outfile.split('.dcs')[0]),
-                                             "wb", template=sscs_bam)
+        sscs_singleton_bam = pysam.AlignmentFile(
+            '{}.sscs.singleton.bam'.format(
+                args.outfile.split('.dcs')[0]), "wb", template=sscs_bam)
         dcs_header = "DCS"
         sc_header = ""
 
     stats = open('{}.stats.txt'.format(args.outfile.split('.dcs')[0]), 'a')
-    time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.dcs')[0]), 'a')
+    time_tracker = open(
+        '{}.time_tracker.txt'.format(
+            args.outfile.split('.dcs')[0]), 'a')
 
     # ===== Initialize dictionaries and counters=====
     read_dict = collections.OrderedDict()
@@ -235,15 +254,19 @@ def main():
                         duplex_count += 1
 
                         # consensus seq
-                        consensus_seq, consensus_qual = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
+                        consensus_seq, consensus_qual = duplex_consensus(
+                            read_dict[tag][0], read_dict[ds][0])
 
                         # consensus duplex tag
-                        dcs_query_name = dcs_consensus_tag(read_dict[tag][0].qname, read_dict[ds][0].qname)  # New query name containing both barcodes
+                        dcs_query_name = dcs_consensus_tag(
+                            read_dict[tag][0].qname,
+                            read_dict[ds][0].qname)  # New query name containing both barcodes
 
                         dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
                                                           consensus_qual, dcs_query_name)
 
-                        # add duplex tag to dictionary to prevent making a duplex for the same sequences twice
+                        # add duplex tag to dictionary to prevent making a
+                        # duplex for the same sequences twice
                         duplex_dict[tag] += 1
 
                         dcs_bam.write(dcs_read)
@@ -266,14 +289,24 @@ SSCS{} - Total reads: {}
 SSCS{} - Unmapped reads: {}
 SSCS{} - Secondary/Supplementary reads: {}
 DCS{} reads: {}
-SSCS{} singletons: {} \n'''.format(dcs_header, sc_header, counter, sc_header, unmapped, sc_header, multiple_mappings,
-                                   sc_header, duplex_count, sc_header, sscs_singletons)
+SSCS{} singletons: {} \n'''.format(
+        dcs_header,
+        sc_header,
+        counter,
+        sc_header,
+        unmapped,
+        sc_header,
+        multiple_mappings,
+        sc_header,
+        duplex_count,
+        sc_header,
+        sscs_singletons)
     stats.write(summary_stats)
     print(summary_stats)
 
     # Output total DCS time
     time_tracker.write('DCS: ')
-    time_tracker.write(str((time.time() - start_time)/60) + '\n')
+    time_tracker.write(str((time.time() - start_time) / 60) + '\n')
 
     # Close files
     time_tracker.close()

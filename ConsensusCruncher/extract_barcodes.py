@@ -75,7 +75,7 @@ def find_all(a_str, sub):
     """(str, str) -> int
     Return index of substring in string.
     """
-    sub_index=[i for i, x in enumerate(list(a_str)) if x==sub]
+    sub_index = [i for i, x in enumerate(list(a_str)) if x == sub]
     return sub_index
 
 
@@ -87,7 +87,7 @@ def create_nuc_dict(nuc_lst):
     nuc_dict = {}
     for nuc_x in nuc_lst:
         nuc_arr = np.array([nuc_y == nuc_x for nuc_y in nuc_lst]).astype(int)
-        nuc_dict.update({nuc_x:nuc_arr})
+        nuc_dict.update({nuc_x: nuc_arr})
     return nuc_dict
 
 
@@ -122,18 +122,45 @@ def extract_barcode(read, plen):
 def main():
     # Command-line parameters
     parser = ArgumentParser()
-    parser.add_argument("--read1", action="store", dest="read1", type=str,
-                        help="Input FASTQ file for Read 1 (unzipped)", required=True)
-    parser.add_argument("--read2", action="store", dest="read2", type=str,
-                        help="Input FASTQ file for Read 2 (unzipped)", required=True)
-    parser.add_argument("--outfile", action="store", dest="outfile", help="Absolute path to output SSCS BAM file",
-                        type=str, required=True)
-    parser.add_argument("--bpattern", action="store", dest="bpattern", type=str, required=False, default=None,
-                        help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases) \n"
-                             "e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front, "
-                             "followed by 'GT' \n")
-    parser.add_argument("--blist", action="store", dest="blist", type=str, help="List of correct barcodes",
-                        default=None, required=False)
+    parser.add_argument(
+        "--read1",
+        action="store",
+        dest="read1",
+        type=str,
+        help="Input FASTQ file for Read 1 (unzipped)",
+        required=True)
+    parser.add_argument(
+        "--read2",
+        action="store",
+        dest="read2",
+        type=str,
+        help="Input FASTQ file for Read 2 (unzipped)",
+        required=True)
+    parser.add_argument(
+        "--outfile",
+        action="store",
+        dest="outfile",
+        help="Absolute path to output SSCS BAM file",
+        type=str,
+        required=True)
+    parser.add_argument(
+        "--bpattern",
+        action="store",
+        dest="bpattern",
+        type=str,
+        required=False,
+        default=None,
+        help="Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases) \n"
+        "e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front, "
+        "followed by 'GT' \n")
+    parser.add_argument(
+        "--blist",
+        action="store",
+        dest="blist",
+        type=str,
+        help="List of correct barcodes",
+        default=None,
+        required=False)
     args = parser.parse_args()
 
     ######################
@@ -150,7 +177,12 @@ def main():
 
     r1_output = open('{}_barcode_R1.fastq'.format(args.outfile), "w")
     r2_output = open('{}_barcode_R2.fastq'.format(args.outfile), "w")
-    stats = open('{}_barcode_stats.txt'.format(args.outfile.rsplit(sep="/", maxsplit=1)[0]), 'a')
+    stats = open(
+        '{}_barcode_stats.txt'.format(
+            args.outfile.rsplit(
+                sep="/",
+                maxsplit=1)[0]),
+        'a')
 
     # === Initialize counters ===
     readpair_count = 0
@@ -163,48 +195,62 @@ def main():
     # === Define barcodes ===
     # Raise error if neither a barcode list or pattern is provided
     if args.blist is None and args.bpattern is None:
-        raise ValueError("No barcode specifications inputted. Please specify barcode list or pattern.")
+        raise ValueError(
+            "No barcode specifications inputted. Please specify barcode list or pattern.")
     # == Barcode Pattern ==
     elif args.bpattern is not None:
         # Ensure valid barcode pattern provided
         if re.search("[^ACGTN]", args.bpattern) is not None:
-            raise ValueError("Invalid barcode pattern inputted. Please specify pattern with A|C|G|T = fixed, "
-                             "N = variable (e.g. 'ATNNGCT').")
+            raise ValueError(
+                "Invalid barcode pattern inputted. Please specify pattern with A|C|G|T = fixed, "
+                "N = variable (e.g. 'ATNNGCT').")
         else:
             plen = len(args.bpattern)  # Pattern length
-            b_index = list(find_all(args.bpattern, 'N'))  # Index of random barcode bases
-            s_index = [x for x in list(range(0, plen)) if x not in b_index]  # Index of constant spacer bases
+            # Index of random barcode bases
+            b_index = list(find_all(args.bpattern, 'N'))
+            # Index of constant spacer bases
+            s_index = [x for x in list(range(0, plen)) if x not in b_index]
             spacer = ''.join([args.bpattern[x] for x in s_index])
 
             # Column in the following corresponds to A, C, G, T, N
             nuc_dict = create_nuc_dict(nuc_lst)
-            r1_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
-            r2_barcode_counter = pd.DataFrame(0, index=np.arange(plen), columns=nuc_lst)
+            r1_barcode_counter = pd.DataFrame(
+                0, index=np.arange(plen), columns=nuc_lst)
+            r2_barcode_counter = pd.DataFrame(
+                0, index=np.arange(plen), columns=nuc_lst)
     # == Barcode list ==
     else:
         blist = open(args.blist, "r").read().splitlines()
 
         # Check list for faulty barcodes
         if re.search("[^ACGTN]", "".join(blist)) is not None:
-            raise ValueError("Invalid barcode list inputted. Please specify barcodes with A|C|G|T.")
-        # Check barcodes end with spacer T (necessary for T-tailed adapters and 3' dA overhang on the fragmented DNA sample)
+            raise ValueError(
+                "Invalid barcode list inputted. Please specify barcodes with A|C|G|T.")
+        # Check barcodes end with spacer T (necessary for T-tailed adapters and
+        # 3' dA overhang on the fragmented DNA sample)
         elif [s for s in blist if not s.endswith("T")] != []:
-            raise ValueError("There is one or more barcodes in the list that do not end with 'T'.")
+            raise ValueError(
+                "There is one or more barcodes in the list that do not end with 'T'.")
         # Check barcodes in list are not overlapping as its indicative of faulty design
         # (Difficult to differentiate whether the shorter or longer barcode is correct)
         elif check_overlap(blist):
-            raise ValueError("There are overlapping barcodes in the list (difficult to determine which barcode is correct).")
+            raise ValueError(
+                "There are overlapping barcodes in the list (difficult to determine which barcode is correct).")
         else:
             # Barcode counter: create dictionary with barcodes as keys and values as 0
             # - Barcodes may be of different lengths, so a tally of each barcode occurrence
-            # is better than moderating the frequency of nuc bases at each barcode position
+            # is better than moderating the frequency of nuc bases at each
+            # barcode position
             r1_tag_dict = dict.fromkeys(blist, 0)
             r2_tag_dict = dict.fromkeys(blist, 0)
 
             # Write bad_barcodes to file
-            r1_bad_barcodes = open('{}_r1_bad_barcodes.txt'.format(args.outfile), 'w')
-            r2_bad_barcodes = open('{}_r2_bad_barcodes.txt'.format(args.outfile), 'w')
-
+            r1_bad_barcodes = open(
+                '{}_r1_bad_barcodes.txt'.format(
+                    args.outfile), 'w')
+            r2_bad_barcodes = open(
+                '{}_r2_bad_barcodes.txt'.format(
+                    args.outfile), 'w')
 
     ######################
     #  Extract barcodes  #
@@ -222,7 +268,11 @@ def main():
             r2, r2_barcode = extract_barcode(r2, plen)
 
             # Check to see if barcode is valid
-            if re.search("[^ACGT]", r1_barcode) is not None or re.search("[^ACGT]", r2_barcode) is not None:
+            if re.search(
+                    "[^ACGT]",
+                    r1_barcode) is not None or re.search(
+                    "[^ACGT]",
+                    r2_barcode) is not None:
                 bad_barcode += 1
             else:
                 # Count barcode bases
@@ -233,8 +283,10 @@ def main():
                 r1_bc = ''.join([r1_barcode[x] for x in b_index])
                 r2_bc = ''.join([r2_barcode[x] for x in b_index])
 
-                r1.id = '{}|{}.{}/{}'.format(r1.id.split(" ")[0], r1_bc, r2_bc, "1")
-                r2.id = '{}|{}.{}/{}'.format(r2.id.split(" ")[0], r1_bc, r2_bc, "2")
+                r1.id = '{}|{}.{}/{}'.format(r1.id.split(" ")
+                                             [0], r1_bc, r2_bc, "1")
+                r2.id = '{}|{}.{}/{}'.format(r2.id.split(" ")
+                                             [0], r1_bc, r2_bc, "2")
                 r1.description = r1.id
                 r2.description = r2.id
 
@@ -254,7 +306,8 @@ def main():
         else:
             # Identify unique lengths of barcodes
             barcode_len = list(set(len(n) for n in blist))
-            # Sort length from highest to lowest in case shorter barcodes overlap longer ones
+            # Sort length from highest to lowest in case shorter barcodes
+            # overlap longer ones
             barcode_len.sort(reverse=True)
 
             # Check to see if both R1 and R2 barcodes are present in blist
@@ -263,12 +316,17 @@ def main():
 
             # Iterate through barcodes of different lengths
             for blen in barcode_len:
-                # Remove new line '\n' from str and separate using barcode length
+                # Remove new line '\n' from str and separate using barcode
+                # length
                 r1_read, r1_barcode = extract_barcode(r1, blen)
                 r2_read, r2_barcode = extract_barcode(r2, blen)
 
                 # Check to see if barcode is valid
-                if re.search("[^ACGT]", r1_barcode) is not None or re.search("[^ACGT]", r2_barcode) is not None:
+                if re.search(
+                        "[^ACGT]",
+                        r1_barcode) is not None or re.search(
+                        "[^ACGT]",
+                        r2_barcode) is not None:
                     bad_barcode += 1
                     if re.search("[^ACGT]", r1_barcode) is not None:
                         r1_bad_barcodes.write(r1_barcode + '\n')
@@ -279,25 +337,30 @@ def main():
                     if r1_barcode in blist:
                         r1_status = True
                         r1_r = r1_read
-                        r1_b = r1_barcode[:blen-1]	# remove T from end of barcode
+                        # remove T from end of barcode
+                        r1_b = r1_barcode[:blen - 1]
 
                     if r2_barcode in blist:
                         r2_status = True
                         r2_r = r2_read
-                        r2_b = r2_barcode[:blen-1]  # remove T from end of barcode
+                        # remove T from end of barcode
+                        r2_b = r2_barcode[:blen - 1]
 
             # If R1 and R2 barcodes are both valid
             if r1_status and r2_status:
                 good_barcode += 1  # Note: number of barcodes is per paired reads
 
                 # Add to barcode counter
-                r1_tag_dict[r1_b+'T'] += 1
-                r2_tag_dict[r2_b+'T'] += 1
+                r1_tag_dict[r1_b + 'T'] += 1
+                r2_tag_dict[r2_b + 'T'] += 1
 
                 # Add barcode and read number to header of fastq
-                r1_r.id = '{}|{}.{}/{}'.format(r1_r.id.split(" ")[0], r1_b, r2_b, "1")
-                r2_r.id = '{}|{}.{}/{}'.format(r2_r.id.split(" ")[0], r1_b, r2_b, "2")
-                # Update description so ID is not repeated twice in FASTQ header
+                r1_r.id = '{}|{}.{}/{}'.format(r1_r.id.split(" ")
+                                               [0], r1_b, r2_b, "1")
+                r2_r.id = '{}|{}.{}/{}'.format(r2_r.id.split(" ")
+                                               [0], r1_b, r2_b, "2")
+                # Update description so ID is not repeated twice in FASTQ
+                # header
                 r1_r.description = r1_r.id
                 r2_r.description = r2_r.id
 
@@ -307,9 +370,9 @@ def main():
                 # Note bad barcodes always correspond to length of shortest barcode as we can't determine the original
                 # barcode length
                 bad_barcode += 1
-                if r1_status == False:
+                if not r1_status:
                     r1_bad_barcodes.write(r1_barcode + '\n')
-                if r2_status == False:
+                if not r2_status:
                     r2_bad_barcodes.write(r2_barcode + '\n')
 
     r1_output.close()
@@ -322,21 +385,31 @@ def main():
     sys.stderr.write("Passing barcodes: {}\n".format(good_barcode))
 
     # Output stats file
-    stats.write("##########\n{}\n##########".format(args.outfile.split(sep="/")[-1]))
+    stats.write("##########\n{}\n##########".format(
+        args.outfile.split(sep="/")[-1]))
     stats.write(
-        '\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(readpair_count,
-                                                                                                     bad_spacer,
-                                                                                                     bad_barcode,
-                                                                                                     good_barcode))
+        '\nTotal sequences: {}\nMissing spacer: {}\nBad barcodes: {}\nPassing barcodes: {}\n'.format(
+            readpair_count,
+            bad_spacer,
+            bad_barcode,
+            good_barcode))
     # == Barcode pattern ==
     if args.bpattern is not None:
-        stats.write('---BARCODE---\n{}\n-----------\n{}\n'.format(r1_barcode_counter.apply(lambda x: x / x.sum(), axis=1),
-                                                                  r2_barcode_counter.apply(lambda x: x / x.sum(), axis=1)))
+        stats.write(
+            '---BARCODE---\n{}\n-----------\n{}\n'.format(
+                r1_barcode_counter.apply(
+                    lambda x: x / x.sum(),
+                    axis=1),
+                r2_barcode_counter.apply(
+                    lambda x: x / x.sum(),
+                    axis=1)))
     # == Barcode list ==
     else:
         # Convert dict to dataframes
-        r1_df = pd.DataFrame(sorted(r1_tag_dict.items(), key=lambda kv: (len(kv[0]), kv[0])), columns=["Barcode", "R1_Count"])
-        r2_df = pd.DataFrame(sorted(r2_tag_dict.items(), key=lambda kv: (len(kv[0]), kv[0])), columns=["Barcode", "R2_Count"])
+        r1_df = pd.DataFrame(sorted(r1_tag_dict.items(), key=lambda kv: (
+            len(kv[0]), kv[0])), columns=["Barcode", "R1_Count"])
+        r2_df = pd.DataFrame(sorted(r2_tag_dict.items(), key=lambda kv: (
+            len(kv[0]), kv[0])), columns=["Barcode", "R2_Count"])
 
         # Merge dataframes and sum total count
         df_merge = pd.merge(r1_df, r2_df, on="Barcode")
@@ -350,9 +423,11 @@ def main():
 
         # == Create histogram for barcode stats ==
         fig, ax = plt.subplots()
-        ax.set_xlim(0, len(df_merge.index))  # Set x-axis range to number of barcodes
+        # Set x-axis range to number of barcodes
+        ax.set_xlim(0, len(df_merge.index))
 
-        ind = np.arange(len(df_merge.index))  # the x locations (number of barcodes)
+        # the x locations (number of barcodes)
+        ind = np.arange(len(df_merge.index))
         width = 0.35  # the width of the bars
         p1 = ax.bar(ind, df_merge['R1_Count'], width, color='g')
         p2 = ax.bar(ind + width, df_merge['R2_Count'], width, color='y')
@@ -362,7 +437,8 @@ def main():
         ax.set_xticklabels(df_merge['Barcode'])
         for tick in ax.get_xticklabels():
             tick.set_rotation(90)
-        plt.gcf().subplots_adjust(bottom=0.15)  # Add space to make sure x labels aren't cut off
+        # Add space to make sure x labels aren't cut off
+        plt.gcf().subplots_adjust(bottom=0.15)
         plt.tick_params(axis='x', which='both', top=False)
         plt.tick_params(axis='y', which='both', right=False)
 
@@ -374,6 +450,7 @@ def main():
         plt.savefig('{}_barcode_stats.png'.format(args.outfile))
 
     stats.close()
+
 
 if __name__ == "__main__":
     main()
