@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Run autopep8 on any Python files that are part of this commit.
+git diff --cached --name-only | grep -E '\.py$' | xargs --no-run-if-empty autopep8 -ri -a
+
+# Re-stage these files for commit.
+git diff --cached --name-only | grep -E '\.py$' | xargs --no-run-if-empty git add
