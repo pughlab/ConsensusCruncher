@@ -233,3 +233,10 @@ Please use this repository templates available at [.github/ISSUE_TEMPLATE](https
 
 ### Who do I talk to? ###
 * Jeff Bruce (Jeffrey.Bruce@uhnresearch.ca), Trevor Pugh (Trevor.Pugh@uhn.ca), Scott Bratman (Scott.Bratman@rmp.uhn.ca)
+
+### Development ###
+If your development environment doesn't already automatically use PEP8 for formatting, you can install a git hook to automatically format Python files as part of the commit process. To do so, [install autopep8](https://pypi.org/project/autopep8/#installation), then run this once:
+
+```
+git config core.hooksPath .githooks
+```
