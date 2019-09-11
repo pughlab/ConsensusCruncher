@@ -69,10 +69,12 @@ def duplex_consensus(read1, read2):
     for i in range(read1.query_length):
         # Check to see if base at position i is the same
         if read1.query_sequence[i] == read2.query_sequence[i] and \
-                        read1.query_qualities[i] > 29 and read2.query_qualities[i] > 29:
+                read1.query_qualities[i] > 29 and read2.query_qualities[i] > 29:
             consensus_seq += read1.query_sequence[i]
-            mol_qual = sum([read1.query_qualities[i], read2.query_qualities[i]])
-            # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
+            mol_qual = sum([read1.query_qualities[i],
+                            read2.query_qualities[i]])
+            # Set to max quality score if sum of qualities is greater than the
+            # threshold (Q60) imposed by genomic tools
             if mol_qual > 60:
                 consensus_qual += [60]
             else:
@@ -84,7 +86,12 @@ def duplex_consensus(read1, read2):
     return consensus_seq, consensus_qual
 
 
-def strand_correction(read_tag, duplex_tag, query_name, singleton_dict, sscs_dict=None):
+def strand_correction(
+        read_tag,
+        duplex_tag,
+        query_name,
+        singleton_dict,
+        sscs_dict=None):
     """(str, str, dict, dict) -> Pysam.AlignedSegment
     Return 'corrected' singleton using complement read from opposite strand (either found in SSCS or singleton).
 
@@ -115,12 +122,20 @@ def main():
     """
     # Command-line parameters
     parser = ArgumentParser()
-    parser.add_argument("--singleton", action="store", dest="singleton", help="input singleton BAM file",
-                        required=True, type=str)
-    parser.add_argument("--bedfile", action="store", dest="bedfile",
-                        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
+    parser.add_argument(
+        "--singleton",
+        action="store",
+        dest="singleton",
+        help="input singleton BAM file",
+        required=True,
+        type=str)
+    parser.add_argument(
+        "--bedfile",
+        action="store",
+        dest="bedfile",
+        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
-                        required=False)
+        required=False)
     args = parser.parse_args()
 
     ######################
@@ -130,19 +145,32 @@ def main():
     # ===== Initialize input and output bam files =====
     singleton_bam = pysam.AlignmentFile(args.singleton, "rb")
     # Infer SSCS bam from singleton bamfile (by removing extensions)
-    sscs_bam = pysam.AlignmentFile('{}.sscs{}'.format(args.singleton.split('.singleton')[0],
-                                                      args.singleton.split('.singleton')[1]), "rb")
-    sscs_correction_bam = pysam.AlignmentFile('{}.sscs.correction.bam'.format(args.singleton.split('.singleton')[0]), 'wb',
-                                          template=singleton_bam)
-    singleton_correction_bam = pysam.AlignmentFile('{}.singleton.correction.bam'.format(args.singleton.split('.singleton')[0]),
-                                               'wb', template=singleton_bam)
-    uncorrected_bam = pysam.AlignmentFile('{}.uncorrected.bam'.format(args.singleton.split('.singleton')[0]),
-                                               'wb', template=singleton_bam)
+    sscs_bam = pysam.AlignmentFile(
+        '{}.sscs{}'.format(
+            args.singleton.split('.singleton')[0],
+            args.singleton.split('.singleton')[1]),
+        "rb")
+    sscs_correction_bam = pysam.AlignmentFile('{}.sscs.correction.bam'.format(
+        args.singleton.split('.singleton')[0]), 'wb', template=singleton_bam)
+    singleton_correction_bam = pysam.AlignmentFile(
+        '{}.singleton.correction.bam'.format(
+            args.singleton.split('.singleton')[0]),
+        'wb',
+        template=singleton_bam)
+    uncorrected_bam = pysam.AlignmentFile(
+        '{}.uncorrected.bam'.format(
+            args.singleton.split('.singleton')[0]),
+        'wb',
+        template=singleton_bam)
 
-    stats = open('{}.stats.txt'.format(args.singleton.split('.singleton')[0]), 'a')
+    stats = open(
+        '{}.stats.txt'.format(
+            args.singleton.split('.singleton')[0]),
+        'a')
 
     # ===== Initialize dictionaries =====
-    singleton_dict = collections.OrderedDict()  # dict that remembers order of entries
+    # dict that remembers order of entries
+    singleton_dict = collections.OrderedDict()
     singleton_tag = collections.defaultdict(int)
     singleton_pair = collections.defaultdict(list)
     singleton_csn_pair = collections.defaultdict(list)
@@ -191,7 +219,8 @@ def main():
             # === Reset dictionaries ===
             if last_chr != read_chr:
                 singleton_tag = collections.defaultdict(int)
-                # Its okay to clear SSCS dicts after each region as correction can only be done within the same coor
+                # Its okay to clear SSCS dicts after each region as correction
+                # can only be done within the same coor
                 sscs_dict = collections.OrderedDict()
                 sscs_tag = collections.defaultdict(int)
                 sscs_pair = collections.defaultdict(list)
@@ -252,11 +281,14 @@ def main():
                 # Check to see if singleton can be corrected by SSCS, then by singletons
                 # If not, add to 'uncorrected' bamfile
                 duplex = duplex_tag(tag)
-                query_name = readPair + ':1'  # Reflect corrected singleton (uncorrected won't have our unique ID tag)
+                # Reflect corrected singleton (uncorrected won't have our
+                # unique ID tag)
+                query_name = readPair + ':1'
 
                 # 1) Singleton correction by complementary SSCS
                 if duplex in sscs_dict.keys():
-                    corrected_read = strand_correction(tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
+                    corrected_read = strand_correction(
+                        tag, duplex, query_name, singleton_dict, sscs_dict=sscs_dict)
                     sscs_dup_correction += 1
                     sscs_correction_bam.write(corrected_read)
 
@@ -265,7 +297,8 @@ def main():
 
                 # 2) Singleton correction by complementary Singletons
                 elif duplex in singleton_dict.keys():
-                    corrected_read = strand_correction(tag, duplex, query_name, singleton_dict)
+                    corrected_read = strand_correction(
+                        tag, duplex, query_name, singleton_dict)
                     singleton_dup_correction += 1
                     singleton_correction_bam.write(corrected_read)
                     correction_dict[tag] = duplex
@@ -276,7 +309,8 @@ def main():
                         del correction_dict[tag]
                         del correction_dict[duplex]
 
-                # 3) Singleton written to remaining bam if neither SSCS or Singleton duplex correction was possible
+                # 3) Singleton written to remaining bam if neither SSCS or
+                # Singleton duplex correction was possible
                 else:
                     uncorrected_bam.write(singleton_dict[tag][0])
                     uncorrected_singleton += 1
@@ -284,12 +318,12 @@ def main():
 
             del singleton_csn_pair[readPair]
 
-
     ######################
     #       SUMMARY      #
     ######################
-    sscs_correction_frac = (sscs_dup_correction/singleton_counter) * 100
-    singleton_correction_frac = (singleton_dup_correction/singleton_counter) * 100
+    sscs_correction_frac = (sscs_dup_correction / singleton_counter) * 100
+    singleton_correction_frac = (
+        singleton_dup_correction / singleton_counter) * 100
 
     summary_stats = '''# === Singleton Correction ===
 Total singletons: {}
@@ -318,4 +352,4 @@ if __name__ == "__main__":
     import time
     start_time = time.time()
     main()
-    print((time.time() - start_time)/60)
+    print((time.time() - start_time) / 60)

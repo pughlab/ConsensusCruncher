@@ -1,0 +1,268 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ConsensusCruncher - Extended Error Suppression &mdash; ConsensusCruncher 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'./',
+              VERSION:'0.0.1',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Quick start guide" href="quick_start.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="#" class="icon icon-home"> ConsensusCruncher
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick start guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schematic.html">How it works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Commands:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="extract_barcodes.html">Extract barcodes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sscs.html">Single-strand consensus sequences (SSCS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="singleton_correction.html">Singleton Correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcs.html">Duplex consensus sequences (DCS)</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">ConsensusCruncher</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="#">Docs</a> &raquo;</li>
+        
+      <li>ConsensusCruncher - Extended Error Suppression</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="consensuscruncher-extended-error-suppression">
+<h1>ConsensusCruncher - Extended Error Suppression<a class="headerlink" href="#consensuscruncher-extended-error-suppression" title="Permalink to this headline">¶</a></h1>
+<p>Welcome to the ConsensusCruncher documentation!</p>
+<p>ConsensusCruncher is a tool that suppresses errors in next-generation sequencing data by
+using unique molecular identifiers (UMIs) to amalgamate reads derived from the same DNA
+template into a consensus sequence.</p>
+<p>To learn more about ConsensusCruncher and its applications, see our  publication in
+<a class="reference external" href="https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz474/5498633">Nucleic Acids Research</a>.</p>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick start guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schematic.html">How it works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+</ul>
+</div>
+<div class="section" id="modes">
+<h2>Modes<a class="headerlink" href="#modes" title="Permalink to this headline">¶</a></h2>
+<a class="reference internal image-reference" href="https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png"><img alt="https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png" src="https://user-images.githubusercontent.com/13406244/63974147-468d5880-ca7a-11e9-849d-289e69601771.png" style="width: 600px;" /></a>
+<p>ConsensusCruncher has 2 modes:</p>
+<ul class="simple">
+<li><dl class="first docutils">
+<dt><code class="docutils literal notranslate"><span class="pre">fastq2bam</span></code> extracts UMIs and aligns FASTQs with BWA to generate BAM files.</dt>
+<dd>This script extracts molecular barcode tags and removes spacers from unzipped FASTQ
+files found in the input directory (file names must contain “R1” or “R2”). Barcode
+extracted FASTQ files are written to the ‘fastq_tag’ directory and are subsequently
+aligned with BWA mem. Bamfiles are written to the ‘bamfile” directory under the
+project folder.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><code class="docutils literal notranslate"><span class="pre">consensus</span></code> generates single-strand and duplex consensus sequences with ‘Singleton Correction’</dt>
+<dd>This script amalgamates duplicate reads in bamfiles into single-strand consensus
+sequences (SSCS), which are subsequently combined into duplex consensus sequences
+(DCS). Singletons (reads lacking duplicate sequences) are corrected, combined with
+SSCS to form SSCS + SC, and further collapsed to form DCS + SC. Finally, files
+containing all unique molecules (a.k.a. no duplicates) are created for SSCS and DCS.</dd>
+</dl>
+</li>
+</ul>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Commands:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="extract_barcodes.html">Extract barcodes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sscs.html">Single-strand consensus sequences (SSCS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="singleton_correction.html">Singleton Correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcs.html">Duplex consensus sequences (DCS)</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="quick_start.html" class="btn btn-neutral float-right" title="Quick start guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Nina Wang
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

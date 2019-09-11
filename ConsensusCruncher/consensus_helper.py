@@ -22,7 +22,7 @@
 ##############################
 #        Load Modules        #
 ##############################
-import pysam # Need to install
+import pysam  # Need to install
 import collections
 import re
 import array
@@ -135,13 +135,14 @@ def which_strand(read):
     elif read.flag in neg:
         strand = 'neg'
     elif read.flag in no_ori:
-        # Determine orientation of flags with no defined direction using order of chr coor
+        # Determine orientation of flags with no defined direction using order
+        # of chr coor
         if (read.reference_id < read.next_reference_id and which_read(read.flag) == 'R1') or \
                 (read.reference_id > read.next_reference_id and which_read(read.flag) == 'R2') or \
                 (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R1' and
-                         read.reference_start < read.next_reference_start) or \
+                 read.reference_start < read.next_reference_start) or \
                 (read.reference_id == read.next_reference_id and which_read(read.flag) == 'R2' and
-                         read.reference_start > read.next_reference_start):
+                 read.reference_start > read.next_reference_start):
             strand = 'pos'
         else:
             strand = 'neg'
@@ -184,7 +185,8 @@ def cigar_order(read, mate):
     ori_strand = which_strand(read)
     read_num = which_read(read.flag)
 
-    if (ori_strand == 'pos' and read_num == 'R1') or (ori_strand == 'neg' and read_num == 'R2'):
+    if (ori_strand == 'pos' and read_num == 'R1') or (
+            ori_strand == 'neg' and read_num == 'R2'):
         cigar = '{}_{}'.format(read.cigarstring,
                                mate.cigarstring)
     else:
@@ -292,7 +294,8 @@ def unique_tag(read, barcode, cigar):
     # Unique identifier for strand of individual molecules
     tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,  # mol barcode
                                            read.reference_id,  # chr
-                                           read.reference_start,  # start (0-based)
+                                           # start (0-based)
+                                           read.reference_start,
                                            read.next_reference_id,  # mate chr
                                            read.next_reference_start,  # mate start
                                            cigar,
@@ -302,8 +305,18 @@ def unique_tag(read, barcode, cigar):
     return tag
 
 
-def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, duplex,
-             read_chr=None, read_start=None, read_end=None, barcode_delim=None):
+def read_bam(
+        bamfile,
+        pair_dict,
+        read_dict,
+        csn_pair_dict,
+        tag_dict,
+        badRead_bam,
+        duplex,
+        read_chr=None,
+        read_start=None,
+        read_end=None,
+        barcode_delim=None):
     """(bamfile, dict, dict, dict, dict, bamfile, bool, str, int, int) ->
     dict, dict, dict, dict, int, int, int
 
@@ -377,7 +390,8 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
         # Parse out reads that don't fall within region
         if read_chr is not None:
             # pysam fetch will retrieve reads that fall outside region due to pairing (we filter out to prevent double
-            # counting as we'll be fetching those reads again when we iterate through the next region)
+            # counting as we'll be fetching those reads again when we iterate
+            # through the next region)
             if line.reference_start < read_start or line.reference_start > read_end:
                 continue
 
@@ -419,10 +433,12 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                 read = pair_dict[line.qname][0]
                 mate = pair_dict[line.qname][1]
                 # === Create consensus identifier ===
-                # Extract molecular barcode, barcodes in diff position for SSCS vs DCS generation
-                if duplex == None or duplex == False:
+                # Extract molecular barcode, barcodes in diff position for SSCS
+                # vs DCS generation
+                if duplex is None or duplex == False:
                     if barcode_delim is None:
-                        # SSCS query name: H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
+                        # SSCS query name:
+                        # H1080:278:C8RE3ACXX:6:1308:18882:18072|CACT
                         barcode = read.qname.split("|")[1]
                     else:
                         barcode = read.qname.split(barcode_delim)[1]
@@ -432,12 +448,14 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
 
                 # Consensus_tag cigar (ordered by strand and read)
                 cigar = cigar_order(read, mate)
-                # Assign consensus tag as new query name for paired consensus reads
+                # Assign consensus tag as new query name for paired consensus
+                # reads
                 consensus_tag = sscs_qname(read, mate, barcode, cigar)
 
                 for i in range(2):
                     read_i = pair_dict[line.qname][i]
-                    # Molecular identifier for grouping reads belonging to the same read of a strand of a molecule
+                    # Molecular identifier for grouping reads belonging to the
+                    # same read of a strand of a molecule
                     tag = unique_tag(read_i, barcode, cigar)
 
                     ######################
@@ -452,29 +470,37 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                         if consensus_tag not in csn_pair_dict:
                             csn_pair_dict[consensus_tag] = [tag]
                         elif len(csn_pair_dict[consensus_tag]) == 2:
-                            # Honestly this shouldn't happen anymore with these identifiers
-                            print("Consensus tag NOT UNIQUE -> multiple tags (4) share same consensus tag [due to poor "
-                                  "strand differentiation as a result of identifiers lacking complexity]")
+                            # Honestly this shouldn't happen anymore with these
+                            # identifiers
+                            print(
+                                "Consensus tag NOT UNIQUE -> multiple tags (4) share same consensus tag [due to poor "
+                                "strand differentiation as a result of identifiers lacking complexity]")
                             print(consensus_tag)
                             print(tag)
                             print(read_i)
                             print(csn_pair_dict[consensus_tag])
-                            print(read_dict[csn_pair_dict[consensus_tag][0]][0])
-                            print(read_dict[csn_pair_dict[consensus_tag][1]][0])
+                            print(
+                                read_dict[csn_pair_dict[consensus_tag][0]][0])
+                            print(
+                                read_dict[csn_pair_dict[consensus_tag][1]][0])
 
                             # Manual inspection should be done on these reads
                         else:
                             csn_pair_dict[consensus_tag].append(tag)
                     elif tag in tag_dict and read not in read_dict[tag]:
-                        # Append reads sharing the same unique tag together (PCR dupes)
+                        # Append reads sharing the same unique tag together
+                        # (PCR dupes)
                         read_dict[tag].append(read_i)
                         tag_dict[tag] += 1
                     else:
-                        # Data fetch error - line read twice (if its found in tag_dict and read_dict)
-                        print('Pair already written: line read twice - check to see if read overlapping / near cytoband'
-                              ' region (point of data division)')
+                        # Data fetch error - line read twice (if its found in
+                        # tag_dict and read_dict)
+                        print(
+                            'Pair already written: line read twice - check to see if read overlapping / near cytoband'
+                            ' region (point of data division)')
 
-                # remove read pair qname from pair_dict once reads added to read_dict
+                # remove read pair qname from pair_dict once reads added to
+                # read_dict
                 pair_dict.pop(line.qname)
 
     return read_dict, tag_dict, pair_dict, csn_pair_dict, counter, unmapped_mate, multiple_mapping, bad_spacer
@@ -488,11 +514,12 @@ def read_mode(field, bam_reads):
     """
     field = 'i.{}'.format(field)
     # Rank by number of occurrences
-    field_lst = collections.Counter(eval(field) for i in bam_reads).most_common()
+    field_lst = collections.Counter(eval(field)
+                                    for i in bam_reads).most_common()
     # Take max occurrences
     common_field_lst = [i for i, j in field_lst if j == field_lst[0][1]]
     # Randomly select max if there's multiple
-    common_field = common_field_lst[randint(0, len(common_field_lst)-1)]
+    common_field = common_field_lst[randint(0, len(common_field_lst) - 1)]
 
     return common_field
 
@@ -514,8 +541,10 @@ def consensus_flag(bam_reads):
     147 for second.
     """
     # Rank flags by number of occurrences
-    count_flags = collections.Counter(i.flag for i in bam_reads).most_common()  # [(97, 1), (99, 1)]
-    # List all flags with max count (will show multiple if there's a tie for the max count)
+    count_flags = collections.Counter(
+        i.flag for i in bam_reads).most_common()  # [(97, 1), (99, 1)]
+    # List all flags with max count (will show multiple if there's a tie for
+    # the max count)
     max_flag = [i for i, j in count_flags if j == count_flags[0][1]]
 
     if len(max_flag) != 1:
@@ -528,7 +557,8 @@ def consensus_flag(bam_reads):
         elif 163 in max_flag:
             flag = 163
         else:
-            flag = max_flag[randint(0, len(max_flag)-1)]  # If flag not properly paired/mapped, randomly select from max
+            # If flag not properly paired/mapped, randomly select from max
+            flag = max_flag[randint(0, len(max_flag) - 1)]
     else:
         flag = max_flag[0]
 
@@ -557,7 +587,8 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
             ->  Tags starting with ‘X’, ‘Y’ or ‘Z’ and tags containing lowercase letters in either position are reserved
                 for local use and will not be formally defined in any future version of these specifications.
     """
-    # Use first read in list as template (all reads should share same cigar, template length, and coor)
+    # Use first read in list as template (all reads should share same cigar,
+    # template length, and coor)
     template_read = bam_reads[0]
 
     # Create consensus read based on template read
@@ -566,20 +597,23 @@ def create_aligned_segment(bam_reads, sscs, sscs_qual, query_name):
     SSCS_read.query_sequence = sscs
     SSCS_read.reference_id = template_read.reference_id
     SSCS_read.reference_start = template_read.reference_start
-    SSCS_read.mapping_quality = read_mode('mapping_quality', bam_reads)  # Most common mapping quality
+    SSCS_read.mapping_quality = read_mode(
+        'mapping_quality',
+        bam_reads)  # Most common mapping quality
     SSCS_read.cigar = template_read.cigar
     SSCS_read.next_reference_id = template_read.next_reference_id
     SSCS_read.next_reference_start = template_read.next_reference_start
     SSCS_read.template_length = read_mode('template_length', bam_reads)
     SSCS_read.query_qualities = sscs_qual
 
-    # Most common flag used unless there's a tie, then flags are ranked if its 99/83/147/163, otherwise randomly picked
+    # Most common flag used unless there's a tie, then flags are ranked if its
+    # 99/83/147/163, otherwise randomly picked
     SSCS_read.flag = consensus_flag(bam_reads)
 
     # Optional fields
     try:
         SSCS_read.set_tag('RG', read_mode("get_tag('RG')", bam_reads))
-    except:
+    except BaseException:
         pass
 
     return SSCS_read
@@ -613,7 +647,7 @@ def duplex_tag(tag):
     2) read: R1 -> R2
 
     Note: don't need to swap cigar strings as they are already ordered by strand (pos R1 correspond to neg R2)
-    ** Barcode lists may contain barcodes of different lengths, so R1 and R2 barcodes are 
+    ** Barcode lists may contain barcodes of different lengths, so R1 and R2 barcodes are
     separated by '.'**
 
     Test cases:
@@ -632,12 +666,13 @@ def duplex_tag(tag):
     # Separate R1 and R2 barcodes with '.' separator
     if re.search('\.', barcode) is not None:
         split_index = barcode.index('.')
-        split_tag[0] = barcode[split_index+1:] + '.' + barcode[:split_index]
+        split_tag[0] = barcode[split_index + 1:] + '.' + barcode[:split_index]
     else:
-        barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
+        # number of barcode bases, avoids complications if num bases change
+        barcode_bases = int(len(barcode) / 2)
         # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
         split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
-        		
+
     # 2) Opposite read number in duplex
     read_num = split_tag[8]
     if read_num == 'R1':

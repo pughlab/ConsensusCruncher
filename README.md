@@ -2,6 +2,10 @@
 
 ConsensusCruncher is a tool that suppresses errors in next-generation sequencing data by using unique molecular identifers (UMIs) to amalgamate reads derived from the same DNA template into a consensus sequence.
 
+To learn more about ConsensusCruncher and its applications: https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz474/5498633
+
+For a full documentation of ConsensusCruncher, please see our [Read the Docs](https://consensuscruncher.readthedocs.io/en/latest/?)
+
 ## Quick start ##
 ### Dependencies ###
 This pipeline requires the following dependencies:
@@ -17,7 +21,7 @@ All required python libraries can be installed by running ```pip install -r requ
 ### Configuration ###
 Set up config.ini with the appropriate configurations for [fastq2bam] and [consensus] modes. Alternatively, you can provide command-line arguments. 
 
-ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is provided under ```[ConsensusCruncher repo]/test/bash_scripts/generate_scripts.sh```. 
+ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM file) at a time. A sample script to generate shell scripts for multiple samples is available [here](https://github.com/pughlab/ConsensusCruncher/blob/master/generate_scripts.sh). 
 
 ### Running ConsensusCruncher ###
 ## Individual files ##
@@ -58,7 +62,7 @@ extracted FASTQ files are written to the 'fastq_tag' directory and are subsequen
 aligned with BWA mem. Bamfiles are written to the 'bamfile" directory under the
 project folder.
 
-2. Run Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
+2. Run ConsensusCruncher.py [-c CONFIG] **consensus** with the required input parameters:
 ```
   -h, --help            show this help message and exit
   -i BAM, --input BAM   Input BAM file with barcodes extracted into header. [mandatory]
@@ -99,7 +103,7 @@ and DCS.
 <img src="https://user-images.githubusercontent.com/13406244/39268149-03b4c12a-489d-11e8-8011-f85ec8a82f39.png" width="50%" height="50%">
 
 ## Example ##
-In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the [test folder](https://github.com/pughlab/ConsensusCruncher/tree/master/test/fastq).
+In order to create consensus sequences, we first need to process fastq files into bam files. Sample fastq files can be found under the [test folder](https://github.com/pughlab/ConsensusCruncher/tree/master/test/fastq). Please note these fastqs are only for testing purposes. For the full fastqs used in our paper, please download the data from the NCBI Sequence Read Archive (SRA; https://www.ncbi.nlm.nih.gov/sra/) under access numbers SRP140497 and SRP141184.
 
 ### Fastqs to Bams ###
 Given **fastq** as input files, *fastq2bam* mode removes the spacer region and extracts the barcode tag from each sequencing read into the header with *extract_barcode.py*.
@@ -224,6 +228,15 @@ consensus sequence (SSCS) bamfile and an uncorrected singleton bamfile.
 * SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with corrected singletons to create
 an expanded pool of DCS reads (Figure illustrates singleton correction merged work flow).
 
+### Issues and feature requests ###
+Please use this repository templates available at [.github/ISSUE_TEMPLATE](https://github.com/pughlab/ConsensusCruncher/tree/master/.github/ISSUE_TEMPLATE)
 
 ### Who do I talk to? ###
-* Nina Wang (nina.tt.wang@gmail.com), Trevor Pugh (Trevor.Pugh@uhn.ca), Scott Bratman (Scott.Bratman@rmp.uhn.ca)
+* Jeff Bruce (Jeffrey.Bruce@uhnresearch.ca), Trevor Pugh (Trevor.Pugh@uhn.ca), Scott Bratman (Scott.Bratman@rmp.uhn.ca)
+
+### Development ###
+If your development environment doesn't already automatically use PEP8 for formatting, you can install a git hook to automatically format Python files as part of the commit process. To do so, [install autopep8](https://pypi.org/project/autopep8/#installation), then run this once:
+
+```
+git config core.hooksPath .githooks
+```
