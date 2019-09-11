@@ -53,14 +53,17 @@ def fastq2bam(args):
     A | C | G | T = constant spacer bases
     e.g. ATNNGT means barcode is flanked by two spacers matching 'AT' in front and 'GT' behind.
     """
+    if not os.access(args.output, os.W_OK):
+        raise OSError("Could not write to output directory: %s" % args.output)
+
     # Create directory for barcode extracted FASTQ files and BAM files
     fastq_dir = '{}/fastq_tag'.format(args.output)
     bam_dir = '{}/bamfiles'.format(args.output)
 
     # Check if dir exists and there's permission to write
-    if not os.path.exists(fastq_dir) and os.access(args.output, os.W_OK):
+    if not os.path.exists(fastq_dir):
         os.makedirs(fastq_dir)
-    if not os.path.exists(bam_dir) and os.access(args.output, os.W_OK):
+    if not os.path.exists(bam_dir):
         os.makedirs(bam_dir)
 
     # Set file variables
@@ -89,12 +92,10 @@ def fastq2bam(args):
         bad_barcode_dir = '{}/fastq_tag/bad_barcode'.format(args.output)
         barcode_dist_dir = '{}/fastq_tag/barcode_dist'.format(args.output)
 
-        if not os.path.exists(bad_barcode_dir) and os.access(
-                args.output, os.W_OK):
+        if not os.path.exists(bad_barcode_dir):
             os.makedirs(bad_barcode_dir)
 
-        if not os.path.exists(barcode_dist_dir) and os.access(
-                args.output, os.W_OK):
+        if not os.path.exists(barcode_dist_dir):
             os.makedirs(barcode_dist_dir)
 
         # Move files
@@ -146,6 +147,9 @@ def consensus(args):
     Finally, a BAM file containing only unique molecules (i.e. no duplicates) is created by merging DCSs, remaining
     SSCSs (those that could not form DCSs), and remaining singletons (those that could not be corrected).
     """
+    if not os.access(args.c_output, os.W_OK):
+        raise OSError("Could not write to output directory: %s" % args.c_output)
+
     code_dir = os.path.dirname(os.path.realpath(__file__))
 
     # Change bedfile if genome is hg38
@@ -159,7 +163,7 @@ def consensus(args):
     sample_dir = '{}/{}'.format(args.c_output, identifier)
 
     # Check if dir exists and there's permission to write
-    if not os.path.exists(sample_dir) and os.access(args.c_output, os.W_OK):
+    if not os.path.exists(sample_dir):
         os.makedirs(sample_dir)
 
     ########
