@@ -60,11 +60,8 @@ def fastq2bam(args):
     fastq_dir = '{}/fastq_tag'.format(args.output)
     bam_dir = '{}/bamfiles'.format(args.output)
 
-    # Check if dir exists and there's permission to write
-    if not os.path.exists(fastq_dir):
-        os.makedirs(fastq_dir)
-    if not os.path.exists(bam_dir):
-        os.makedirs(bam_dir)
+    os.makedirs(fastq_dir, exist_ok=True)
+    os.makedirs(bam_dir, exist_ok=True)
 
     # Set file variables
     filename = os.path.basename(args.fastq1).split(args.name, 1)[0]
@@ -92,11 +89,8 @@ def fastq2bam(args):
         bad_barcode_dir = '{}/fastq_tag/bad_barcode'.format(args.output)
         barcode_dist_dir = '{}/fastq_tag/barcode_dist'.format(args.output)
 
-        if not os.path.exists(bad_barcode_dir):
-            os.makedirs(bad_barcode_dir)
-
-        if not os.path.exists(barcode_dist_dir):
-            os.makedirs(barcode_dist_dir)
+        os.makedirs(bad_barcode_dir, exist_ok=True)
+        os.makedirs(barcode_dist_dir, exist_ok=True)
 
         # Move files
         os.rename('{}/{}_r1_bad_barcodes.txt'.format(fastq_dir, filename),
@@ -163,8 +157,7 @@ def consensus(args):
     sample_dir = '{}/{}'.format(args.c_output, identifier)
 
     # Check if dir exists and there's permission to write
-    if not os.path.exists(sample_dir):
-        os.makedirs(sample_dir)
+    os.makedirs(sample_dir, exist_ok=True)
 
     ########
     # SSCS #
