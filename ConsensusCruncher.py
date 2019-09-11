@@ -379,26 +379,25 @@ if __name__ == '__main__':
     sub_b = sub.add_parser('consensus', help=mode_consensus_help)
 
     # fastq2bam arg help messages
-    fastq1_help = "FASTQ containing Read 1 of paired-end reads. [MANDATORY]"
-    fastq2_help = "FASTQ containing Read 2 of paired-end reads. [MANDATORY]"
+    fastq1_help = "FASTQ containing Read 1 of paired-end reads."
+    fastq2_help = "FASTQ containing Read 2 of paired-end reads."
     output_help = "Output directory, where barcode extracted FASTQ and BAM files will be placed in " \
                   "subdirectories 'fastq_tag' and 'bamfiles' respectively (dir will be created if they " \
-                  "do not exist). [MANDATORY]"
+                  "do not exist)."
     filename_help = "Output filename. If none provided, default will extract output name by taking everything left of" \
                     " '_R'."
-    bwa_help = "Path to executable bwa. [MANDATORY]"
-    samtools_help = "Path to executable samtools. [MANDATORY]"
-    ref_help = "Reference (BWA index). [MANDATORY]"
+    bwa_help = "Path to executable bwa."
+    samtools_help = "Path to executable samtools."
+    ref_help = "Reference (BWA index)."
     genome_help = "Genome version (e.g. hg19 or hg38), default: hg19"
-    bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases). [MANDATORY]"
-    blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
+    bpattern_help = "Barcode pattern (N = random barcode bases, A|C|G|T = fixed spacer bases)."
+    blist_help = "List of barcodes (Text file with unique barcodes on each line)."
     bdelim_help = "Delimiter before barcode in read name " \
                   "(e.g. '|' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')"
 
     # Consensus arg help messages
-    bam_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
-    coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences. " \
-                   "[MANDATORY]"
+    bam_help = "Input BAM file with barcodes extracted into header."
+    coutput_help = "Output directory, where a folder will be created for the BAM file and consensus sequences."
     scorrect_help = "Singleton correction, default: True."
     bedfile_help = "Bedfile, default: cytoBand.txt. WARNING: It is HIGHLY RECOMMENDED that you use the default " \
                    "cytoBand.txt unless you're working with genome build that is not hg19 or hg38. Then a separate " \
@@ -449,18 +448,21 @@ if __name__ == '__main__':
         '--fastq1',
         dest='fastq1',
         metavar="FASTQ1",
+        required=True,
         type=str,
         help=fastq1_help)
     sub_a.add_argument(
         '--fastq2',
         dest='fastq2',
         metavar="FASTQ2",
+        required=True,
         type=str,
         help=fastq2_help)
     sub_a.add_argument(
         '-o',
         '--output',
         dest='output',
+        required=True,
         type=str,
         help=output_help)
     sub_a.add_argument(
@@ -469,24 +471,39 @@ if __name__ == '__main__':
         metavar="FILENAME",
         type=str,
         help=filename_help)
-    sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
-    sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
+    sub_a.add_argument(
+        '-b',
+        '--bwa',
+        metavar="BWA",
+        required=True,
+        type=str,
+        help=bwa_help)
+    sub_a.add_argument(
+        '-r',
+        '--ref',
+        metavar="REF",
+        required=True,
+        type=str,
+        help=ref_help)
     sub_a.add_argument(
         '-s',
         '--samtools',
         metavar="SAMTOOLS",
-        help=samtools_help,
-        type=str)
+        required=True,
+        type=str,
+        help=samtools_help)
     sub_a.add_argument(
         '-p',
         '--bpattern',
         metavar="PATTERN",
+        required=True,
         type=str,
         help=bpattern_help)
     sub_a.add_argument(
         '-l',
         '--blist',
         metavar="LIST",
+        required=True,
         type=str,
         help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
@@ -504,6 +521,7 @@ if __name__ == '__main__':
         '--output',
         metavar="OUTPUT",
         dest='c_output',
+        required=True,
         type=str,
         help=coutput_help)
     sub_b.add_argument(
