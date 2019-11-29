@@ -409,6 +409,7 @@ if __name__ == '__main__':
     # Parse commandline arguments
     sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
     sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str, help=fastq2_help)
+    sub_a.add_argument('--fastq_tag', dest='retag', metavar="RETAG", type=str, help=retag_help)
     sub_a.add_argument('-o', '--output', dest='output', type=str, help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
