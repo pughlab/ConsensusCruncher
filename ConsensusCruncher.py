@@ -65,7 +65,7 @@ def fastq2bam(args):
     ####################
     # Extract barcodes #
     ####################
-    if args.blist is not None and args.bpattern is not None:
+    if args.blist is not None and args.retag == True and args.bpattern is not None:
         extractb_cmd = "{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --bpattern {} "
         "--blist {}".format(code_dir, args.fastq1, args.fastq2, outfile, args.bpattern, args.blist)
     elif args.blist is None:
