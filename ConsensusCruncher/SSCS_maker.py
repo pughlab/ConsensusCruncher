@@ -107,7 +107,8 @@ def consensus_maker(readList, cutoff):
         quality_score = [[], [], [], []]
         phred_fail = 0
 
-        # Count bases and quality scores for position i across all reads in list
+        # Count bases and quality scores for position i across all reads in
+        # list
         for j in range(len(readList)):
             # Filter bases < phred quality 30 into separate list
             if readList[j].query_qualities[i] < 30:
@@ -126,21 +127,25 @@ def consensus_maker(readList, cutoff):
         max_nuc_index = nuc_count.index(max(nuc_count))
         max_nuc_quality = quality_score[max_nuc_index]
 
-        # Determine consensus phred quality through addition of quality scores (i.e. product of error probabilities)
+        # Determine consensus phred quality through addition of quality scores
+        # (i.e. product of error probabilities)
         base_fail = False
         if max_nuc_quality is not []:
             mol_qual = sum(max_nuc_quality)
-            # Set to max quality score if sum of qualities is greater than the threshold (Q60) imposed by genomic tools
+            # Set to max quality score if sum of qualities is greater than the
+            # threshold (Q60) imposed by genomic tools
             if mol_qual > 60:
                 mol_qual = 60
         else:
             mol_qual = 0
             base_fail = True
 
-        # Consensus only made if proportion of most common base is > cutoff (e.g. 70%)
-        phred_pass_reads = len(readList) - phred_fail  # Remove number of failed bases from total count
+        # Consensus only made if proportion of most common base is > cutoff
+        # (e.g. 70%)
+        # Remove number of failed bases from total count
+        phred_pass_reads = len(readList) - phred_fail
         if phred_pass_reads != 0:
-            prop_score = nuc_count[max_nuc_index]/phred_pass_reads
+            prop_score = nuc_count[max_nuc_index] / phred_pass_reads
             if prop_score >= cutoff:
                 consensus_read += nuc_lst[max_nuc_index]
                 quality_consensus.append(mol_qual)
@@ -172,25 +177,46 @@ class SmartFormatter(argparse.HelpFormatter):
 def main():
     # Command-line parameters
     parser = ArgumentParser(formatter_class=SmartFormatter)
-    parser.add_argument("--cutoff", action="store", dest="cutoff", type=float,
-                        help="R|Proportion of nucleotides at a given position in a\nsequence required to be identical"
-                        " to form a consensus\n(Recommendation: 0.7 - based on previous literature\nKennedy et al.)\n"
-                        "   Example (--cutoff = 0.7):\n"
-                        "       Four reads (readlength = 10) are as follows:\n"
-                        "       Read 1: ACTGATACTT\n"
-                        "       Read 2: ACTGAAACCT\n"
-                        "       Read 3: ACTGATACCT\n"
-                        "       Read 4: ACTGATACTT\n"
-                        "   The resulting SSCS is: ACTGATACNT",
-                        required=True)
-    parser.add_argument("--infile", action="store", dest="infile", help="Input BAM file", required=True)
-    parser.add_argument("--outfile", action="store", dest="outfile", help="Output SSCS BAM file", required=True)
-    parser.add_argument("--bdelim", action="store", dest="bdelim", default="|",
-                        help="Delimiter to differentiate barcodes from read name, default: '|'")
-    parser.add_argument("--bedfile", action="store", dest="bedfile",
-                        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
+    parser.add_argument(
+        "--cutoff",
+        action="store",
+        dest="cutoff",
+        type=float,
+        help="R|Proportion of nucleotides at a given position in a\nsequence required to be identical"
+        " to form a consensus\n(Recommendation: 0.7 - based on previous literature\nKennedy et al.)\n"
+        "   Example (--cutoff = 0.7):\n"
+        "       Four reads (readlength = 10) are as follows:\n"
+        "       Read 1: ACTGATACTT\n"
+        "       Read 2: ACTGAAACCT\n"
+        "       Read 3: ACTGATACCT\n"
+        "       Read 4: ACTGATACTT\n"
+        "   The resulting SSCS is: ACTGATACNT",
+        required=True)
+    parser.add_argument(
+        "--infile",
+        action="store",
+        dest="infile",
+        help="Input BAM file",
+        required=True)
+    parser.add_argument(
+        "--outfile",
+        action="store",
+        dest="outfile",
+        help="Output SSCS BAM file",
+        required=True)
+    parser.add_argument(
+        "--bdelim",
+        action="store",
+        dest="bdelim",
+        default="|",
+        help="Delimiter to differentiate barcodes from read name, default: '|'")
+    parser.add_argument(
+        "--bedfile",
+        action="store",
+        dest="bedfile",
+        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
-                        required=False)
+        required=False)
     args = parser.parse_args()
 
     ######################
@@ -199,13 +225,17 @@ def main():
     start_time = time.time()
     # ===== Initialize input and output bam files =====
     bamfile = pysam.AlignmentFile(args.infile, "rb")
-    SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template = bamfile)
+    SSCS_bam = pysam.AlignmentFile(args.outfile, "wb", template=bamfile)
     stats = open('{}.stats.txt'.format(args.outfile.split('.sscs')[0]), 'w')
-    singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
-    badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(args.outfile.split('.sscs')[0]), "wb", template = bamfile)
+    singleton_bam = pysam.AlignmentFile('{}.singleton.bam'.format(
+        args.outfile.split('.sscs')[0]), "wb", template=bamfile)
+    badRead_bam = pysam.AlignmentFile('{}.badReads.bam'.format(
+        args.outfile.split('.sscs')[0]), "wb", template=bamfile)
 
     # set up time tracker
-    time_tracker = open('{}.time_tracker.txt'.format(args.outfile.split('.sscs')[0]), 'w')
+    time_tracker = open(
+        '{}.time_tracker.txt'.format(
+            args.outfile.split('.sscs')[0]), 'w')
 
     # ===== Initialize dictionaries =====
     read_dict = collections.OrderedDict()
@@ -250,7 +280,9 @@ def main():
                             pair_dict=pair_dict,
                             csn_pair_dict=csn_pair_dict,
                             badRead_bam=badRead_bam,
-                            duplex=None,  # this indicates bamfile is not for making DCS (thus headers are diff)
+                            duplex=None,
+                            # this indicates bamfile is not for making DCS
+                            # (thus headers are diff)
                             read_chr=read_chr,
                             read_start=read_start,
                             read_end=read_end,
@@ -278,14 +310,17 @@ def main():
                     if tag_dict[tag] == 1:
                         singletons += 1
                         # Assign singletons our unique query name
-                        read_dict[tag][0].query_name = readPair + ':' + str(tag_dict[tag])
+                        read_dict[tag][0].query_name = readPair + \
+                            ':' + str(tag_dict[tag])
                         singleton_bam.write(read_dict[tag][0])
                     else:
                         # Create collapsed SSCSs
-                        SSCS = consensus_maker(read_dict[tag], float(args.cutoff))
+                        SSCS = consensus_maker(
+                            read_dict[tag], float(args.cutoff))
 
                         query_name = readPair + ':' + str(tag_dict[tag])
-                        SSCS_read = create_aligned_segment(read_dict[tag], SSCS[0], SSCS[1], query_name)
+                        SSCS_read = create_aligned_segment(
+                            read_dict[tag], SSCS[0], SSCS[1], query_name)
 
                         # Write consensus bam
                         SSCS_bam.write(SSCS_read)
@@ -299,8 +334,8 @@ def main():
 
         try:
             time_tracker.write(x + ': ')
-            time_tracker.write(str((time.time() - start_time)/60) + '\n')
-        except:
+            time_tracker.write(str((time.time() - start_time) / 60) + '\n')
+        except BaseException:
             # When no genomic coordinates (x) provided for data division
             continue
 
@@ -358,8 +393,10 @@ Bad spacers: {}\n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, sin
                 print("Mate not found")
 
     # ===== write tag family size dictionary to file =====
-    tags_per_fam = collections.Counter([i for i in tag_dict.values()])  # count of tags within each family size
-    lst_tags_per_fam = list(tags_per_fam.items())  # convert to list [(fam, numTags)]
+    # count of tags within each family size
+    tags_per_fam = collections.Counter([i for i in tag_dict.values()])
+    # convert to list [(fam, numTags)]
+    lst_tags_per_fam = list(tags_per_fam.items())
     with open(args.outfile.split('.sscs')[0] + '.read_families.txt', "w") as stat_file:
         stat_file.write('family_size\tfrequency\n')
         stat_file.write('\n'.join('%s\t%s' % x for x in lst_tags_per_fam))
@@ -367,12 +404,12 @@ Bad spacers: {}\n'''.format(counter, unmapped, multiple_mapping, SSCS_reads, sin
     # ===== Create tag family size plot =====
     total_reads = sum(tag_dict.values())
     # Read fraction = family size * frequency of family / total reads
-    read_fraction = [(i*j)/total_reads for i, j in lst_tags_per_fam]
+    read_fraction = [(i * j) / total_reads for i, j in lst_tags_per_fam]
 
     plt.bar(list(tags_per_fam), read_fraction)
     # Determine read family size range to standardize plot axis
-    plt.xlim([0, math.ceil(lst_tags_per_fam[-1][0]/10) * 10])
-    plt.savefig(args.outfile.split('.sscs')[0]+'_tag_fam_size.png')
+    plt.xlim([0, math.ceil(lst_tags_per_fam[-1][0] / 10) * 10])
+    plt.savefig(args.outfile.split('.sscs')[0] + '_tag_fam_size.png')
 
     # ===== Close files =====
     time_tracker.close()
@@ -389,5 +426,4 @@ if __name__ == "__main__":
     import time
     start_time = time.time()
     main()
-    print((time.time() - start_time)/60)
-
+    print((time.time() - start_time) / 60)
