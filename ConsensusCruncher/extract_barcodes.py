@@ -62,8 +62,8 @@ def check_overlap(blist):
     >>> check_overlap(['AACTCT', 'AACT'])
     True
     """
-overlap = False
-for barcode in blist:
+    overlap = False
+    for barcode in blist:
         over = [i for i in blist if barcode in i]
         if len(over) > 1:
             print(over) ;
