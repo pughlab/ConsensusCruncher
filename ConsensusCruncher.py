@@ -7,7 +7,6 @@ import argparse
 import configparser
 from subprocess import Popen, PIPE, call
 
-
 def sort_index(bam, samtools):
     """
     Sort and index BAM file.
@@ -74,49 +73,58 @@ def fastq2bam(args):
     else:
         extractb_cmd = "{}/ConsensusCruncher/extract_barcodes.py --read1 {} --read2 {} --outfile {} --blist {}".format(
             code_dir, args.fastq1, args.fastq2, outfile, args.blist)
-
+    
     print(extractb_cmd)
     os.system(extractb_cmd)
 
 
-    # Create directories for bad barcodes and barcode distribution histograms
+    #Create directories for bad barcodes and barcode distribution histograms
     if args.blist is not None:
-        bad_barcode_dir = '{}/fastq_tag/bad_barcode'.format(args.output)
-        barcode_dist_dir = '{}/fastq_tag/barcode_dist'.format(args.output)
+       bad_barcode_dir = '{}/fastq_tag/bad_barcode'.format(args.output)
+       barcode_dist_dir = '{}/fastq_tag/barcode_dist'.format(args.output)
 
-        if not os.path.exists(bad_barcode_dir) and os.access(args.output, os.W_OK):
-            os.makedirs(bad_barcode_dir)
+       if not os.path.exists(bad_barcode_dir) and os.access(args.output, os.W_OK):
+           os.makedirs(bad_barcode_dir)
 
-        if not os.path.exists(barcode_dist_dir) and os.access(args.output, os.W_OK):
-            os.makedirs(barcode_dist_dir)
+       if not os.path.exists(barcode_dist_dir) and os.access(args.output, os.W_OK):
+           os.makedirs(barcode_dist_dir)
 
-        # Move files 
-        os.rename('{}/{}_r1_bad_barcodes.txt'.format(fastq_dir, filename),
-              '{}/{}_r1_bad_barcodes.txt'.format(bad_barcode_dir, filename))
-        os.rename('{}/{}_r2_bad_barcodes.txt'.format(fastq_dir, filename),
-              '{}/{}_r2_bad_barcodes.txt'.format(bad_barcode_dir, filename))
-        os.rename('{}/{}_barcode_stats.png'.format(fastq_dir, filename),
-              '{}/{}_barcode_stats.png'.format(barcode_dist_dir, filename))
+   #     Move files 
+       os.rename('{}/{}_r1_bad_barcodes.txt'.format(fastq_dir, filename),
+             '{}/{}_r1_bad_barcodes.txt'.format(bad_barcode_dir, filename))
+       os.rename('{}/{}_r2_bad_barcodes.txt'.format(fastq_dir, filename),
+             '{}/{}_r2_bad_barcodes.txt'.format(bad_barcode_dir, filename))
+       os.rename('{}/{}_barcode_stats.png'.format(fastq_dir, filename),
+             '{}/{}_barcode_stats.png'.format(barcode_dist_dir, filename))
 
     #############
     # BWA Align #
     #############
     # Command split into chunks and bwa_id retained as str repr
-    bwa_cmd = args.bwa + ' mem -M -t4 -R'
-    bwa_id = "@RG\tID:1\tSM:" + filename + "\tPL:Illumina"
+    picard = "java -jar /mnt/work1/software/picard/2.10.9/picard.jar AddOrReplaceReadGroups"
+    
+    bwa_cmd = args.bwa + 'mem -M -t4'
+    
+    #bwa_id = "@RG\tID:1\tSM:" + filename + "\tPL:Illumina"
     bwa_args = '{} {}_barcode_R1.fastq {}_barcode_R2.fastq'.format(args.ref, outfile, outfile)
-
-    bwa = Popen(bwa_cmd.split(' ') + [bwa_id] + bwa_args.split(' '), stdout=PIPE)
-    # Sort BAM (BWA output piped into samtools for sorting before writing into bam)
+    
+    bwa_cmd = args.bwa + ' mem -M -t4 ' + bwa_args
+    print(bwa_cmd)
+    bwa = Popen(bwa_cmd.split(' '), stdout=PIPE)
+    #print(bwa)
+    # # Sort BAM (BWA output piped into samtools for sorting before writing into bam)
     sam1 = Popen((args.samtools + ' view -bhS -').split(' '), stdin=bwa.stdout, stdout=PIPE)
     sam2 = Popen((args.samtools + ' sort -').split(' '), stdin=sam1.stdout,
-                 stdout=open('{}/{}.sorted.bam'.format(bam_dir, filename), 'w'))
+                  stdout=open('{}/{}.sort.bam'.format(bam_dir, filename), 'w'))
+    
     sam2.communicate()
-
-    # Index BAM
+    
+    os.system(picard + ' I=' + '{}/{}.sort.bam'.format(bam_dir, filename) +' O=' + '{}/{}.sorted.bam'.format(bam_dir, filename) + ' RGID=1 ' + ' RGPL=Illumina  RGLB=lib1 RGPU=unit1 ' + ' RGSM='+ filename )
+    
+    # # Index BAM
     call("{} index {}/{}.sorted.bam".format(args.samtools, bam_dir, filename).split(' '))
-
-
+    
+    
 def consensus(args):
     """
     Using unique molecular identifiers (UMIs), duplicate reads from the same molecule are amalgamated into single-strand
