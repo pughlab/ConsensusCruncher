@@ -101,7 +101,7 @@ def fastq2bam(args):
     # BWA Align #
     #############
     # Command split into chunks and bwa_id retained as str repr
-    picard = "java -jar /mnt/work1/software/picard/2.10.9/picard.jar AddOrReplaceReadGroups"
+    picard =  args.picard + ' AddOrReplaceReadGroups' # "java -jar /mnt/work1/software/picard/2.10.9/picard.jar AddOrReplaceReadGroups"
     
     bwa_cmd = args.bwa + 'mem -M -t4'
     
@@ -357,6 +357,7 @@ if __name__ == '__main__':
     filename_help = "Output filename. If none provided, default will extract output name by taking everything left of" \
                     " '_R'."
     bwa_help = "Path to executable bwa. [MANDATORY]"
+    picard_help = "Path to executable picard add readgroups. [MANDATORY]"
     samtools_help = "Path to executable samtools. [MANDATORY]"
     ref_help = "Reference (BWA index). [MANDATORY]"
     genome_help = "Genome version (e.g. hg19 or hg38), default: hg19"
@@ -389,11 +390,12 @@ if __name__ == '__main__':
                     "output": output_help,
                     "name": "_R",
                     "bwa": bwa_help,
+                    "picard": picard_help,
                     "ref": ref_help,
                     "samtools": samtools_help,
                     "bpattern": None,
                     "blist": None,
-                    "bam": bam_help,
+                    "bam": bam_help,                   
                     "c_output": coutput_help,
                     "scorrect": 'True',
                     "genome": 'hg19',
@@ -420,6 +422,7 @@ if __name__ == '__main__':
     sub_a.add_argument('-o', '--output', dest='output', type=str, help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
+    sub_a.add_argument('-b', '--picard', metavar="PICARD", help=picard_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
     sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
     sub_a.add_argument('-p', '--bpattern', metavar="PATTERN", type=str, help=bpattern_help)
