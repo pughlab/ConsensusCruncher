@@ -76,7 +76,7 @@ def check_overlap(blist):
                     overlap= True
                 else:
                     print("No overlap")
-print(overlap) 
+ 
 
 
 def find_all(a_str, sub):
