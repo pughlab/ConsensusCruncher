@@ -101,7 +101,7 @@ def fastq2bam(args):
     # BWA Align #
     #############
     # Command split into chunks and bwa_id retained as str repr
-    picard =  args.picard + ' AddOrReplaceReadGroups' # "java -jar /mnt/work1/software/picard/2.10.9/picard.jar AddOrReplaceReadGroups"
+    picard =  'java -jar ' + args.picard + ' AddOrReplaceReadGroups' # "java -jar /mnt/work1/software/picard/2.10.9/picard.jar AddOrReplaceReadGroups"
     
     bwa_cmd = args.bwa + 'mem -M -t4'
     
@@ -422,7 +422,7 @@ if __name__ == '__main__':
     sub_a.add_argument('-o', '--output', dest='output', type=str, help=output_help)
     sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
     sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
-    sub_a.add_argument('-b', '--picard', metavar="PICARD", help=picard_help, type=str)
+    sub_a.add_argument('-g', '--picard', metavar="PICARD", help=picard_help, type=str)
     sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
     sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
     sub_a.add_argument('-p', '--bpattern', metavar="PATTERN", type=str, help=bpattern_help)
