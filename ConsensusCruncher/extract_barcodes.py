@@ -62,13 +62,29 @@ def check_overlap(blist):
     >>> check_overlap(['AACTCT', 'AACT'])
     True
     """
+    blist = list(set(blist))
+    print(blist)
     overlap = False
-
     for barcode in blist:
-        if sum([barcode in b for b in blist]) > 1:
-            overlap = True
-
-    return overlap
+        print("Barcode is", barcode)
+        over = [i for i in blist if barcode in i]
+        
+        if len(over) == 1:
+            print("No other barcode contains ", barcode, ". No Overlap")
+        if len(over) > 1:
+            print(barcode, "Is contained in ", over)
+            
+            m= (min(over, key=len))
+            print(m)
+            over.remove(m)
+            print(over)
+            for item in over:
+                if item[:len(m)] == m:
+                    overlap= True
+                    print( "There is overlapping barcodes")
+                else:
+                    print(item, "Does not starts with ", barcode, ". No Overlap")
+ 
 
 
 def find_all(a_str, sub):
