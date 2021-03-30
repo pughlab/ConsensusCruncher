@@ -23,7 +23,7 @@ for R1_file in $( ls $INPUT | grep R1); do
     R2_file=${R1_file//R1/R2}
     filename="$(echo $R1_file | sed 's/_R.*//')"  # Note file naming should be tailored as it currently removes everything right of _"R" e.g. sample_R1.fastq -> sample.fastq
 
-    echo -e "#/bin/bash\n#$ -S /bin/bash\n#$ -cwd\n\nmodule load python3/3.4.3\n" > $QSUBDIR/$filename.sh
+    echo -e "#!/bin/bash\n#$ -S /bin/bash\n#$ -cwd\n\nmodule load python3/3.4.3\n" > $QSUBDIR/$filename.sh
     echo -e "\nmodule load picard/2.10.9 \n" >> $QSUBDIR/$filename.sh
     ###############
     #  fastq2bam  #
