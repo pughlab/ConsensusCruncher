@@ -83,7 +83,7 @@ def check_overlap(blist):
                     overlap= True
                     print( "There is overlapping barcodes")
                 else:
-                    print(item, "Does not starts with ", barcode, ". No Overlap")
+                    print(item, "Does not start with ", barcode, ". No Overlap")
  
 
 
