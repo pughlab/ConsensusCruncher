@@ -417,28 +417,28 @@ if __name__ == '__main__':
             sub_b.set_defaults(**defaults)
 
     # Parse commandline arguments
-    sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, help=fastq1_help)
-    sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str, help=fastq2_help)
-    sub_a.add_argument('-o', '--output', dest='output', type=str, help=output_help)
-    sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, help=filename_help)
-    sub_a.add_argument('-b', '--bwa', metavar="BWA", help=bwa_help, type=str)
-    sub_a.add_argument('-g', '--picard', metavar="PICARD", help=picard_help, type=str)
-    sub_a.add_argument('-r', '--ref', metavar="REF", help=ref_help, type=str)
-    sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
-    sub_a.add_argument('-p', '--bpattern', metavar="PATTERN", type=str, help=bpattern_help)
-    sub_a.add_argument('-l', '--blist', metavar="LIST", type=str, help=blist_help)
+    sub_a.add_argument('--fastq1', dest='fastq1', metavar="FASTQ1", type=str, default = fastq1_help, help=fastq1_help)
+    sub_a.add_argument('--fastq2', dest='fastq2', metavar="FASTQ2", type=str,default = fastq2_help,  help=fastq2_help)
+    sub_a.add_argument('-o', '--output', dest='output', type=str, default = output_help,  help=output_help)
+    sub_a.add_argument('-n', '--name', metavar="FILENAME", type=str, default ="_R" , help=filename_help)
+    sub_a.add_argument('-b', '--bwa', metavar="BWA", default = bwa_help,  help=bwa_help, type=str)
+    sub_a.add_argument('-g', '--picard', metavar="PICARD", default=picard_help , help=picard_help, type=str)
+    sub_a.add_argument('-r', '--ref', metavar="REF", default = ref_help,  help=ref_help, type=str)
+    sub_a.add_argument('-s', '--samtools', metavar="SAMTOOLS", default =samtools_help,help=samtools_help, type=str)
+    sub_a.add_argument('-p', '--bpattern', metavar="PATTERN",  type=str, help=bpattern_help)
+    sub_a.add_argument('-l', '--blist', metavar="LIST",  type=str, help=blist_help)
     sub_a.set_defaults(func=fastq2bam)
 
     # Set args for 'consensus' mode
     sub_b.add_argument('-i', '--input', metavar="BAM", dest='bam', help=bam_help, type=str)
     sub_b.add_argument('-o', '--output', metavar="OUTPUT", dest='c_output', type=str, help=coutput_help)
     sub_b.add_argument('-s', '--samtools', metavar="SAMTOOLS", help=samtools_help, type=str)
-    sub_b.add_argument('--scorrect', help=scorrect_help, choices=['True', 'False'])
-    sub_b.add_argument('-g', '--genome', metavar="VERSION", dest='genome', help=genome_help, choices=['hg19', 'hg38'])
+    sub_b.add_argument('--scorrect', default= 'True',  help=scorrect_help, choices=['True', 'False'])
+    sub_b.add_argument('-g', '--genome', metavar="VERSION", dest='genome', default = 'hg19', help=genome_help, choices=['hg19', 'hg38'])
     sub_b.add_argument('-b', '--bedfile', help=bedfile_help, type=str)
-    sub_b.add_argument('--cutoff', type=float, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
+    sub_b.add_argument('--cutoff', type=float, default = 0.7, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
                                                     "same base to form a consensus).")
-    sub_b.add_argument('-d', '--bdelim', metavar="DELIMITER", type=str, help=bdelim_help)
+    sub_b.add_argument('-d', '--bdelim', metavar="DELIMITER", default ='|', type=str, help=bdelim_help)
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help) # Make default
     sub_b.set_defaults(func=consensus)
 
