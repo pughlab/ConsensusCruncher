@@ -194,7 +194,7 @@ def cigar_order(read, mate):
     return cigar
 
 
-def sscs_qname(read, mate, barcode, cigar):
+def sscs_qname(read, mate, barcode, qname_delim, cigar):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
     Return new query name for consensus sequences:
     [Barcode]_[Read Chr]_[Read Start]_[Mate Chr]_[Mate Start]_[Read Cigar String]_[Mate Cigar String]_[Strand]_[Absolute insert size]:[Family Size]
@@ -235,19 +235,28 @@ def sscs_qname(read, mate, barcode, cigar):
         mate_coor = read.reference_start
 
     strand = which_strand(read)
-    query_tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,
-                                                 read_chr,
-                                                 read_coor,
-                                                 mate_chr,
-                                                 mate_coor,
-                                                 cigar,
-                                                 strand,
-                                                 abs(read.template_length))
+    #query_tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,
+    #                                             read_chr,
+    #                                             read_coor,
+    #                                             mate_chr,
+    #                                             mate_coor,
+    #                                             cigar,
+    #                                             strand,
+    #                                             abs(read.template_length))
+    query_tag_info = [barcode,
+                      read_chr,
+                      read_coor,
+                      mate_chr,
+                      mate_coor,
+                      cigar,strand,
+                      abs(read.template_length)
+                     ]
+    query_tag = f'{qname_delim}'.join([str(x) for x in query_tag_info])
 
     return query_tag
 
 
-def unique_tag(read, barcode, cigar):
+def unique_tag(read, barcode, qname_delim, cigar):
     """(pysam.calignedsegment.AlignedSegment, str, str) -> str
     Return unique identifier tag for one read of a strand of a molecule.
 
@@ -290,20 +299,31 @@ def unique_tag(read, barcode, cigar):
     readNum = which_read(read.flag)
 
     # Unique identifier for strand of individual molecules
-    tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,  # mol barcode
-                                           read.reference_id,  # chr
-                                           read.reference_start,  # start (0-based)
-                                           read.next_reference_id,  # mate chr
-                                           read.next_reference_start,  # mate start
-                                           cigar,
-                                           orientation,  # strand direction
-                                           readNum
-                                           )
+    #tag = '{}_{}_{}_{}_{}_{}_{}_{}'.format(barcode,  # mol barcode
+    #                                       read.reference_id,  # chr
+    #                                       read.reference_start,  # start (0-based)
+    #                                       read.next_reference_id,  # mate chr
+    #                                       read.next_reference_start,  # mate start
+    #                                       cigar,
+    #                                       orientation,  # strand direction
+    #                                       readNum
+    #                                       )
+    tag_info = [barcode,  # mol barcode
+                read.reference_id,  # chr
+                read.reference_start,  # start (0-based)
+                read.next_reference_id,  # mate chr
+                read.next_reference_start,  # mate start
+                cigar,
+                orientation,  # strand direction
+                readNum
+               ]
+    tag = f'{qname_delim}'.join([str(x) for x in tag_info])
+
     return tag
 
 
 def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam, duplex,
-             read_chr=None, read_start=None, read_end=None, barcode_delim=None):
+             read_chr=None, read_start=None, read_end=None, barcode_delim=None, between_barcodes_delim=None, qname_delim=None):
     """(bamfile, dict, dict, dict, dict, bamfile, bool, str, int, int) ->
     dict, dict, dict, dict, int, int, int
 
@@ -333,6 +353,8 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
 
     # For bams with barcodes extracted by other software and placed into read name with different delimiters
     - barcode_delim (str): sequence before barcode (e.g. '|' for 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')
+    - between_barcode_delim (str): sequence between a pair of barcodes (e.g. '.' for 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TT.TT')
+    - qname_delim (str): info in qname (e.g. '_' for 'GACTTC.GCCAT_0_3_0_16474_95M_94M_neg_16378:4')
 
     === Output ===
     1) read_dict: dictionary of bamfile reads grouped by unique molecular tags
@@ -428,17 +450,18 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                         barcode = read.qname.split(barcode_delim)[1]
                 else:
                     # DCS query name: CCTG_12_25398000_12_25398118_neg:5
-                    barcode = read.qname.split("_")[0]
+                    #barcode = read.qname.split("_")[0]
+                    barcode = read.qname.split(qname_delim)[0]
 
                 # Consensus_tag cigar (ordered by strand and read)
                 cigar = cigar_order(read, mate)
                 # Assign consensus tag as new query name for paired consensus reads
-                consensus_tag = sscs_qname(read, mate, barcode, cigar)
+                consensus_tag = sscs_qname(read, mate, barcode, qname_delim, cigar)
 
                 for i in range(2):
                     read_i = pair_dict[line.qname][i]
                     # Molecular identifier for grouping reads belonging to the same read of a strand of a molecule
-                    tag = unique_tag(read_i, barcode, cigar)
+                    tag = unique_tag(read_i, barcode, qname_delim, cigar)
 
                     ######################
                     #   Assign to Dict   #
@@ -602,7 +625,7 @@ def reverse_seq(seq):
     return rev_comp
 
 
-def duplex_tag(tag):
+def duplex_tag(tag, between_barcodes_delim, qname_delim):
     """(str) -> str
     Return tag for duplex read.
 
@@ -626,23 +649,23 @@ def duplex_tag(tag):
     >>> duplex_tag('CTGT_7_55224319_1_1507809_98M_98M_rev_R1')
     'GTCT_7_55224319_1_1507809_98M_98M_pos_rev_R2'
     """
-    split_tag = tag.split('_')
+    split_tag = tag.split(qname_delim)
     # 1) Barcode needs to be swapped
     barcode = split_tag[0]
     # Separate R1 and R2 barcodes with '.' separator
-    if re.search('\.', barcode) is not None:
-        split_index = barcode.index('.')
-        split_tag[0] = barcode[split_index+1:] + '.' + barcode[:split_index]
+    if re.search(between_barcodes_delim, barcode) is not None:
+        split_index = barcode.index(between_barcodes_delim)
+        split_tag[0] = barcode[split_index+1:] + between_barcodes_delim + barcode[:split_index]
     else:
         barcode_bases = int(len(barcode) / 2)  # number of barcode bases, avoids complications if num bases change
         # duplex barcode is the reverse (e.g. AT|GC -> GC|AT [dup])
         split_tag[0] = barcode[barcode_bases:] + barcode[:barcode_bases]
         		
     # 2) Opposite read number in duplex
-    read_num = split_tag[8]
+    read_num = split_tag[tag.count(qname_delim)]
     if read_num == 'R1':
-        split_tag[8] = 'R2'
+        split_tag[tag.count(qname_delim)] = 'R2'
     else:
-        split_tag[8] = 'R1'
+        split_tag[tag.count(qname_delim)] = 'R1'
 
     return '_'.join(split_tag)

@@ -20,6 +20,9 @@
 # --singleton SingletonBAM  input singleton BAM file
 # --bedfile BEDFILE         Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt -
 #                           See bed_separator.R for making your own bed file based on specific coordinates)
+# --bdelim Delimiter	Delimiter before barcode in read name
+# --bpdelim BarcodesDelimiter	Delimiter betwen barcode pair in read name
+# --qdelim QnameDelimiter	Delimiter in query read name created by ConsensusCruncher (NOT ':')
 #
 # Inputs:
 # 1. A position-sorted BAM file containing paired-end single reads with barcode identifiers in the header/query name
@@ -118,9 +121,15 @@ def main():
     parser.add_argument("--singleton", action="store", dest="singleton", help="input singleton BAM file",
                         required=True, type=str)
     parser.add_argument("--bedfile", action="store", dest="bedfile",
-                        help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
-                        See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
-                        required=False)
+                          help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
+                          See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
+                          required=False)
+    parser.add_argument("--bdelim", action="store", dest="bdelim", help="Delimiter before barcode in read name",
+                        required=False, type=str)
+    parser.add_argument("--bpdelim", action="store", dest="bpdelim", help="Delimiter betwen barcode pair in read name",
+                        required=False, type=str)
+    parser.add_argument("--qdelim", action="store", dest="qdelim", help="Delimiter in query read name created by ConsensusCruncher (NOT ':')",
+                        required=False, type=str)
     args = parser.parse_args()
 
     ######################
@@ -200,17 +209,33 @@ def main():
                 last_chr = read_chr
 
         # === Store singleton reads in dictionaries ===
-        singleton = read_bam(singleton_bam,
-                             pair_dict=singleton_pair,
-                             read_dict=singleton_dict,  # keeps track of paired tags
-                             tag_dict=singleton_tag,
-                             csn_pair_dict=singleton_csn_pair,
-                             badRead_bam=None,
-                             duplex=True,
-                             read_chr=read_chr,
-                             read_start=read_start,
-                             read_end=read_end
-                             )
+        if args.bdelim is not None:
+            singleton = read_bam(singleton_bam,
+                                 pair_dict=singleton_pair,
+                                 read_dict=singleton_dict,  # keeps track of paired tags
+                                 tag_dict=singleton_tag,
+                                 csn_pair_dict=singleton_csn_pair,
+                                 badRead_bam=None,
+                                 duplex=True,
+                                 read_chr=read_chr,
+                                 read_start=read_start,
+                                 read_end=read_end,
+                                 barcode_delim=args.bdelim,
+                                 between_barcodes_delim=args.bpdelim,
+                                 qname_delim=args.qdelim
+                                 )
+        else:
+            singleton = read_bam(singleton_bam,
+                                 pair_dict=singleton_pair,
+                                 read_dict=singleton_dict,  # keeps track of paired tags
+                                 tag_dict=singleton_tag,
+                                 csn_pair_dict=singleton_csn_pair,
+                                 badRead_bam=None,
+                                 duplex=True,
+                                 read_chr=read_chr,
+                                 read_start=read_start,
+                                 read_end=read_end,
+                                 )
 
         singleton_dict = singleton[0]
         singleton_tag = singleton[1]
@@ -222,17 +247,33 @@ def main():
         singleton_multiple_mappings += singleton[6]
 
         # === Store SSCS reads in dictionaries ===
-        sscs = read_bam(sscs_bam,
-                        pair_dict=sscs_pair,
-                        read_dict=sscs_dict,  # keeps track of paired tags
-                        tag_dict=sscs_tag,
-                        csn_pair_dict=sscs_csn_pair,
-                        badRead_bam=None,
-                        duplex=True,
-                        read_chr=read_chr,
-                        read_start=read_start,
-                        read_end=read_end
-                        )
+        if args.bdelim is not None:
+            sscs = read_bam(sscs_bam,
+                            pair_dict=sscs_pair,
+                            read_dict=sscs_dict,  # keeps track of paired tags
+                            tag_dict=sscs_tag,
+                            csn_pair_dict=sscs_csn_pair,
+                            badRead_bam=None,
+                            duplex=True,
+                            read_chr=read_chr,
+                            read_start=read_start,
+                            read_end=read_end,
+                            barcode_delim=args.bdelim,
+                            between_barcodes_delim=args.bpdelim,
+                            qname_delim=args.qdelim
+                            )
+        else:
+            sscs = read_bam(sscs_bam,
+                            pair_dict=sscs_pair,
+                            read_dict=sscs_dict,  # keeps track of paired tags
+                            tag_dict=sscs_tag,
+                            csn_pair_dict=sscs_csn_pair,
+                            badRead_bam=None,
+                            duplex=True,
+                            read_chr=read_chr,
+                            read_start=read_start,
+                            read_end=read_end,
+                            )
 
         sscs_dict = sscs[0]
         sscs_tag = sscs[1]
@@ -251,7 +292,7 @@ def main():
                 counter += 1
                 # Check to see if singleton can be corrected by SSCS, then by singletons
                 # If not, add to 'uncorrected' bamfile
-                duplex = duplex_tag(tag)
+                duplex = duplex_tag(tag, args.bpdelim, args.qdelim)
                 query_name = readPair + ':1'  # Reflect corrected singleton (uncorrected won't have our unique ID tag)
 
                 # 1) Singleton correction by complementary SSCS

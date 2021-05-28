@@ -165,14 +165,14 @@ def consensus(args):
         sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {}".format(
             code_dir, args.bam, sscs, args.cutoff)
     elif args.bedfile == 'False' and args.bdelim != '|':
-        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bdelim {}".format(
-            code_dir, args.bam, sscs, args.cutoff, args.bdelim)
+        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bdelim {} --bpdelim {} --qdelim {}".format(
+            code_dir, args.bam, sscs, args.cutoff, args.bdelim, args.bpdelim, args.qdelim)
     elif args.bedfile != 'False' and args.bdelim == '|':
         sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {}".format(
             code_dir, args.bam, sscs, args.cutoff, args.bedfile)
     else:
-        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim {}".format(
-            code_dir, args.bam, sscs, args.cutoff, args.bedfile, args.bdelim)
+        sscs_cmd = "{}/ConsensusCruncher/SSCS_maker.py --infile {} --outfile {} --cutoff {} --bedfile {} --bdelim {} --bpdelim {} --qdelim {}".format(
+            code_dir, args.bam, sscs, args.cutoff, args.bedfile, args.bdelim, args.bpdelim, args.qdelim)
 
     print(sscs_cmd)
     os.system(sscs_cmd)
@@ -196,11 +196,15 @@ def consensus(args):
               '{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier))
 
     # Run DCS_maker
-    if args.bedfile == 'False':
+    if args.bedfile == 'False' and args.bdelim == '|':
         dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs, dcs)
+    elif args.bedfile == 'False' and args.bdelim != '|':
+        dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bdelim {} --bpdelim {} --qdelim {}".format(code_dir, sscs, dcs, args.bdelim, args.bpdelim, args.qdelim)
+    elif args.bedfile != 'False' and args.bdelim == '|':
+        dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs, dcs, args.bedfile)
     else:
-        dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs,
-                                                                                                   dcs, args.bedfile)
+        dcs_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {} --bdelim {} --bpdelim {} --qdelim {}".format(code_dir, sscs, dcs, args.bedfile, args.bdelim, args.bpdelim, args.qdelim)
+
     print(dcs_cmd)
     os.system(dcs_cmd)
 
@@ -219,11 +223,15 @@ def consensus(args):
         os.rename('{}/dcs/{}.time_tracker.txt'.format(sample_dir, identifier),
                   '{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier))
 
-        if args.bedfile == 'False':
+        if args.bedfile == 'False' and args.bdelim == '|':
             sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {}".format(code_dir, sing)
+        elif args.bedfile == 'False' and args.bdelim != '|':
+            sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {} --bdelim {} --bpdelim {} --qdelim {}".format(code_dir, sing, args.bdelim, args.bpdelim, args.qdelim)
+        elif args.bedfile != 'False' and args.bdelim == '|':
+            sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {}".format(code_dir, sing, args.bedfile)
         else:
-            sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {}".format(code_dir, sing,
-                                                                                                       args.bedfile)
+            sc_cmd = "{}/ConsensusCruncher/singleton_correction.py --singleton {} --bedfile {} --bdelim {} --bpdelim {} --qdelim {}".format(code_dir, sing,
+                                                                                                       args.bedfile, args.bdelim, args.bpdelim, args.qdelim)
         print(sc_cmd)
         os.system(sc_cmd)
 
@@ -261,11 +269,16 @@ def consensus(args):
         os.rename('{}/sscs/{}.time_tracker.txt'.format(sample_dir, identifier),
                   '{}/dcs_sc/{}.time_tracker.txt'.format(sample_dir, identifier))
 
-        if args.bedfile == 'False':
+        if args.bedfile == 'False' and args.bdelim == '|':
             dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {}".format(code_dir, sscs_sc, dcs_sc)
+        elif args.bedfile == 'False' and args.bdelim != '|':
+            dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bdelim {} --bpdelim {} --qdelim {}".format(code_dir, sscs_sc, dcs_sc, args.bdelim, args.bpdelim, args.qdelim)
+        elif args.bedfile != 'False' and args.bdelim == '|':
+            dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(code_dir, sscs_sc, dcs_sc, args.bedfile)
         else:
-            dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {}".format(
-                code_dir, sscs_sc, dcs_sc, args.bedfile)
+            dcs_sc_cmd = "{}/ConsensusCruncher/DCS_maker.py --infile {} --outfile {} --bedfile {} --bdelim {} --bpdelim {} --qdelim {}".format(
+                code_dir, sscs_sc, dcs_sc, args.bedfile, args.bdelim, args.bpdelim, args.qdelim)
+
         print(dcs_sc_cmd)
         os.system(dcs_sc_cmd)
 
@@ -365,6 +378,10 @@ if __name__ == '__main__':
     blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
     bdelim_help = "Delimiter before barcode in read name " \
                   "(e.g. '|' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')"
+    bpdelim_help = "Delimiter betwen barcode pair in read name " \
+                  "(e.g. '.' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TT.TT')"
+    qdelim_help = "Delimiter in query read name created by ConsensusCruncher (NOT ':')" \
+                  "(e.g. '_' in 'GACTTC.GCCAT_0_3_0_16474_95M_94M_neg_16378:4')"
 
     # Consensus arg help messages
     bam_help = "Input BAM file with barcodes extracted into header. [MANDATORY]"
@@ -402,6 +419,8 @@ if __name__ == '__main__':
                     "bedfile": bedfile,
                     "cutoff": 0.7,
                     "bdelim": '|',
+                    "bpdelim": '.',
+                    "qdelim": '_',
                     "cleanup": cleanup_help}
 
         config = configparser.ConfigParser()
@@ -439,6 +458,8 @@ if __name__ == '__main__':
     sub_b.add_argument('--cutoff', type=float, default = 0.7, help="Consensus cut-off, default: 0.7 (70%% of reads must have the "
                                                     "same base to form a consensus).")
     sub_b.add_argument('-d', '--bdelim', metavar="DELIMITER", default ='|', type=str, help=bdelim_help)
+    sub_b.add_argument('-u', '--bpdelim', metavar="BARCODE_DELIMITER", default ='.', type=str, help=bpdelim_help)
+    sub_b.add_argument('-q', '--qdelim', metavar="QNAME_DELIMITER", default ='_', type=str, help=qdelim_help)
     sub_b.add_argument('--cleanup', choices=['True', 'False'], help=cleanup_help) # Make default
     sub_b.set_defaults(func=consensus)
 

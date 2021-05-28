@@ -22,6 +22,9 @@
 # --outfile OUTFILE   output BAM file
 # --bedfile BEDFILE   Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt -
 #                     See bed_separator.R for making your own bed file based on a target panel / specific coordinates)
+# --bdelim Delimiter    Delimiter before barcode in read name
+# --bpdelim BarcodesDelimiter   Delimiter betwen barcode pair in read name
+# --qdelim QnameDelimiter       Delimiter in query read name created by ConsensusCruncher (NOT ':')
 #
 # Inputs:
 # 1. A position-sorted BAM file containing paired-end reads with SSCS consensus identifier in the header/query name
@@ -57,7 +60,7 @@ from consensus_helper import *
 ###############################
 #       Helper Functions      #
 ###############################
-def dcs_consensus_tag(tag, ds):
+def dcs_consensus_tag(tag, ds, qname_delim):
     """(str, str) -> str
     Return consensus tag for duplex reads.
 
@@ -73,25 +76,29 @@ def dcs_consensus_tag(tag, ds):
     >>> dcs_consensus_tag('TTTC_7_140477735_7_140477790_98M_98M_neg:3', 'TCTT_7_140477735_7_140477790_98M_98M_pos:2')
     'TCTT_TTTC_7_140477735_7_140477790_98M_98M:2_3'
     """
-    barcode = tag.split('_')[0]
-    duplex_barcode = ds.split('_')[0]
-    tag_coor = tag.split('_', 1)[1].rsplit('_', 1)[0]
+    barcode = tag.split(qname_delim)[0]
+    duplex_barcode = ds.split(qname_delim)[0]
+    tag_coor = tag.split(qname_delim, 1)[1].rsplit(qname_delim, 1)[0]
     tag_fam_size = tag.split(':')[1]
     ds_fam_size = ds.split(':')[1]
 
     # Order tag barcodes and family size based on strand (pos then negative)
     if 'pos' in tag:
-        dcs_query_name = "{}_{}_{}:{}_{}".format(barcode,
-                                                 duplex_barcode,
-                                                 tag_coor,
-                                                 tag_fam_size,
-                                                 ds_fam_size)
+        #dcs_query_name = "{}_{}_{}:{}_{}".format(barcode,
+        #                                         duplex_barcode,
+        #                                         tag_coor,
+        #                                         tag_fam_size,
+        #                                         ds_fam_size)
+        dcs_query_name = ':'.join([f'{qname_delim}'.join([str(x) for x in [barcode, duplex_barcode, tag_coor]]),
+                                   f'{qname_delim}'.join([str(x) for x in [tag_fam_size,ds_fam_size]])])
     else:
-        dcs_query_name = "{}_{}_{}:{}_{}".format(duplex_barcode,
-                                                 barcode,
-                                                 tag_coor,
-                                                 ds_fam_size,
-                                                 tag_fam_size)
+        #dcs_query_name = "{}_{}_{}:{}_{}".format(duplex_barcode,
+        #                                         barcode,
+        #                                         tag_coor,
+        #                                         ds_fam_size,
+        #                                         tag_fam_size)
+        dcs_query_name = ':'.join([f'{qname_delim}'.join([str(x) for x in [duplex_barcode, barcode, tag_coor]]),
+                                   f'{qname_delim}'.join([str(x) for x in [ds_fam_size,tag_fam_size]])])
 
     return dcs_query_name
 
@@ -134,6 +141,12 @@ def main():
                         help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
                         required=False)
+    parser.add_argument("--bdelim", action="store", dest="bdelim", help="Delimiter before barcode in read name",
+                        required=False, type=str)
+    parser.add_argument("--bpdelim", action="store", dest="bpdelim", help="Delimiter betwen barcode pair in read name",
+                        required=False, type=str)
+    parser.add_argument("--qdelim", action="store", dest="qdelim", help="Delimiter in query read name created by ConsensusCruncher (NOT ':')",
+                        required=False, type=str)
     args = parser.parse_args()
 
     ######################
@@ -198,17 +211,33 @@ def main():
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
-        chr_data = read_bam(sscs_bam,
-                            pair_dict=pair_dict,
-                            read_dict=read_dict,
-                            csn_pair_dict=csn_pair_dict,
-                            tag_dict=tag_dict,
-                            badRead_bam=None,
-                            duplex=True,
-                            read_chr=read_chr,
-                            read_start=read_start,
-                            read_end=read_end
-                            )
+        if args.bdelim is not None:
+            chr_data = read_bam(sscs_bam,
+                                pair_dict=pair_dict,
+                                read_dict=read_dict,
+                                csn_pair_dict=csn_pair_dict,
+                                tag_dict=tag_dict,
+                                badRead_bam=None,
+                                duplex=True,
+                                read_chr=read_chr,
+                                read_start=read_start,
+                                read_end=read_end,
+                                barcode_delim=args.bdelim,
+                                between_barcodes_delim=args.bpdelim,
+                                qname_delim=args.qdelim
+                                )
+        else:
+            chr_data = read_bam(sscs_bam,
+                                pair_dict=pair_dict,
+                                read_dict=read_dict,
+                                csn_pair_dict=csn_pair_dict,
+                                tag_dict=tag_dict,
+                                badRead_bam=None,
+                                duplex=True,
+                                read_chr=read_chr,
+                                read_start=read_start,
+                                read_end=read_end
+                                )
 
         read_dict = chr_data[0]
         tag_dict = chr_data[1]
@@ -226,7 +255,7 @@ def main():
         for readPair in list(csn_pair_dict.keys()):
             for tag in csn_pair_dict[readPair]:
                 # Determine tag of duplex read
-                ds = duplex_tag(tag)
+                ds = duplex_tag(tag, between_barcodes_delim, qname_delim)
 
                 # === Group duplex read pairs and create consensus ===
                 # Check presence of duplex pair
@@ -238,7 +267,7 @@ def main():
                         consensus_seq, consensus_qual = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
 
                         # consensus duplex tag
-                        dcs_query_name = dcs_consensus_tag(read_dict[tag][0].qname, read_dict[ds][0].qname)  # New query name containing both barcodes
+                        dcs_query_name = dcs_consensus_tag(read_dict[tag][0].qname, read_dict[ds][0].qname, qname_delim)  # New query name containing both barcodes
 
                         dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
                                                           consensus_qual, dcs_query_name)
