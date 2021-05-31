@@ -155,7 +155,7 @@ def which_strand(read):
     return strand
 
 
-def cigar_order(read, mate):
+def cigar_order(read, mate, qname_delim):
     """(pysam.calignedsegment.AlignedSegment, pysam.calignedsegment.AlignedSegment) -> str
     Return ordered cigar string from paired reads based on strand and read number.
     * Note: order does not correspond to read and mate as cigars were extracted from read pair prior to assignment of
@@ -185,11 +185,11 @@ def cigar_order(read, mate):
     read_num = which_read(read.flag)
 
     if (ori_strand == 'pos' and read_num == 'R1') or (ori_strand == 'neg' and read_num == 'R2'):
-        cigar = '{}_{}'.format(read.cigarstring,
-                               mate.cigarstring)
+        cigar = f'{qname_delim}'.join([read.cigarstring,
+                               mate.cigarstring])
     else:
-        cigar = '{}_{}'.format(mate.cigarstring,
-                               read.cigarstring)
+        cigar = f'{qname_delim}'.join([mate.cigarstring,
+                               read.cigarstring])
 
     return cigar
 
@@ -454,7 +454,7 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                     barcode = read.qname.split(qname_delim)[0]
 
                 # Consensus_tag cigar (ordered by strand and read)
-                cigar = cigar_order(read, mate)
+                cigar = cigar_order(read, mate, qname_delim)
                 # Assign consensus tag as new query name for paired consensus reads
                 consensus_tag = sscs_qname(read, mate, barcode, qname_delim, cigar)
 
@@ -462,7 +462,6 @@ def read_bam(bamfile, pair_dict, read_dict, csn_pair_dict, tag_dict, badRead_bam
                     read_i = pair_dict[line.qname][i]
                     # Molecular identifier for grouping reads belonging to the same read of a strand of a molecule
                     tag = unique_tag(read_i, barcode, qname_delim, cigar)
-
                     ######################
                     #   Assign to Dict   #
                     ######################
@@ -653,7 +652,7 @@ def duplex_tag(tag, between_barcodes_delim, qname_delim):
     # 1) Barcode needs to be swapped
     barcode = split_tag[0]
     # Separate R1 and R2 barcodes with '.' separator
-    if re.search(between_barcodes_delim, barcode) is not None:
+    if re.search(f"\{between_barcodes_delim}", barcode) is not None:
         split_index = barcode.index(between_barcodes_delim)
         split_tag[0] = barcode[split_index+1:] + between_barcodes_delim + barcode[:split_index]
     else:
@@ -668,4 +667,4 @@ def duplex_tag(tag, between_barcodes_delim, qname_delim):
     else:
         split_tag[tag.count(qname_delim)] = 'R1'
 
-    return '_'.join(split_tag)
+    return f'{qname_delim}'.join(split_tag)

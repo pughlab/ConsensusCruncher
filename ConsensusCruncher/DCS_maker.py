@@ -211,33 +211,20 @@ def main():
             read_start = division_coor[x][0]
             read_end = division_coor[x][1]
 
-        if args.bdelim is not None:
-            chr_data = read_bam(sscs_bam,
-                                pair_dict=pair_dict,
-                                read_dict=read_dict,
-                                csn_pair_dict=csn_pair_dict,
-                                tag_dict=tag_dict,
-                                badRead_bam=None,
-                                duplex=True,
-                                read_chr=read_chr,
-                                read_start=read_start,
-                                read_end=read_end,
-                                barcode_delim=args.bdelim,
-                                between_barcodes_delim=args.bpdelim,
-                                qname_delim=args.qdelim
-                                )
-        else:
-            chr_data = read_bam(sscs_bam,
-                                pair_dict=pair_dict,
-                                read_dict=read_dict,
-                                csn_pair_dict=csn_pair_dict,
-                                tag_dict=tag_dict,
-                                badRead_bam=None,
-                                duplex=True,
-                                read_chr=read_chr,
-                                read_start=read_start,
-                                read_end=read_end
-                                )
+        chr_data = read_bam(sscs_bam,
+                            pair_dict=pair_dict,
+                            read_dict=read_dict,
+                            csn_pair_dict=csn_pair_dict,
+                            tag_dict=tag_dict,
+                            badRead_bam=None,
+                            duplex=True,
+                            read_chr=read_chr,
+                            read_start=read_start,
+                            read_end=read_end,
+                            barcode_delim=args.bdelim,
+                            between_barcodes_delim=args.bpdelim,
+                            qname_delim=args.qdelim
+                            )
 
         read_dict = chr_data[0]
         tag_dict = chr_data[1]
@@ -255,7 +242,7 @@ def main():
         for readPair in list(csn_pair_dict.keys()):
             for tag in csn_pair_dict[readPair]:
                 # Determine tag of duplex read
-                ds = duplex_tag(tag, between_barcodes_delim, qname_delim)
+                ds = duplex_tag(tag, args.bpdelim, args.qdelim)
 
                 # === Group duplex read pairs and create consensus ===
                 # Check presence of duplex pair
@@ -267,7 +254,7 @@ def main():
                         consensus_seq, consensus_qual = duplex_consensus(read_dict[tag][0], read_dict[ds][0])
 
                         # consensus duplex tag
-                        dcs_query_name = dcs_consensus_tag(read_dict[tag][0].qname, read_dict[ds][0].qname, qname_delim)  # New query name containing both barcodes
+                        dcs_query_name = dcs_consensus_tag(read_dict[tag][0].qname, read_dict[ds][0].qname, args.qdelim)  # New query name containing both barcodes
 
                         dcs_read = create_aligned_segment([read_dict[tag][0], read_dict[ds][0]], consensus_seq,
                                                           consensus_qual, dcs_query_name)
