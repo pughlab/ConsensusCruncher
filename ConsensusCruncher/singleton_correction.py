@@ -21,8 +21,8 @@
 # --bedfile BEDFILE         Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt -
 #                           See bed_separator.R for making your own bed file based on specific coordinates)
 # --bdelim Delimiter	Delimiter before barcode in read name
-# --bpdelim BarcodesDelimiter	Delimiter betwen barcode pair in read name
-# --qdelim QnameDelimiter	Delimiter in query read name created by ConsensusCruncher (NOT ':')
+# --bpdelim BarcodesDelimiter	Delimiter betwen barcode pair in read name, if --bedlim is not '|'
+# --qdelim QnameDelimiter	Delimiter in query read name created by ConsensusCruncher (NOT ':'), if --bedlim is not '|'
 #
 # Inputs:
 # 1. A position-sorted BAM file containing paired-end single reads with barcode identifiers in the header/query name
@@ -126,9 +126,9 @@ def main():
                           required=False)
     parser.add_argument("--bdelim", action="store", dest="bdelim", help="Delimiter before barcode in read name",
                         required=False, type=str)
-    parser.add_argument("--bpdelim", action="store", dest="bpdelim", help="Delimiter betwen barcode pair in read name",
+    parser.add_argument("--bpdelim", action="store", dest="bpdelim", help="Delimiter betwen barcode pair in read name, if --bedlim is not '|'",
                         required=False, type=str)
-    parser.add_argument("--qdelim", action="store", dest="qdelim", help="Delimiter in query read name created by ConsensusCruncher (NOT ':')",
+    parser.add_argument("--qdelim", action="store", dest="qdelim", help="Delimiter in query read name created by ConsensusCruncher (NOT ':'), if --bedlim is not '|'",
                         required=False, type=str)
     args = parser.parse_args()
 

@@ -378,9 +378,9 @@ if __name__ == '__main__':
     blist_help = "List of barcodes (Text file with unique barcodes on each line). [MANDATORY]"
     bdelim_help = "Delimiter before barcode in read name " \
                   "(e.g. '|' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TTTT')"
-    bpdelim_help = "Delimiter betwen barcode pair in read name " \
+    bpdelim_help = "Delimiter betwen barcode pair in read name, if --bedlim is not '|'" \
                   "(e.g. '.' in 'HWI-D00331:196:C900FANXX:7:1110:14056:43945|TT.TT')"
-    qdelim_help = "Delimiter in query read name created by ConsensusCruncher (NOT ':')" \
+    qdelim_help = "Delimiter in query read name created by ConsensusCruncher (NOT ':'), if --bedlim is not '|'" \
                   "(e.g. '_' in 'GACTTC.GCCAT_0_3_0_16474_95M_94M_neg_16378:4')"
 
     # Consensus arg help messages
