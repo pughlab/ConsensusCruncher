@@ -188,9 +188,9 @@ def main():
     parser.add_argument("--bdelim", action="store", dest="bdelim", default="|",
                         help="Delimiter to differentiate barcodes from read name, default: '|'")
     parser.add_argument("--bpdelim", action="store", dest="bpdelim", default=".",
-                        help="Delimiter between a pair of barcodes if --bedlim is not '|', default: '.'")
+                        help="Delimiter between a pair of barcodes if --bdelim is not '|', default: '.'")
     parser.add_argument("--qdelim", action="store", dest="qdelim", default="_",
-                        help="Delimiter used in read name if --bedlim is not '|', default: '_'")
+                        help="Delimiter used in read name if --bdelim is not '|', default: '_'")
     parser.add_argument("--bedfile", action="store", dest="bedfile",
                         help="Bedfile containing coordinates to subdivide the BAM file (Recommendation: cytoband.txt - \
                         See bed_separator.R for making your own bed file based on a target panel/specific coordinates)",
