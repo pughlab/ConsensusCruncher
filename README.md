@@ -1,6 +1,6 @@
 # ConsensusCruncher #
 
-ConsensusCruncher is a tool that suppresses errors in next-generation sequencing data by using unique molecular identifers (UMIs) to amalgamate reads derived from the same DNA template into a consensus sequence.
+ConsensusCruncher is a tool that suppresses errors in next-generation sequencing data by using unique molecular identifiers (UMIs) to amalgamate reads derived from the same DNA template into a consensus sequence.
 
 To learn more about ConsensusCruncher and its applications: https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz474/5498633
 
@@ -36,7 +36,7 @@ ConsensusCruncher.py processes one sample (2 paired-end FASTQ files or 1 BAM fil
                         and 'bamfiles' respectively (dir will be created if
                         they do not exist). [MANDATORY]
   -n FILENAME, --name FILENAME
-                        Output filename. If none provided, default will
+                        Output filename. If none provided, the default will
                         extract output name by taking everything left of '_R'.
   -b BWA, --bwa BWA     Path to executable bwa. [MANDATORY]
   -r REF, --ref REF     Reference (BWA index). [MANDATORY]
@@ -213,12 +213,12 @@ Please note the example below is for illustrative purposes only, as sample names
 └── time_tracker.txt                        Time log
 
 ```
-Through each stage of consensus formation, duplicate reads are collapsed together and single reads are written as separate files. This allows rentention of all unique molecules, while providing users with easy data management for cross-comparisons between error suppression strategies. 
+Through each stage of consensus formation, duplicate reads are collapsed together and single reads are written as separate files. This allows retention of all unique molecules, while providing users with easy data management for cross-comparisons between error suppression strategies. 
 
 To simplify analyses, it would be good to focus on SSCS+SC ("sscs.sc.sorted.bam") and DCS+SC ("dcs.sc.sorted.bam") as highlighted above with [*].
 
 ## How it works ##
-Unique molecular identifiers (UMIs) composed of molecular barcodes and sequence features are used aggregate reads derived from the same strand of a template molecule. Amalgamation of such reads into single strand consensus sequences (SSCS) removes discordant bases, which effectively eliminates polymerase and sequencer errors. Complementary SSCSs can be subsequently combined to form a duplex consensus sequence (DCS), which eliminates asymmetric strand artefacts such as those that develop from oxidative damage. 
+Unique molecular identifiers (UMIs) composed of molecular barcodes and sequence features are used aggregate reads derived from the same strand of a template molecule. The amalgamation of such reads into single-strand consensus sequences (SSCS) removes discordant bases, which effectively eliminates polymerase and sequencer errors. Complementary SSCSs can be subsequently combined to form a duplex consensus sequence (DCS), which eliminates asymmetric strand artifacts such as those that develop from oxidative damage. 
 
 Conventional UMI-based strategies rely on redundant sequencing from both template strands to form consensus sequences and cannot error suppress single reads (singleton). We enable singleton correction using complementary duplex reads in the absence of redundant sequencing. 
 
@@ -227,7 +227,7 @@ Conventional UMI-based strategies rely on redundant sequencing from both templat
 consensus sequence (SSCS) bamfile and an uncorrected singleton bamfile. 
 * The singletons can be corrected through singleton_correction.py, which error suppress singletons with its complementary SSCS or singleton read. 
 * SSCS reads can be directly made into duplex consensus sequences (DCS) or merged with corrected singletons to create
-an expanded pool of DCS reads (Figure illustrates singleton correction merged work flow).
+an expanded pool of DCS reads (Figure illustrates singleton correction merged workflow).
 
 ### Issues and feature requests ###
 Please use this repository templates available at [.github/ISSUE_TEMPLATE](https://github.com/pughlab/ConsensusCruncher/tree/master/.github/ISSUE_TEMPLATE)
