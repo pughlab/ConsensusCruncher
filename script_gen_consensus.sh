@@ -14,3 +14,4 @@ echo -e "#!/bin/bash\n \nmodule load python3/3.7.5\n" > $QSUBDIR/$filename.sh
     #  consensus  #
     ###############
     echo -e "python3 $CODEDIR/ConsensusCruncher.py -c $CONFIG consensus -i $INPUT/$filename -o $OUTPUT/consensus -b $CYTOBAND" >> $QSUBDIR/$filename.sh
+    done
