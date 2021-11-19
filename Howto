@@ -1,0 +1,4 @@
+This branch is to run ConsensusCruncher and the processing pipeline
+First run script_gen_fastqTobam.sh
+After the alignments are done(remove *.sort.bam and keep only *sorted.bam), get the path for bam files and run it though indelrealigner
+After indelrealinger is done use the resulting bams to run Consesus step using script_gen_consensus.sh
