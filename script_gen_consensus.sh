@@ -1,7 +1,7 @@
 INPUT=#IndelRealigned bams
 OUTPUT=# Output directory
 CODEDIR="/mnt/work1/users/pughlab/bin/ConsensusCruncher/" # ConsensusCruncher code directory
-CONFIG="/mnt/work1/users/pughlab/projects/WALDENSTORM/ConsensusCruncher/config.ini"  # Path to config file
+CONFIG==config.ini"  # Path to config file
 CYTOBAND=$CODEDIR/ConsensusCruncher/hg38_cytoBand.txt # Textfile to separate
 
 QSUBDIR=$OUTPUT/consensus/qsub
