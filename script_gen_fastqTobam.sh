@@ -3,9 +3,8 @@ OUTPUT=# output directory
 BLIST=/cluster/projects/pughlab/references/UMI_list/IDT_dual_index.txt  # Barcode pattern, e.g. NNT or NNGCT
 CODEDIR=##ConsensusCruncher Code directory
 PATTERN="NNT"
-CONFIG=
+CONFIG=config.ini
 CYTOBAND=$CODEDIR/ConsensusCruncher/hg38_cytoBand.txt  # Textfile to separate
-#sites=/cluster/projects/pughlab/references/broad_homo_sapient_known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz
 QSUBDIR=$OUTPUT/consensus/qsub
 
 mkdir $OUTPUT/consensus
@@ -25,3 +24,4 @@ for R1_file in $( ls $INPUT | grep R1); do
     #  fastq2bam  #
     ###############
     echo -e "python3 $CODEDIR/ConsensusCruncher.py  -c $CONFIG fastq2bam --fastq1 $INPUT/$R1_file --fastq2 $INPUT/$R2_file --output $OUTPUT -p $PATTERN" >> $QSUBDIR/$filename.sh
+done
