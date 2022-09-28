@@ -1,8 +1,8 @@
 INPUT=#Input directory where fastqs are sitting
 OUTPUT=# output directory
-BLIST=/cluster/projects/pughlab/references/UMI_list/IDT_dual_index.txt  # Barcode pattern, e.g. NNT or NNGCT
-CODEDIR=##ConsensusCruncher Code directory
-PATTERN="NNT"
+BLIST=/cluster/projects/pughlab/references/UMI_list/IDT_dual_index.txt  # comment out this line if you are using Bratman barcodes
+CODEDIR=##ConsensusCruncher Code directory 
+PATTERN="NNT" ## comment out this line if you are using IDT barcoces
 CONFIG=config.ini
 CYTOBAND=$CODEDIR/ConsensusCruncher/hg38_cytoBand.txt  # Textfile to separate
 QSUBDIR=$OUTPUT/consensus/qsub
