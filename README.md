@@ -13,7 +13,7 @@ This pipeline requires the following dependencies:
 | Program | Version | Purpose                                    |
 | ------- | ------- | ------------------------------------------ |
 | [picrd](https://broadinstitute.github.io/picard/)| picard/1.9.1 or higher | Adding read group @RG in the alignment files |  
-| [Python](https://www.python.org/) | 3.5.1   | Run ConsensusCruncher                |
+| [Python](https://www.python.org/) | python3/3.7.2   | Run ConsensusCruncher                |
 | [BWA](http://bio-bwa.sourceforge.net/) | 0.7.15   | Align reads                |
 | [Samtools](http://samtools.sourceforge.net/)| 1.3.1   | Sorting and indexing bamfiles              |
 
